@@ -44,6 +44,10 @@ github.com/ProtonMail/go-crypto v0.0.0-20230518184743-7afd39499903 h1:ZK3C5DtzV2
 github.com/ProtonMail/go-crypto v0.0.0-20230518184743-7afd39499903/go.mod h1:8TI4H3IbrackdNgv+92dI+rhpCaLqM0IfpgCgenFvRE=
 github.com/acomagu/bufpipe v1.0.4 h1:e3H4WUzM3npvo5uv95QuJM3cQspFNtFBzvJ2oNjKIDQ=
 github.com/acomagu/bufpipe v1.0.4/go.mod h1:mxdxdup/WdsKVreO5GpW4+M/1CE2sMG4jeGJ2sYmHc4=
+github.com/ahmetson/log-lib v0.0.0-20230814152407-68a090e4a798 h1:bjTtUJEIqC2dftPznxwbB74TXYq3E3wz3gO4yfAq39I=
+github.com/ahmetson/log-lib v0.0.0-20230814152407-68a090e4a798/go.mod h1:rbV4Rg87WbAPdLWeBQkteUBNsMAyMjWYwPfUyfYL9FQ=
+github.com/ahmetson/os-lib v0.0.0-20230814151458-0e1874b6df31 h1:kzsa4b2yh/0zDtRetg1Xtp3VMmsEoMVTgKz8ulevR94=
+github.com/ahmetson/os-lib v0.0.0-20230814151458-0e1874b6df31/go.mod h1:38VGTSYlTSXSon5+NXO/LvegTzQnkD2GRquWJPpOGGQ=
 github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be h1:9AeTilPcZAjCFIImctFaOjnTIavg87rW78vTPkQqLI8=
 github.com/armon/go-socks5 v0.0.0-20160902184237-e75332964ef5 h1:0CwZNZbxp69SHPdPJAN/hZIm0C4OItdklCFmMRWYpio=
 github.com/btcsuite/btcd/btcec/v2 v2.2.1 h1:xP60mv8fvp+0khmrN0zTdPC3cNm24rfeE6lh2R/Yv3E=

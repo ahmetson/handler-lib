@@ -2,24 +2,24 @@ package server
 
 import (
 	"fmt"
+	"github.com/ahmetson/client-lib"
+	service "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/client"
-	"github.com/ahmetson/service-lib/config/service"
+	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/log-lib"
 
-	"github.com/ahmetson/service-lib/communication/command"
-	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/log"
-
+	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/handler-lib/command"
 	zmq "github.com/pebbe/zmq4"
 )
 
-// Controller is the socket wrapper for the service.
+// The Controller is the socket wrapper for the service.
 type Controller struct {
-	config             *service.Controller
+	config             *config.Handler
 	serviceUrl         string
 	socket             *zmq.Socket
 	logger             *log.Logger
-	controllerType     service.ControllerType
+	controllerType     config.HandlerType
 	routes             *command.Routes
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
@@ -28,13 +28,13 @@ type Controller struct {
 
 // AddConfig adds the parameters of the server from the config.
 // The serviceUrl is the service to which this server belongs too.
-func (c *Controller) AddConfig(controller *service.Controller, serviceUrl string) {
+func (c *Controller) AddConfig(controller *config.Handler, serviceUrl string) {
 	c.config = controller
 	c.serviceUrl = serviceUrl
 }
 
 // AddExtensionConfig adds the config of the extension that the server depends on
-func (c *Controller) AddExtensionConfig(extension *service.Extension) {
+func (c *Controller) AddExtensionConfig(extension *service.Client) {
 	c.extensionConfigs.Set(extension.Url, extension)
 }
 
@@ -51,12 +51,12 @@ func (c *Controller) RequiredExtensions() []string {
 }
 
 func (c *Controller) isReply() bool {
-	return c.controllerType == service.SyncReplierType
+	return c.controllerType == config.SyncReplierType
 }
 
 // A reply sends to the caller the message.
 //
-// If server doesn't support replying (for example, PULL server),
+// If a server doesn't support replying (for example, PULL server),
 // then it returns success.
 func (c *Controller) reply(socket *zmq.Socket, message message.Reply) error {
 	if !c.isReply() {
@@ -103,7 +103,7 @@ func (c *Controller) extensionsAdded() error {
 	return nil
 }
 
-func (c *Controller) ControllerType() service.ControllerType {
+func (c *Controller) ControllerType() config.HandlerType {
 	return c.controllerType
 }
 
@@ -117,7 +117,7 @@ func (c *Controller) ControllerType() service.ControllerType {
 // as it's intended.
 func (c *Controller) initExtensionClients() error {
 	for _, extensionInterface := range c.extensionConfigs {
-		extensionConfig := extensionInterface.(*service.Extension)
+		extensionConfig := extensionInterface.(*service.Client)
 		extension, err := client.NewReq(extensionConfig.Url, extensionConfig.Port, c.logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a request client: %w", err)

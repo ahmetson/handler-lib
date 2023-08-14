@@ -1,8 +1,12 @@
-module github.com/ahmetson/service-lib
+module github.com/ahmetson/handler-lib
 
 go 1.19
 
 replace github.com/ahmetson/common-lib => D:/sds/common-lib
+
+replace github.com/ahmetson/log-lib => D:/sds/log-lib
+
+replace github.com/ahmetson/client-lib => D:/sds/client-lib
 
 require (
 	github.com/ahmetson/common-lib v0.0.0-20230717140750-5e95e61d69c2
@@ -23,6 +27,9 @@ require (
 	github.com/Microsoft/go-winio v0.5.2 // indirect
 	github.com/ProtonMail/go-crypto v0.0.0-20230518184743-7afd39499903 // indirect
 	github.com/acomagu/bufpipe v1.0.4 // indirect
+	github.com/ahmetson/client-lib v0.0.0-20230814161235-c87ba71fcc40 // indirect
+	github.com/ahmetson/log-lib v0.0.0-20230814152407-68a090e4a798 // indirect
+	github.com/ahmetson/os-lib v0.0.0-20230814151458-0e1874b6df31 // indirect
 	github.com/cloudflare/circl v1.3.3 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
