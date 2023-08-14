@@ -4,9 +4,9 @@ package handler
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"runtime"
 )
@@ -138,12 +138,12 @@ func (c *AsyncController) handleBackend() error {
 
 // Replier creates an asynchronous replying server.
 func Replier(parent *log.Logger) (*AsyncController, error) {
-	logger := parent.Child("async-server", "type", service.ReplierType)
+	logger := parent.Child("async-server", "type", config.ReplierType)
 
 	maxWorkers := runtime.NumCPU()
 
 	base := newController(logger)
-	base.controllerType = service.ReplierType
+	base.controllerType = config.ReplierType
 
 	instance := &AsyncController{
 		base:       base,

@@ -2,26 +2,26 @@ package handler
 
 import (
 	"fmt"
-	"github.com/ahmetson/service-lib/config/service"
+	"github.com/ahmetson/handler-lib/config"
 	zmq "github.com/pebbe/zmq4"
 )
 
 type Instance struct {
-	config service.Instance
+	config config.Instance
 	socket *zmq.Socket
 }
 
-func NewInstance(config service.Instance) *Instance {
+func NewInstance(config config.Instance) *Instance {
 	return &Instance{
 		socket: nil,
 		config: config,
 	}
 }
 
-func GetType(controllerType service.ControllerType) zmq.Type {
-	if controllerType == service.SyncReplierType {
+func GetType(controllerType config.HandlerType) zmq.Type {
+	if controllerType == config.SyncReplierType {
 		return zmq.REP
-	} else if controllerType == service.ReplierType {
+	} else if controllerType == config.ReplierType {
 		return zmq.ROUTER
 	}
 	return zmq.REP

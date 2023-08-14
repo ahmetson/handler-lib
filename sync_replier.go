@@ -3,19 +3,19 @@ package handler
 import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/service-lib/communication/command"
-	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/config/service"
-	"github.com/ahmetson/service-lib/log"
-	"github.com/ahmetson/service-lib/os/network"
-	"github.com/ahmetson/service-lib/os/process"
+	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/handler-lib/command"
+	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/log-lib"
+	"github.com/ahmetson/os-lib/net"
+	"github.com/ahmetson/os-lib/process"
 	zmq "github.com/pebbe/zmq4"
 )
 
 func newController(logger *log.Logger) *Controller {
 	return &Controller{
 		logger:             logger,
-		controllerType:     service.UnknownType,
+		controllerType:     config.UnknownType,
 		routes:             command.NewRoutes(),
 		requiredExtensions: make([]string, 0),
 		extensionConfigs:   key_value.Empty(),
@@ -25,10 +25,10 @@ func newController(logger *log.Logger) *Controller {
 
 // SyncReplier creates a new synchronous Reply server.
 func SyncReplier(parent *log.Logger) (*Controller, error) {
-	logger := parent.Child("server", "type", service.SyncReplierType)
+	logger := parent.Child("server", "type", config.SyncReplierType)
 
 	instance := newController(logger)
-	instance.controllerType = service.SyncReplierType
+	instance.controllerType = config.SyncReplierType
 
 	return instance, nil
 }
@@ -51,7 +51,7 @@ func Bind(sock *zmq.Socket, url string, port uint64) error {
 	if err := sock.Bind(url); err != nil {
 		if port > 0 {
 			// for now, the host name is hardcoded. later we need to get it from the orchestra
-			if network.IsPortUsed("localhost", port) {
+			if net.IsPortUsed("localhost", port) {
 				pid, err := process.PortToPid(port)
 				if err != nil {
 					err = fmt.Errorf("config.PortToPid(%d): %w", port, err)

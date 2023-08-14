@@ -1,11 +1,11 @@
 package handler
 
 import (
-	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/log-lib"
 
 	// todo
 	// move out security/auth dependency
-	// "github.com/ahmetson/service-lib/security/auth"
+	// "github.com/ahmetson/handler-lib/security/auth"
 
 	zmq "github.com/pebbe/zmq4"
 )
