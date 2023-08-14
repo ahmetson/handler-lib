@@ -4,10 +4,10 @@ import (
 	goLog "log"
 	"testing"
 
-	"github.com/ahmetson/service-lib/client"
-	"github.com/ahmetson/service-lib/communication/message"
-	"github.com/ahmetson/service-lib/config"
-	"github.com/ahmetson/service-lib/log"
+	"github.com/ahmetson/client-lib"
+	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/config-lib"
+	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 )
@@ -104,9 +104,9 @@ func (suite *TestCommandSuite) TestRun() {
 
 	// Test command.Push()
 	url := "inproc://test_proc"
-	client, err := zmq.NewSocket(zmq.PUSH)
+	pushClient, err := zmq.NewSocket(zmq.PUSH)
 	suite.NoError(err)
-	err = client.Connect(url)
+	err = pushClient.Connect(url)
 	suite.NoError(err)
 }
 
