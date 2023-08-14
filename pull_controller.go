@@ -9,7 +9,7 @@ The following types of controllers are supported:
   - Reply creates a replier for the service. Reply executes the messages and replies back to the caller.
   - Router creates a proxy/broker for the service. Router forwards the requests to other Router/Reply or Pull
 */
-package server
+package handler
 
 import (
 	"fmt"

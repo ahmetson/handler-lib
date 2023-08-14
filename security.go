@@ -1,4 +1,4 @@
-package server
+package handler
 
 import (
 	"github.com/ahmetson/service-lib/log"
