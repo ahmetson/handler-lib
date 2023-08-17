@@ -21,7 +21,7 @@ import (
 )
 
 // NewPull creates a pull server for the service.
-func NewPull(logger *log.Logger) (*Controller, error) {
+func NewPull(logger *log.Logger) (*Handler, error) {
 	controllerLogger := logger.Child("server", "type", config.PusherType)
 
 	// Socket to talk to clients
@@ -30,7 +30,7 @@ func NewPull(logger *log.Logger) (*Controller, error) {
 		return nil, fmt.Errorf("zmq.NewSocket: %w", err)
 	}
 
-	return &Controller{
+	return &Handler{
 		socket:         socket,
 		logger:         controllerLogger,
 		controllerType: config.PusherType,

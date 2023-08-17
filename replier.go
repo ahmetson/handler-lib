@@ -11,7 +11,7 @@ import (
 	"runtime"
 )
 
-type base = Controller
+type base = Handler
 
 // AsyncController is the socket wrapper for the service.
 type AsyncController struct {

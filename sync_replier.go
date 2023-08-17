@@ -12,8 +12,8 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-func newController(logger *log.Logger) *Controller {
-	return &Controller{
+func newController(logger *log.Logger) *Handler {
+	return &Handler{
 		logger:             logger,
 		controllerType:     config.UnknownType,
 		routes:             command.NewRoutes(),
@@ -24,7 +24,7 @@ func newController(logger *log.Logger) *Controller {
 }
 
 // SyncReplier creates a new synchronous Reply server.
-func SyncReplier(parent *log.Logger) (*Controller, error) {
+func SyncReplier(parent *log.Logger) (*Handler, error) {
 	logger := parent.Child("server", "type", config.SyncReplierType)
 
 	instance := newController(logger)
@@ -33,7 +33,7 @@ func SyncReplier(parent *log.Logger) (*Controller, error) {
 	return instance, nil
 }
 
-func (c *Controller) prepare() error {
+func (c *Handler) prepare() error {
 	if err := c.extensionsAdded(); err != nil {
 		return fmt.Errorf("extensionsAdded: %w", err)
 	}
@@ -75,7 +75,7 @@ func Bind(sock *zmq.Socket, url string, port uint64) error {
 	return nil
 }
 
-func (c *Controller) processMessage(msgRaw []string, metadata map[string]string) (message.Reply, error) {
+func (c *Handler) processMessage(msgRaw []string, metadata map[string]string) (message.Reply, error) {
 	// All request types derive from the basic request.
 	// We first attempt to parse basic request from the raw message
 	request, err := message.ParseRequest(msgRaw)
@@ -122,7 +122,7 @@ func (c *Controller) processMessage(msgRaw []string, metadata map[string]string)
 	return reply, nil
 }
 
-func (c *Controller) Run() error {
+func (c *Handler) Run() error {
 	var err error
 	if err := c.prepare(); err != nil {
 		return fmt.Errorf("server.prepare: %w", err)

@@ -18,8 +18,8 @@ import (
 // returns the current testing orchestra
 type TestReplyControllerSuite struct {
 	suite.Suite
-	tcpController    *Controller
-	inprocController *Controller
+	tcpController    *Handler
+	inprocController *Handler
 	tcpClient        *client.ClientSocket
 	inprocClient     *client.ClientSocket
 	commands         []command.Route

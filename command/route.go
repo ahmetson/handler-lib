@@ -8,19 +8,25 @@ import (
 	"github.com/ahmetson/log-lib"
 )
 
-// HandleFunc is the function type that manipulates the commands.
+type depSock = *client.ClientSocket
+
+// HandleFunc0 is the function type that manipulates the commands.
 // It accepts at least message.Request and log.Logger then returns message.Reply.
 //
 // Optionally, the server can pass the shared states in the additional parameters.
 // The most use case for optional request is to pass the link to the Database.
-type HandleFunc = func(message.Request, *log.Logger, ...*client.ClientSocket) message.Reply
+type HandleFunc0 = func(message.Request) message.Reply
+type HandleFunc1 = func(message.Request, depSock) message.Reply
+type HandleFunc2 = func(message.Request, depSock, depSock) message.Reply
+type HandleFunc3 = func(message.Request, depSock, depSock, depSock) message.Reply
+type HandleFuncN = func(message.Request, ...depSock) message.Reply
 
 // Route is the command, handler of the command
 // and the extensions that this command depends on.
 type Route struct {
 	Command    string
 	Extensions []string
-	handler    HandleFunc
+	handler    any
 }
 
 // Any command name

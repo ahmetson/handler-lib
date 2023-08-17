@@ -13,8 +13,8 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// The Controller is the socket wrapper for the service.
-type Controller struct {
+// The Handler is the socket wrapper for the service.
+type Handler struct {
 	config             *config.Handler
 	serviceUrl         string
 	socket             *zmq.Socket
@@ -28,29 +28,29 @@ type Controller struct {
 
 // AddConfig adds the parameters of the server from the config.
 // The serviceUrl is the service to which this server belongs too.
-func (c *Controller) AddConfig(controller *config.Handler, serviceUrl string) {
+func (c *Handler) AddConfig(controller *config.Handler, serviceUrl string) {
 	c.config = controller
 	c.serviceUrl = serviceUrl
 }
 
 // AddExtensionConfig adds the config of the extension that the server depends on
-func (c *Controller) AddExtensionConfig(extension *service.Client) {
+func (c *Handler) AddExtensionConfig(extension *service.Client) {
 	c.extensionConfigs.Set(extension.Url, extension)
 }
 
 // RequireExtension marks the extensions that this server depends on.
 // Before running, the required extension should be added from the config.
 // Otherwise, server won't run.
-func (c *Controller) RequireExtension(name string) {
+func (c *Handler) RequireExtension(name string) {
 	c.requiredExtensions = append(c.requiredExtensions, name)
 }
 
 // RequiredExtensions returns the list of extension names required by this server
-func (c *Controller) RequiredExtensions() []string {
+func (c *Handler) RequiredExtensions() []string {
 	return c.requiredExtensions
 }
 
-func (c *Controller) isReply() bool {
+func (c *Handler) isReply() bool {
 	return c.controllerType == config.SyncReplierType
 }
 
@@ -58,7 +58,7 @@ func (c *Controller) isReply() bool {
 //
 // If a server doesn't support replying (for example, PULL server),
 // then it returns success.
-func (c *Controller) reply(socket *zmq.Socket, message message.Reply) error {
+func (c *Handler) reply(socket *zmq.Socket, message message.Reply) error {
 	if !c.isReply() {
 		return nil
 	}
@@ -72,13 +72,13 @@ func (c *Controller) reply(socket *zmq.Socket, message message.Reply) error {
 }
 
 // Calls server.reply() with the error message.
-func (c *Controller) replyError(socket *zmq.Socket, err error) error {
+func (c *Handler) replyError(socket *zmq.Socket, err error) error {
 	request := message.Request{}
 	return c.reply(socket, request.Fail(err.Error()))
 }
 
 // AddRoute adds a command along with its handler to this server
-func (c *Controller) AddRoute(route *command.Route) error {
+func (c *Handler) AddRoute(route *command.Route) error {
 	if c.routes.Exist(route.Command) {
 		return nil
 	}
@@ -93,7 +93,7 @@ func (c *Controller) AddRoute(route *command.Route) error {
 
 // extensionsAdded checks that the required extensions are added into the server.
 // If no extensions are added by calling server.RequireExtension(), then it will return nil.
-func (c *Controller) extensionsAdded() error {
+func (c *Handler) extensionsAdded() error {
 	for _, name := range c.requiredExtensions {
 		if err := c.extensionConfigs.Exist(name); err != nil {
 			return fmt.Errorf("required '%s' extension. but it wasn't added to the server (does it exist in config.yml?)", name)
@@ -103,7 +103,7 @@ func (c *Controller) extensionsAdded() error {
 	return nil
 }
 
-func (c *Controller) ControllerType() config.HandlerType {
+func (c *Handler) ControllerType() config.HandlerType {
 	return c.controllerType
 }
 
@@ -115,7 +115,7 @@ func (c *Controller) ControllerType() config.HandlerType {
 // The server is intended to be called as the goroutine. And if the sockets
 // are not initiated within the same goroutine, then zeromq doesn't guarantee the socket work
 // as it's intended.
-func (c *Controller) initExtensionClients() error {
+func (c *Handler) initExtensionClients() error {
 	for _, extensionInterface := range c.extensionConfigs {
 		extensionConfig := extensionInterface.(*service.Client)
 		extension, err := client.NewReq(extensionConfig.Url, extensionConfig.Port, c.logger)
@@ -128,7 +128,7 @@ func (c *Controller) initExtensionClients() error {
 	return nil
 }
 
-func (c *Controller) Close() error {
+func (c *Handler) Close() error {
 	if c.socket == nil {
 		return nil
 	}
