@@ -16,7 +16,6 @@ import (
 // The Handler is the socket wrapper for the service.
 type Handler struct {
 	config             *config.Handler
-	serviceUrl         string
 	socket             *zmq.Socket
 	logger             *log.Logger
 	controllerType     config.HandlerType
@@ -27,10 +26,8 @@ type Handler struct {
 }
 
 // AddConfig adds the parameters of the server from the config.
-// The serviceUrl is the service to which this server belongs too.
-func (c *Handler) AddConfig(controller *config.Handler, serviceUrl string) {
+func (c *Handler) AddConfig(controller *config.Handler) {
 	c.config = controller
-	c.serviceUrl = serviceUrl
 }
 
 // AddExtensionConfig adds the config of the extension that the server depends on
