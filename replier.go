@@ -13,8 +13,8 @@ import (
 
 type base = Handler
 
-// AsyncController is the socket wrapper for the service.
-type AsyncController struct {
+// AsyncHandler is the socket wrapper for the service.
+type AsyncHandler struct {
 	*base
 	manager    *zmq.Socket
 	reactor    *zmq.Reactor
@@ -27,7 +27,7 @@ const (
 )
 
 // Workers are calling command handlers defined in command.HandleFunc
-func (c *AsyncController) worker() {
+func (c *AsyncHandler) worker() {
 	socket, _ := zmq.NewSocket(zmq.REQ)
 	err := socket.Connect(c.managerUrl())
 	if err != nil {
@@ -86,7 +86,7 @@ func (c *AsyncController) worker() {
 // Since backend is calling the workers which means the worker will be busy, this function removes the worker from the queue.
 // Since the queue is removed, it will remove the frontend from the reactor.
 // Frontend will still receive the messages, however they will be queued until frontend will not be added to the reactor.
-func (c *AsyncController) handleFrontend() error {
+func (c *AsyncHandler) handleFrontend() error {
 	msg, err := c.socket.RecvMessage(0)
 	if err != nil {
 		return err
@@ -114,7 +114,7 @@ func (c *AsyncController) handleFrontend() error {
 // that means the worker is free.
 // if a worker is free, then add to the zmq4.Reactor our frontend.
 // reactor will consume queued messages from the clients
-func (c *AsyncController) handleBackend() error {
+func (c *AsyncHandler) handleBackend() error {
 	msg, err := c.manager.RecvMessage(0)
 	if err != nil {
 		return nil
@@ -137,7 +137,7 @@ func (c *AsyncController) handleBackend() error {
 }
 
 // Replier creates an asynchronous replying server.
-func Replier(parent *log.Logger) (*AsyncController, error) {
+func Replier(parent *log.Logger) (*AsyncHandler, error) {
 	logger := parent.Child("async-server", "type", config.ReplierType)
 
 	maxWorkers := runtime.NumCPU()
@@ -145,7 +145,7 @@ func Replier(parent *log.Logger) (*AsyncController, error) {
 	base := newController(logger)
 	base.controllerType = config.ReplierType
 
-	instance := &AsyncController{
+	instance := &AsyncHandler{
 		base:       base,
 		manager:    nil,
 		reactor:    nil,
@@ -161,13 +161,13 @@ func Replier(parent *log.Logger) (*AsyncController, error) {
 // returns an inproc url
 //
 // the name of the server should not contain a space or special character
-func (c *AsyncController) managerUrl() string {
+func (c *AsyncHandler) managerUrl() string {
 	name := "async_manager_" + c.config.Instances[0].ControllerCategory
 
 	return Url(name, 0)
 }
 
-func (c *AsyncController) Run() error {
+func (c *AsyncHandler) Run() error {
 	if err := c.base.prepare(); err != nil {
 		return fmt.Errorf("base.prepare: %w", err)
 	}
