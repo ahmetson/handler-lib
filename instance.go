@@ -29,7 +29,7 @@ func GetType(controllerType config.HandlerType) zmq.Type {
 
 func (instance *Instance) Run(c *Handler) error {
 	// Socket to talk to clients
-	socket, err := zmq.NewSocket(GetType(c.ControllerType()))
+	socket, err := zmq.NewSocket(GetType(c.Type()))
 	if err != nil {
 		return fmt.Errorf("zmq.NewSocket: %w", err)
 	}

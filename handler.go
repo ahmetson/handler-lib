@@ -7,9 +7,9 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/log-lib"
+	"slices"
 
 	"github.com/ahmetson/common-lib/message"
-	"github.com/ahmetson/handler-lib/command"
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -19,31 +19,34 @@ type Handler struct {
 	socket             *zmq.Socket
 	logger             *log.Logger
 	controllerType     config.HandlerType
-	routes             *command.Routes
+	routes             key_value.KeyValue
+	routeDeps          key_value.KeyValue
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
 	extensions         client.Clients
 }
 
-// AddConfig adds the parameters of the server from the config.
-func (c *Handler) AddConfig(controller *config.Handler) {
+// SetConfig adds the parameters of the server from the config.
+func (c *Handler) SetConfig(controller *config.Handler) {
 	c.config = controller
 }
 
-// AddExtensionConfig adds the config of the extension that the server depends on
-func (c *Handler) AddExtensionConfig(extension *service.Client) {
+// AddDepByService adds the config of the extension that the server depends on
+func (c *Handler) AddDepByService(extension *service.Client) {
 	c.extensionConfigs.Set(extension.Url, extension)
 }
 
-// RequireExtension marks the extensions that this server depends on.
+// addDep marks the extensions that this server depends on.
 // Before running, the required extension should be added from the config.
 // Otherwise, server won't run.
-func (c *Handler) RequireExtension(name string) {
-	c.requiredExtensions = append(c.requiredExtensions, name)
+func (c *Handler) addDep(name string) {
+	if !slices.Contains(c.requiredExtensions, name) {
+		c.requiredExtensions = append(c.requiredExtensions, name)
+	}
 }
 
-// RequiredExtensions returns the list of extension names required by this server
-func (c *Handler) RequiredExtensions() []string {
+// Deps return the list of extension names required by this server
+func (c *Handler) Deps() []string {
 	return c.requiredExtensions
 }
 
@@ -74,22 +77,26 @@ func (c *Handler) replyError(socket *zmq.Socket, err error) error {
 	return c.reply(socket, request.Fail(err.Error()))
 }
 
-// AddRoute adds a command along with its handler to this server
-func (c *Handler) AddRoute(route *command.Route) error {
-	if c.routes.Exist(route.Command) {
+// Route adds a command along with its handler to this server
+func (c *Handler) Route(cmd string, handle any, deps ...string) error {
+	if err := c.routes.Exist(cmd); err == nil {
 		return nil
 	}
 
-	err := c.routes.Add(route.Command, route)
-	if err != nil {
-		return fmt.Errorf("failed to add a route: %w", err)
+	for _, dep := range deps {
+		c.addDep(dep)
+	}
+
+	c.routes.Set(cmd, handle)
+	if len(deps) > 0 {
+		c.routeDeps.Set(cmd, deps)
 	}
 
 	return nil
 }
 
 // extensionsAdded checks that the required extensions are added into the server.
-// If no extensions are added by calling server.RequireExtension(), then it will return nil.
+// If no extensions are added by calling server.addDep(), then it will return nil.
 func (c *Handler) extensionsAdded() error {
 	for _, name := range c.requiredExtensions {
 		if err := c.extensionConfigs.Exist(name); err != nil {
@@ -100,7 +107,7 @@ func (c *Handler) extensionsAdded() error {
 	return nil
 }
 
-func (c *Handler) ControllerType() config.HandlerType {
+func (c *Handler) Type() config.HandlerType {
 	return c.controllerType
 }
 

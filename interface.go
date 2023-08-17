@@ -23,10 +23,10 @@ import (
 // AddDepByService
 type Interface interface {
 	// SetConfig adds the parameters of the server from the config
-	SetConfig(controller *config.Handler)
+	SetConfig(*config.Handler)
 
 	// AddDepByService adds the config of the extension that the server depends on
-	AddDepByService(extension *clientConfig.Client)
+	AddDepByService(*clientConfig.Client)
 
 	// Deps return the list of dep ids collected from all routes.
 	Deps() []string

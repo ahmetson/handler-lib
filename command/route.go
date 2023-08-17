@@ -5,7 +5,6 @@ import (
 	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
-	"github.com/ahmetson/log-lib"
 )
 
 type depSock = *client.ClientSocket
@@ -24,9 +23,9 @@ type HandleFuncN = func(message.Request, ...depSock) message.Reply
 // Route is the command, handler of the command
 // and the extensions that this command depends on.
 type Route struct {
-	Command    string
 	Extensions []string
-	handler    any
+	handler    interface{}
+	variant    int
 }
 
 // Any command name
@@ -41,22 +40,21 @@ func NewRoutes() *Routes {
 }
 
 // NewRoute returns a new command handler. It's used by the controllers.
-func NewRoute(command string, handler HandleFunc, extensions ...string) *Route {
+func NewRoute(handler interface{}, extensions ...string) *Route {
 	return &Route{
-		Command:    command,
 		Extensions: extensions,
 		handler:    handler,
 	}
 }
 
 // AddHandler if the handler already exists, then it will throw an error
-func (route *Route) AddHandler(handler HandleFunc) error {
+func (route *Route) AddHandler(handler interface{}) error {
 	if route.handler == nil {
 		route.handler = handler
 		return nil
 	}
 
-	return fmt.Errorf("handler exists in %s route", route.Command)
+	return fmt.Errorf("handler exists in route")
 }
 
 // FilterExtensionClients returns the list of the clients specific for this command
@@ -76,10 +74,10 @@ func (route *Route) filterExtensionClients(clients client.Clients) []*client.Cli
 	return routeClients
 }
 
-func (route *Route) Handle(request message.Request, logger *log.Logger, allExtensions client.Clients) message.Reply {
-	extensions := route.filterExtensionClients(allExtensions)
-	return route.handler(request, logger, extensions...)
-}
+//func (route *Route) Handle(request message.Request, logger *log.Logger, allExtensions client.Clients) message.Reply {
+//	extensions := route.filterExtensionClients(allExtensions)
+//	return route.handler(request, logger, extensions...)
+//}
 
 // Reply creates a successful message.Reply with the given reply parameters.
 func Reply(reply interface{}) (message.Reply, error) {
