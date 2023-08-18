@@ -1,16 +1,31 @@
 package config
 
+import (
+	"fmt"
+	"github.com/ahmetson/os-lib/net"
+)
+
 type Handler struct {
-	Type      HandlerType
-	Category  string
-	Instances []Instance
+	Type           HandlerType
+	Category       string
+	InstanceAmount uint64
+	Port           uint64
+	Id             string
 }
 
-func NewController(as HandlerType, cat string) *Handler {
-	control := &Handler{
-		Type:     as,
-		Category: cat,
+func NewHandler(as HandlerType, cat string) (*Handler, error) {
+	port := net.GetFreePort()
+	if port == 0 {
+		return nil, fmt.Errorf("net.GetFreePort: no free port")
 	}
 
-	return control
+	control := &Handler{
+		Type:           as,
+		Category:       cat,
+		Id:             cat + "_1",
+		InstanceAmount: 1,
+		Port:           uint64(port),
+	}
+
+	return control, nil
 }

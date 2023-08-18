@@ -31,17 +31,13 @@ func ContextName(url string) string {
 	return "orchestra." + fileName
 }
 
-func InternalConfiguration(name string) *Handler {
-	instance := Instance{
-		Port:               0, // 0 means it's inproc
-		Id:                 name + "_instance",
-		ControllerCategory: name,
-	}
-
+func NewInternalHandler(as HandlerType, cat string) *Handler {
 	return &Handler{
-		Type:      SyncReplierType,
-		Category:  name,
-		Instances: []Instance{instance},
+		Type:           as,
+		Category:       cat,
+		Id:             cat + "_1",
+		InstanceAmount: 1,
+		Port:           0,
 	}
 }
 
