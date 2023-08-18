@@ -23,9 +23,9 @@ func WhitelistAccess(logger log.Logger, domain string, publicKeys []string) {
 // // Set the private key, so connected clients can identify this server
 // // You call it before running the server
 // func (c *ControllerCategory) SetControllerPrivateKey(service_credentials *auth.Credentials) error {
-// 	err := service_credentials.SetSocketAuthCurve(c.socket, c.service.Url)
+// 	err := service_credentials.SetSocketAuthCurve(c.socket, c.service.url)
 // 	if err == nil {
 // 		return nil
 // 	}
-// 	return fmt.Errorf("ServerAuthCurve for domain %s: %w", c.service.Url, err)
+// 	return fmt.Errorf("ServerAuthCurve for domain %s: %w", c.service.url, err)
 // }

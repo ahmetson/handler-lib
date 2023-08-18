@@ -41,10 +41,10 @@ func (instance *Instance) Run(c *Handler) error {
 	// then any pass-listing users will be sent there.
 	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
 
-	url := Url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)
+	url := url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)
 	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].ControllerCategory)
 
-	if err := Bind(instance.socket, url, c.config.Instances[0].Port); err != nil {
+	if err := bind(instance.socket, url, c.config.Instances[0].Port); err != nil {
 		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].ControllerCategory, err)
 	}
 

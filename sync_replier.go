@@ -2,36 +2,11 @@ package handler
 
 import (
 	"fmt"
-	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/message"
-	"github.com/ahmetson/handler-lib/command"
-	"github.com/ahmetson/handler-lib/config"
-	"github.com/ahmetson/log-lib"
-	"github.com/ahmetson/os-lib/net"
-	"github.com/ahmetson/os-lib/process"
+	"github.com/ahmetson/handler-lib/route"
 	zmq "github.com/pebbe/zmq4"
 )
-
-func newController(logger *log.Logger) *Handler {
-	return &Handler{
-		logger:             logger,
-		controllerType:     config.UnknownType,
-		routes:             command.NewRoutes(),
-		requiredExtensions: make([]string, 0),
-		extensionConfigs:   key_value.Empty(),
-		extensions:         key_value.Empty(),
-	}
-}
-
-// SyncReplier creates a new synchronous Reply server.
-func SyncReplier(parent *log.Logger) (*Handler, error) {
-	logger := parent.Child("server", "type", config.SyncReplierType)
-
-	instance := newController(logger)
-	instance.controllerType = config.SyncReplierType
-
-	return instance, nil
-}
 
 func (c *Handler) prepare() error {
 	if err := c.extensionsAdded(); err != nil {
@@ -42,34 +17,6 @@ func (c *Handler) prepare() error {
 	}
 	if c.config == nil || len(c.config.Instances) == 0 {
 		return fmt.Errorf("server doesn't have the config or instances are missing")
-	}
-
-	return nil
-}
-
-func Bind(sock *zmq.Socket, url string, port uint64) error {
-	if err := sock.Bind(url); err != nil {
-		if port > 0 {
-			// for now, the host name is hardcoded. later we need to get it from the orchestra
-			if net.IsPortUsed("localhost", port) {
-				pid, err := process.PortToPid(port)
-				if err != nil {
-					err = fmt.Errorf("config.PortToPid(%d): %w", port, err)
-				} else {
-					currentPid := process.CurrentPid()
-					if currentPid == pid {
-						err = fmt.Errorf("another dependency is using it within this orchestra")
-					} else {
-						err = fmt.Errorf("operating system uses it for another service. pid=%d", pid)
-					}
-				}
-			} else {
-				err = fmt.Errorf(`server.socket.Bind("tcp://*:%d)": %w`, port, err)
-			}
-			return err
-		} else {
-			return fmt.Errorf(`server.socket.bind("inproc://%s"): %w`, url, err)
-		}
 	}
 
 	return nil
@@ -93,57 +40,75 @@ func (c *Handler) processMessage(msgRaw []string, metadata map[string]string) (m
 	if request.IsFirst() {
 		request.SetUuid()
 	}
-	request.AddRequestStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id)
+	//request.AddRequestStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id)
 
 	var reply message.Reply
-	var routeInterface interface{}
+	var handleInterface interface{}
+	var handleDeps = make([]string, 0)
 
-	if c.routes.Exist(request.Command) {
-		routeInterface, err = c.routes.Get(request.Command)
-	} else if c.routes.Exist(command.Any) {
-		routeInterface, err = c.routes.Get(command.Any)
+	if err := c.routes.Exist(request.Command); err != nil {
+		handleInterface = c.routes[request.Command]
+		if err := c.routeDeps.Exist(request.Command); err != nil {
+			handleDeps, err = c.routeDeps.GetStringList(request.Command)
+		}
+	} else if err := c.routes.Exist(route.Any); err == nil {
+		handleInterface = c.routes[route.Any]
+		if err := c.routeDeps.Exist(route.Any); err != nil {
+			handleDeps, err = c.routeDeps.GetStringList(route.Any)
+		}
 	} else {
-		err = fmt.Errorf("handler not found for command: %s", request.Command)
+		err = fmt.Errorf("handler not found for route: %s", request.Command)
 	}
 
 	if err != nil {
 		reply = request.Fail("route get " + request.Command + " failed: " + err.Error())
 	} else {
-		route := routeInterface.(*command.Route)
-		// for puller's it returns an error that occurred on the blockchain.
-		reply = route.Handle(request, c.logger, c.extensions)
+		if len(handleDeps) == 0 {
+			handleFunc := handleInterface.(route.HandleFunc0)
+			reply = handleFunc(request)
+		} else if len(handleDeps) == 1 {
+			handleFunc := handleInterface.(route.HandleFunc1)
+			ext1 := c.extensions[handleDeps[0]].(*client.ClientSocket)
+			reply = handleFunc(request, ext1)
+		} else if len(handleDeps) == 2 {
+			handleFunc := handleInterface.(route.HandleFunc2)
+			ext1 := c.extensions[handleDeps[0]].(*client.ClientSocket)
+			ext2 := c.extensions[handleDeps[1]].(*client.ClientSocket)
+			reply = handleFunc(request, ext1, ext2)
+		} else if len(handleDeps) == 3 {
+			handleFunc := handleInterface.(route.HandleFunc3)
+			ext1 := c.extensions[handleDeps[0]].(*client.ClientSocket)
+			ext2 := c.extensions[handleDeps[1]].(*client.ClientSocket)
+			ext3 := c.extensions[handleDeps[3]].(*client.ClientSocket)
+			reply = handleFunc(request, ext1, ext2, ext3)
+		} else {
+			handleFunc := handleInterface.(route.HandleFuncN)
+			depClients := route.FilterExtensionClients(handleDeps, c.extensions)
+			reply = handleFunc(request, depClients...)
+		}
 	}
 
 	// update the stack
-	if err = reply.SetStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id); err != nil {
-		c.logger.Warn("failed to update the reply stack", "error", err)
-	}
+	//if err = reply.SetStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id); err != nil {
+	//	c.logger.Warn("failed to update the reply stack", "error", err)
+	//}
 
 	return reply, nil
 }
 
 func (c *Handler) Run() error {
-	var err error
-	if err := c.prepare(); err != nil {
-		return fmt.Errorf("server.prepare: %w", err)
+	if c.config == nil {
+		return fmt.Errorf("missing config")
 	}
 
-	// Socket to talk to clients
-	c.socket, err = zmq.NewSocket(zmq.REP)
+	sock, err := zmq.NewSocket(getSocket(c.controllerType))
 	if err != nil {
 		return fmt.Errorf("zmq.NewSocket: %w", err)
 	}
+	c.socket = sock
 
-	// if secure and not inproc
-	// then we add the domain name of server to the security layer,
-	//
-	// then any pass-listing users will be sent there.
-	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
-
-	url := Url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)
-	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].ControllerCategory)
-
-	if err := Bind(c.socket, url, c.config.Instances[0].Port); err != nil {
+	sockUrl := url(c.config.Instances[0].Id, c.config.Instances[0].Port)
+	if err := bind(c.socket, sockUrl, c.config.Instances[0].Port); err != nil {
 		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].ControllerCategory, err)
 	}
 
@@ -158,7 +123,7 @@ func (c *Handler) Run() error {
 		}
 
 		if len(sockets) > 0 {
-			msgRaw, metadata, err := c.socket.RecvMessageWithMetadata(0, requiredMetadata()...)
+			data, _, err := c.socket.RecvMessageWithMetadata(0, requiredMetadata()...)
 			if err != nil {
 				newErr := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
 				if err := c.replyError(c.socket, newErr); err != nil {
@@ -167,16 +132,71 @@ func (c *Handler) Run() error {
 				return newErr
 			}
 
-			reply, err := c.processMessage(msgRaw, metadata)
-			if err != nil {
-				if err := c.replyError(c.socket, err); err != nil {
-					return fmt.Errorf("replyError: %w", err)
-				}
-			} else {
-				if err := c.reply(c.socket, reply); err != nil {
-					return fmt.Errorf("reply: %w: ", err)
-				}
+			c.logger.Info("message received", "messages", data)
+
+			if err := c.reply(c.socket, message.Reply{}); err != nil {
+				c.logger.Fatal("failed")
 			}
 		}
 	}
 }
+
+//
+//func (c *Handler) Run() error {
+//	var err error
+//	if err := c.prepare(); err != nil {
+//		return fmt.Errorf("server.prepare: %w", err)
+//	}
+//
+//	// Socket to talk to clients
+//	c.socket, err = zmq.NewSocket(zmq.REP)
+//	if err != nil {
+//		return fmt.Errorf("zmq.NewSocket: %w", err)
+//	}
+//
+//	// if secure and not inproc
+//	// then we add the domain name of server to the security layer,
+//	//
+//	// then any pass-listing users will be sent there.
+//	c.logger.Warn("todo", "todo 1", "make sure that all ports are different")
+//
+//	url := url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)
+//	c.logger.Warn("config.Instances[0] is hardcoded. Create multiple instances", "url", url, "name", c.config.Instances[0].ControllerCategory)
+//
+//	if err := bind(c.socket, url, c.config.Instances[0].Port); err != nil {
+//		return fmt.Errorf(`bind("%s"): %w`, c.config.Instances[0].ControllerCategory, err)
+//	}
+//
+//	poller := zmq.NewPoller()
+//	poller.Add(c.socket, zmq.POLLIN)
+//
+//	for {
+//		sockets, err := poller.Poll(-1)
+//		if err != nil {
+//			newErr := fmt.Errorf("poller.Poll(%s): %w", c.config.Category, err)
+//			return newErr
+//		}
+//
+//		if len(sockets) > 0 {
+//			msgRaw, metadata, err := c.socket.RecvMessageWithMetadata(0, requiredMetadata()...)
+//			if err != nil {
+//				newErr := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
+//				if err := c.replyError(c.socket, newErr); err != nil {
+//					return err
+//				}
+//				return newErr
+//			}
+//
+//			reply, err := c.processMessage(msgRaw, metadata)
+//			if err != nil {
+//				if err := c.replyError(c.socket, err); err != nil {
+//					return fmt.Errorf("replyError: %w", err)
+//				}
+//			} else {
+//				if err := c.reply(c.socket, reply); err != nil {
+//					return fmt.Errorf("reply: %w: ", err)
+//				}
+//			}
+//		}
+//	}
+//}

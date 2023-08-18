@@ -1,4 +1,4 @@
-package command
+package route
 
 import (
 	goLog "log"
@@ -56,8 +56,8 @@ func (suite *TestCommandSuite) SetupTest() {
 // suite.
 func (suite *TestCommandSuite) TestRun() {
 	go func() {
-		// Test command.Request
-		// Skip command.Push
+		// Test route.Request
+		// Skip route.Push
 		receiveMessage, err := suite.controller.RecvMessage(0)
 		suite.NoError(err)
 		request, err := message.ParseRequest(receiveMessage)
@@ -67,7 +67,7 @@ func (suite *TestCommandSuite) TestRun() {
 		reply := message.Reply{
 			Status:     message.OK,
 			Message:    "",
-			Parameters: request.Parameters.Set("command", request.Command),
+			Parameters: request.Parameters.Set("route", request.Command),
 		}
 		replyString, err := reply.String()
 		suite.NoError(err)
@@ -90,7 +90,7 @@ func (suite *TestCommandSuite) TestRun() {
 			Status:  message.OK,
 			Message: "",
 			Parameters: request.Parameters.
-				Set("command", request.Command).
+				Set("route", request.Command).
 				Set("router", receiveMessage[0]),
 		}
 		replyString, err = reply.String()
@@ -102,7 +102,7 @@ func (suite *TestCommandSuite) TestRun() {
 		_ = suite.controller.Close()
 	}()
 
-	// Test command.Push()
+	// Test route.Push()
 	url := "inproc://test_proc"
 	pushClient, err := zmq.NewSocket(zmq.PUSH)
 	suite.NoError(err)

@@ -1,4 +1,4 @@
-package command
+package route
 
 import (
 	"fmt"
@@ -20,15 +20,15 @@ type HandleFunc2 = func(message.Request, depSock, depSock) message.Reply
 type HandleFunc3 = func(message.Request, depSock, depSock, depSock) message.Reply
 type HandleFuncN = func(message.Request, ...depSock) message.Reply
 
-// Route is the command, handler of the command
-// and the extensions that this command depends on.
+// Route is the route, handler of the route
+// and the extensions that this route depends on.
 type Route struct {
 	Extensions []string
 	handler    interface{}
 	variant    int
 }
 
-// Any command name
+// Any route name
 const Any string = "*"
 
 // Routes Binding of Command to the Command Handler.
@@ -39,7 +39,7 @@ func NewRoutes() *Routes {
 	return key_value.NewList()
 }
 
-// NewRoute returns a new command handler. It's used by the controllers.
+// NewRoute returns a new route handler. It's used by the controllers.
 func NewRoute(handler interface{}, extensions ...string) *Route {
 	return &Route{
 		Extensions: extensions,
@@ -57,14 +57,14 @@ func (route *Route) AddHandler(handler interface{}) error {
 	return fmt.Errorf("handler exists in route")
 }
 
-// FilterExtensionClients returns the list of the clients specific for this command
-func (route *Route) filterExtensionClients(clients client.Clients) []*client.ClientSocket {
-	routeClients := make([]*client.ClientSocket, len(route.Extensions))
+// FilterExtensionClients returns the list of the clients specific for this route
+func FilterExtensionClients(deps []string, clients client.Clients) []*client.ClientSocket {
+	routeClients := make([]*client.ClientSocket, len(deps))
 
 	added := 0
 	for extensionName := range clients {
-		for i := 0; i < len(route.Extensions); i++ {
-			if route.Extensions[i] == extensionName {
+		for i := 0; i < len(deps); i++ {
+			if deps[i] == extensionName {
 				routeClients[added] = clients[extensionName].(*client.ClientSocket)
 				added++
 			}

@@ -8,7 +8,7 @@ import (
 	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
-	"github.com/ahmetson/handler-lib/command"
+	"github.com/ahmetson/handler-lib/route"
 	"github.com/ahmetson/log-lib"
 	"github.com/stretchr/testify/suite"
 )
@@ -22,7 +22,7 @@ type TestReplyControllerSuite struct {
 	inprocController *Handler
 	tcpClient        *client.ClientSocket
 	inprocClient     *client.ClientSocket
-	commands         []command.Route
+	commands         []route.Route
 }
 
 // Todo test in-process and external types of controllers
@@ -35,19 +35,19 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 
 	// todo test the inproc broadcasting
 	// todo add the exit
-	_, err = SyncReplier(logger)
-	suite.Require().Error(err, "client limited service should be failed as the request.Url() will not return wildcard host")
-	tcpController, err := SyncReplier(logger)
+	_, err = NewSyncReplier(logger)
+	suite.Require().Error(err, "client limited service should be failed as the request.url() will not return wildcard host")
+	tcpController, err := NewSyncReplier(logger)
 	suite.NoError(err)
 	suite.tcpController = tcpController
 
-	inprocController, err := SyncReplier(logger)
+	inprocController, err := NewSyncReplier(logger)
 	suite.NoError(err)
 	suite.inprocController = inprocController
 
 	// Socket to talk to clients
 
-	command1 := command.Route{Command: "command_1"}
+	command1 := route.Route{Command: "command_1"}
 	var command1Handler = func(request message.Request, _ *log.Logger, _ ...*client.ClientSocket) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
@@ -57,7 +57,7 @@ func (suite *TestReplyControllerSuite) SetupTest() {
 	}
 	_ = command1.AddHandler(command1Handler)
 
-	command2 := command.Route{Command: "command_2"}
+	command2 := route.Route{Command: "command_2"}
 	command2Handler := func(request message.Request, _ *log.Logger, _ ...*client.ClientSocket) message.Reply {
 		return message.Reply{
 			Status:     message.OK,
@@ -91,8 +91,8 @@ func (suite *TestReplyControllerSuite) TestRun() {
 	wg.Add(1)
 	// tcp client
 	go func() {
-		// no command found
-		command3 := command.Route{Command: "command_3"}
+		// no route found
+		command3 := route.Route{Command: "command_3"}
 		request3 := message.Request{
 			Command:    command3.Command,
 			Parameters: key_value.Empty(),

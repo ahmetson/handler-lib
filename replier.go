@@ -26,7 +26,7 @@ const (
 	WorkerReady = "\001" // Signals worker is ready
 )
 
-// Workers are calling command handlers defined in command.HandleFunc
+// Workers are calling route handlers defined in route.HandleFunc
 func (c *AsyncHandler) worker() {
 	socket, _ := zmq.NewSocket(zmq.REQ)
 	err := socket.Connect(c.managerUrl())
@@ -142,7 +142,7 @@ func Replier(parent *log.Logger) (*AsyncHandler, error) {
 
 	maxWorkers := runtime.NumCPU()
 
-	base := newController(logger)
+	base := New(logger)
 	base.controllerType = config.ReplierType
 
 	instance := &AsyncHandler{
@@ -164,7 +164,7 @@ func Replier(parent *log.Logger) (*AsyncHandler, error) {
 func (c *AsyncHandler) managerUrl() string {
 	name := "async_manager_" + c.config.Instances[0].ControllerCategory
 
-	return Url(name, 0)
+	return url(name, 0)
 }
 
 func (c *AsyncHandler) Run() error {
@@ -175,13 +175,13 @@ func (c *AsyncHandler) Run() error {
 	c.socket, _ = zmq.NewSocket(zmq.ROUTER)
 	c.manager, _ = zmq.NewSocket(zmq.ROUTER)
 
-	url := Url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)
-	if err := Bind(c.socket, url, c.config.Instances[0].Port); err != nil {
+	url := url(c.config.Instances[0].ControllerCategory, c.config.Instances[0].Port)
+	if err := bind(c.socket, url, c.config.Instances[0].Port); err != nil {
 		return fmt.Errorf("bind('%s'): %w", c.config.Instances[0].ControllerCategory, err)
 	}
 
 	url = c.managerUrl()
-	if err := Bind(c.manager, url, 0); err != nil {
+	if err := bind(c.manager, url, 0); err != nil {
 		return fmt.Errorf("bind('%s'): %w", c.config.Instances[0].ControllerCategory, err)
 	}
 

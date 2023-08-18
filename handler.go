@@ -7,6 +7,8 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/log-lib"
+	"github.com/ahmetson/os-lib/net"
+	"github.com/ahmetson/os-lib/process"
 	"slices"
 
 	"github.com/ahmetson/common-lib/message"
@@ -24,6 +26,21 @@ type Handler struct {
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
 	extensions         client.Clients
+}
+
+// New handler of the handlerType
+func New(handlerType config.HandlerType, parent *log.Logger) *Handler {
+	logger := parent.Child("server", "type", handlerType)
+
+	return &Handler{
+		logger:             logger,
+		controllerType:     handlerType,
+		routes:             key_value.Empty(),
+		routeDeps:          key_value.Empty(),
+		requiredExtensions: make([]string, 0),
+		extensionConfigs:   key_value.Empty(),
+		extensions:         key_value.Empty(),
+	}
 }
 
 // SetConfig adds the parameters of the server from the config.
@@ -77,7 +94,7 @@ func (c *Handler) replyError(socket *zmq.Socket, err error) error {
 	return c.reply(socket, request.Fail(err.Error()))
 }
 
-// Route adds a command along with its handler to this server
+// Route adds a route along with its handler to this server
 func (c *Handler) Route(cmd string, handle any, deps ...string) error {
 	if err := c.routes.Exist(cmd); err == nil {
 		return nil
@@ -147,10 +164,52 @@ func (c *Handler) Close() error {
 
 // Url creates url of the server url for binding.
 // For clients to connect to this url, call client.ClientUrl()
-func Url(name string, port uint64) string {
+func url(name string, port uint64) string {
 	if port == 0 {
 		return fmt.Sprintf("inproc://%s", name)
 	}
 	url := fmt.Sprintf("tcp://*:%d", port)
 	return url
+}
+
+func getSocket(handlerType config.HandlerType) *zmq.Socket {
+	if handlerType == config.SyncReplierType {
+		return zmq.REP
+	} else if handlerType == config.ReplierType {
+		return zmq.ROUTER
+	} else if handlerType == config.PusherType {
+		return zmq.PUSH
+	} else if handlerType == config.PublisherType {
+		return zmq.PUB
+	}
+
+	return nil
+}
+
+func bind(sock *zmq.Socket, url string, port uint64) error {
+	if err := sock.Bind(url); err != nil {
+		if port > 0 {
+			// for now, the host name is hardcoded. later we need to get it from the orchestra
+			if net.IsPortUsed("localhost", port) {
+				pid, err := process.PortToPid(port)
+				if err != nil {
+					err = fmt.Errorf("config.PortToPid(%d): %w", port, err)
+				} else {
+					currentPid := process.CurrentPid()
+					if currentPid == pid {
+						err = fmt.Errorf("another dependency is using it within this orchestra")
+					} else {
+						err = fmt.Errorf("operating system uses it for another service. pid=%d", pid)
+					}
+				}
+			} else {
+				err = fmt.Errorf(`server.socket.bind("tcp://*:%d)": %w`, port, err)
+			}
+			return err
+		} else {
+			return fmt.Errorf(`server.socket.bind("inproc://%s"): %w`, url, err)
+		}
+	}
+
+	return nil
 }
