@@ -61,10 +61,10 @@ func (test *TestRouteSuite) Test_1_Route() {
 	s := &test.Suite
 	handlers := key_value.Empty()
 	deps := key_value.Empty()
-	var anyHandle HandleFunc1 = func(request message.Request, _ *client.ClientSocket) message.Reply {
+	var anyHandle = func(request message.Request, _ *client.ClientSocket) message.Reply {
 		return request.Ok(key_value.Empty())
 	}
-	var emptyHandle HandleFunc0 = func(request message.Request) message.Reply {
+	var emptyHandle = func(request message.Request) message.Reply {
 		return request.Ok(key_value.Empty())
 	}
 	anyDeps := []string{"dep_1"}
