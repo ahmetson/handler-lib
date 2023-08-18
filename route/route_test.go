@@ -60,7 +60,7 @@ func (suite *TestCommandSuite) TestRun() {
 		// Skip route.Push
 		receiveMessage, err := suite.controller.RecvMessage(0)
 		suite.NoError(err)
-		request, err := message.ParseRequest(receiveMessage)
+		request, err := message.NewReq(receiveMessage)
 		suite.NoError(err)
 		goLog.Println("received by server", request, receiveMessage)
 
@@ -83,7 +83,7 @@ func (suite *TestCommandSuite) TestRun() {
 		}
 
 		suite.NoError(err)
-		request, err = message.ParseRequest(msgParts)
+		request, err = message.NewReq(msgParts)
 		suite.NoError(err)
 
 		reply = message.Reply{
