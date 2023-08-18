@@ -25,7 +25,7 @@ type Handler struct {
 	routeDeps          key_value.KeyValue
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
-	extensions         client.Clients
+	depClients         client.Clients
 }
 
 // New handler of the handlerType
@@ -39,7 +39,7 @@ func New(handlerType config.HandlerType, parent *log.Logger) *Handler {
 		routeDeps:          key_value.Empty(),
 		requiredExtensions: make([]string, 0),
 		extensionConfigs:   key_value.Empty(),
-		extensions:         key_value.Empty(),
+		depClients:         key_value.Empty(),
 	}
 }
 
@@ -53,7 +53,7 @@ func (c *Handler) AddDepByService(extension *service.Client) {
 	c.extensionConfigs.Set(extension.Url, extension)
 }
 
-// addDep marks the extensions that this server depends on.
+// addDep marks the depClients that this server depends on.
 // Before running, the required extension should be added from the config.
 // Otherwise, server won't run.
 func (c *Handler) addDep(name string) {
@@ -112,8 +112,8 @@ func (c *Handler) Route(cmd string, handle any, deps ...string) error {
 	return nil
 }
 
-// extensionsAdded checks that the required extensions are added into the server.
-// If no extensions are added by calling server.addDep(), then it will return nil.
+// extensionsAdded checks that the required depClients are added into the server.
+// If no depClients are added by calling server.addDep(), then it will return nil.
 func (c *Handler) extensionsAdded() error {
 	for _, name := range c.requiredExtensions {
 		if err := c.extensionConfigs.Exist(name); err != nil {
@@ -143,7 +143,7 @@ func (c *Handler) initExtensionClients() error {
 		if err != nil {
 			return fmt.Errorf("failed to create a request client: %w", err)
 		}
-		c.extensions.Set(extensionConfig.Url, extension)
+		c.depClients.Set(extensionConfig.Url, extension)
 	}
 
 	return nil

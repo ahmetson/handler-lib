@@ -37,12 +37,12 @@ func (c *Handler) processMessage(msgRaw []string, metadata map[string]string) (m
 	}
 	//request.AddRequestStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id)
 
-	handleInterface, handleDeps, err := route.Route(request.Command, c.routes, c.routeDeps)
+	handleInterface, depNames, err := route.Route(request.Command, c.routes, c.routeDeps)
 	if err != nil {
 		return request.Fail(fmt.Sprintf("route.Route(%s)", request.Command)), nil
 	}
 
-	depClients := route.FilterExtensionClients(handleDeps, c.extensions)
+	depClients := route.FilterExtensionClients(depNames, c.depClients)
 
 	reply := route.Handle(request, handleInterface, depClients)
 
