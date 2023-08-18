@@ -36,23 +36,34 @@ func FilterExtensionClients(deps []string, clients client.Clients) []*client.Cli
 //
 // Note that in golang, returning interfaces are considered a bad practice.
 // However, we do still return an interface{} as this interface will be a different type of Route.
+//
+// Returns handle func from the func list, returns dependencies list and error
 func Route(cmd string, routeFuncs key_value.KeyValue, routeDeps key_value.KeyValue) (interface{}, []string, error) {
 	var handleInterface interface{}
-	var err error
 	var handleDeps []string
+	var err error
 
-	if err := routeFuncs.Exist(cmd); err == nil {
+	err = routeFuncs.Exist(cmd)
+	if err == nil {
 		handleInterface = routeFuncs[cmd]
-		if err := routeDeps.Exist(cmd); err == nil {
+		err = routeDeps.Exist(cmd)
+		fmt.Printf("checkins is %s has deps: %v\n", cmd, err)
+		if err == nil {
 			handleDeps, err = routeDeps.GetStringList(cmd)
-		}
-	} else if err := routeFuncs.Exist(Any); err == nil {
-		handleInterface = routeFuncs[Any]
-		if err := routeDeps.Exist(Any); err == nil {
-			handleDeps, err = routeDeps.GetStringList(Any)
+		} else {
+			err = nil
 		}
 	} else {
-		err = fmt.Errorf("handler not found for route: %s", cmd)
+		err = routeFuncs.Exist(Any)
+		if err == nil {
+			handleInterface = routeFuncs[Any]
+			err = routeDeps.Exist(Any)
+			if err == nil {
+				handleDeps, err = routeDeps.GetStringList(Any)
+			} else {
+				err = nil
+			}
+		}
 	}
 
 	return handleInterface, handleDeps, err

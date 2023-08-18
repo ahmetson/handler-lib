@@ -1,13 +1,11 @@
 package route
 
 import (
-	goLog "log"
+	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/message"
 	"testing"
 
 	"github.com/ahmetson/client-lib"
-	"github.com/ahmetson/common-lib/message"
-	"github.com/ahmetson/config-lib"
-	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 )
@@ -15,7 +13,7 @@ import (
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
 // returns the current testing orchestra
-type TestCommandSuite struct {
+type TestRouteSuite struct {
 	suite.Suite
 	controller *zmq.Socket
 	client     *client.ClientSocket
@@ -23,95 +21,81 @@ type TestCommandSuite struct {
 
 // Make sure that Account is set to five
 // before each test
-func (suite *TestCommandSuite) SetupTest() {
+func (test *TestRouteSuite) SetupTest() {}
 
-	logger, err := log.New("command_test", true)
-	suite.NoError(err, "failed to create logger")
+func (test *TestRouteSuite) Test_0_FilterClients() {
+	s := &test.Suite
+	deps := []string{"dep_1", "dep_2", "dep_3"}
 
-	appConfig, err := config.NewDev()
-	suite.NoError(err, "failed to create app config")
+	// Always returns the same length as dep amount
+	filtered := FilterExtensionClients(deps, nil)
+	s.Require().Len(filtered, 3)
+	// However, they will be nils
+	s.Require().Nil(filtered[0])
+	s.Require().Nil(filtered[1])
+	s.Require().Nil(filtered[2])
 
-	shortUrl := "short"
-	// at least len(protocol prefix) + 1 = 9 + 1
-	_, err = client.InprocRequestSocket(shortUrl, logger, appConfig)
-	suite.Error(err)
-	noProtocolUrl := "indexer"
-	_, err = client.InprocRequestSocket(noProtocolUrl, logger, appConfig)
-	suite.Error(err)
+	// Returning the clients, the missing clients should be marked as nil
+	dep1 := &client.ClientSocket{}
+	dep2 := &client.ClientSocket{}
+	dep3 := &client.ClientSocket{}
+	dep4 := &client.ClientSocket{}
+	clients := key_value.Empty().Set("dep_1", dep1).Set("dep_3", dep3)
 
-	url := "inproc://test_proc"
-	socket, err := client.InprocRequestSocket(url, logger, appConfig)
-	suite.NoError(err)
+	filtered = FilterExtensionClients(deps, clients)
+	s.Require().Len(filtered, 3)
+	s.Require().NotNil(filtered[0])
+	s.Require().Nil(filtered[1])
+	s.Require().NotNil(filtered[2])
 
-	controller, err := zmq.NewSocket(zmq.REP)
-	suite.NoError(err)
-	err = controller.Bind(url)
-	suite.NoError(err)
-
-	suite.controller = controller
-	suite.client = socket
+	// There should not be any nils if the clients exist in the client list
+	clients.Set("dep_2", dep2).Set("dep_4", dep4)
+	filtered = FilterExtensionClients(deps, clients)
+	s.Require().Len(filtered, 3)
+	s.Require().NotNil(filtered[0])
+	s.Require().NotNil(filtered[1])
+	s.Require().NotNil(filtered[2])
 }
 
-// All methods that begin with "Test" are run as tests within a
-// suite.
-func (suite *TestCommandSuite) TestRun() {
-	go func() {
-		// Test route.Request
-		// Skip route.Push
-		receiveMessage, err := suite.controller.RecvMessage(0)
-		suite.NoError(err)
-		request, err := message.NewReq(receiveMessage)
-		suite.NoError(err)
-		goLog.Println("received by server", request, receiveMessage)
+func (test *TestRouteSuite) Test_1_Route() {
+	s := &test.Suite
+	handlers := key_value.Empty()
+	deps := key_value.Empty()
+	var anyHandle HandleFunc1 = func(request message.Request, _ *client.ClientSocket) message.Reply {
+		return request.Ok(key_value.Empty())
+	}
+	var emptyHandle HandleFunc0 = func(request message.Request) message.Reply {
+		return request.Ok(key_value.Empty())
+	}
+	anyDeps := []string{"dep_1"}
+	cmd := "cmd"
 
-		reply := message.Reply{
-			Status:     message.OK,
-			Message:    "",
-			Parameters: request.Parameters.Set("route", request.Command),
-		}
-		replyString, err := reply.String()
-		suite.NoError(err)
+	// Trying to route unregistered command should fail
+	_, _, err := Route(cmd, handlers, deps)
+	s.Require().Error(err)
 
-		_, err = suite.controller.SendMessage(replyString)
-		suite.NoError(err)
+	// Trying to route unregistered command, when any command is supported should return any
+	handlers.Set(Any, anyHandle)
+	deps.Set(Any, anyDeps)
 
-		// Test the router
-		receiveMessage, err = suite.controller.RecvMessage(0)
-		msgParts := make([]string, len(receiveMessage)-1)
-		for i := 1; i < len(receiveMessage); i++ {
-			msgParts[i-1] = receiveMessage[i]
-		}
+	handleInterface, handleDeps, err := Route(cmd, handlers, deps)
+	s.Require().NoError(err)
+	_, ok := handleInterface.(HandleFunc1)
+	s.Require().True(ok)
+	s.Require().Len(handleDeps, len(anyDeps))
+	s.Require().EqualValues(handleDeps, anyDeps)
 
-		suite.NoError(err)
-		request, err = message.NewReq(msgParts)
-		suite.NoError(err)
-
-		reply = message.Reply{
-			Status:  message.OK,
-			Message: "",
-			Parameters: request.Parameters.
-				Set("route", request.Command).
-				Set("router", receiveMessage[0]),
-		}
-		replyString, err = reply.String()
-		suite.NoError(err)
-
-		_, err = suite.controller.SendMessage(replyString)
-		suite.NoError(err)
-
-		_ = suite.controller.Close()
-	}()
-
-	// Test route.Push()
-	url := "inproc://test_proc"
-	pushClient, err := zmq.NewSocket(zmq.PUSH)
-	suite.NoError(err)
-	err = pushClient.Connect(url)
-	suite.NoError(err)
+	// Routing to the existing function should be successful
+	handlers.Set(cmd, emptyHandle)
+	handleInterface, handleDeps, err = Route(cmd, handlers, deps)
+	s.Require().NoError(err)
+	_, ok = handleInterface.(HandleFunc0)
+	s.Require().True(ok)
+	s.Require().Empty(handleDeps)
 }
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestCommand(t *testing.T) {
-	suite.Run(t, new(TestCommandSuite))
+func TestRoute(t *testing.T) {
+	suite.Run(t, new(TestRouteSuite))
 }
