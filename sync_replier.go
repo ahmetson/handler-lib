@@ -2,7 +2,6 @@ package handler
 
 import (
 	"fmt"
-	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/route"
 	zmq "github.com/pebbe/zmq4"
@@ -38,58 +37,19 @@ func (c *Handler) processMessage(msgRaw []string, metadata map[string]string) (m
 	}
 	//request.AddRequestStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id)
 
-	var reply message.Reply
-	var handleInterface interface{}
-	var handleDeps = make([]string, 0)
-
-	if err := c.routes.Exist(request.Command); err != nil {
-		handleInterface = c.routes[request.Command]
-		if err := c.routeDeps.Exist(request.Command); err != nil {
-			handleDeps, err = c.routeDeps.GetStringList(request.Command)
-		}
-	} else if err := c.routes.Exist(route.Any); err == nil {
-		handleInterface = c.routes[route.Any]
-		if err := c.routeDeps.Exist(route.Any); err != nil {
-			handleDeps, err = c.routeDeps.GetStringList(route.Any)
-		}
-	} else {
-		err = fmt.Errorf("handler not found for route: %s", request.Command)
-	}
-
+	handleInterface, handleDeps, err := route.HandleFunc(request.Command, c.routes, c.routeDeps)
 	if err != nil {
-		reply = request.Fail("route get " + request.Command + " failed: " + err.Error())
-	} else {
-		if len(handleDeps) == 0 {
-			handleFunc := handleInterface.(route.HandleFunc0)
-			reply = handleFunc(*request)
-		} else if len(handleDeps) == 1 {
-			handleFunc := handleInterface.(route.HandleFunc1)
-			ext1 := c.extensions[handleDeps[0]].(*client.ClientSocket)
-			reply = handleFunc(*request, ext1)
-		} else if len(handleDeps) == 2 {
-			handleFunc := handleInterface.(route.HandleFunc2)
-			ext1 := c.extensions[handleDeps[0]].(*client.ClientSocket)
-			ext2 := c.extensions[handleDeps[1]].(*client.ClientSocket)
-			reply = handleFunc(*request, ext1, ext2)
-		} else if len(handleDeps) == 3 {
-			handleFunc := handleInterface.(route.HandleFunc3)
-			ext1 := c.extensions[handleDeps[0]].(*client.ClientSocket)
-			ext2 := c.extensions[handleDeps[1]].(*client.ClientSocket)
-			ext3 := c.extensions[handleDeps[3]].(*client.ClientSocket)
-			reply = handleFunc(*request, ext1, ext2, ext3)
-		} else {
-			handleFunc := handleInterface.(route.HandleFuncN)
-			depClients := route.FilterExtensionClients(handleDeps, c.extensions)
-			reply = handleFunc(*request, depClients...)
-		}
+		return request.Fail(fmt.Sprintf("route.HandleFunc(%s)", request.Command)), nil
 	}
+
+	reply := route.HandleReq(request, handleInterface, handleDeps, c.extensions)
 
 	// update the stack
 	//if err = reply.SetStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id); err != nil {
 	//	c.logger.Warn("failed to update the reply stack", "error", err)
 	//}
 
-	return reply, nil
+	return *reply, nil
 }
 
 func (c *Handler) Run() error {
