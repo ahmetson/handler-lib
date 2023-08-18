@@ -25,15 +25,11 @@ func (c *Handler) prepare() error {
 func (c *Handler) processMessage(msgRaw []string, metadata map[string]string) (message.Reply, error) {
 	// All request types derive from the basic request.
 	// We first attempt to parse basic request from the raw message
-	request, err := message.ParseRequest(msgRaw)
+	request, err := message.NewReqWithMeta(msgRaw, metadata)
 	if err != nil {
 		newErr := fmt.Errorf("message.ParseRequest: %w", err)
 
 		return message.Reply{}, newErr
-	}
-	pubKey, ok := metadata["pub_key"]
-	if ok {
-		request.SetPublicKey(pubKey)
 	}
 
 	// Add the trace
@@ -65,26 +61,26 @@ func (c *Handler) processMessage(msgRaw []string, metadata map[string]string) (m
 	} else {
 		if len(handleDeps) == 0 {
 			handleFunc := handleInterface.(route.HandleFunc0)
-			reply = handleFunc(request)
+			reply = handleFunc(*request)
 		} else if len(handleDeps) == 1 {
 			handleFunc := handleInterface.(route.HandleFunc1)
 			ext1 := c.extensions[handleDeps[0]].(*client.ClientSocket)
-			reply = handleFunc(request, ext1)
+			reply = handleFunc(*request, ext1)
 		} else if len(handleDeps) == 2 {
 			handleFunc := handleInterface.(route.HandleFunc2)
 			ext1 := c.extensions[handleDeps[0]].(*client.ClientSocket)
 			ext2 := c.extensions[handleDeps[1]].(*client.ClientSocket)
-			reply = handleFunc(request, ext1, ext2)
+			reply = handleFunc(*request, ext1, ext2)
 		} else if len(handleDeps) == 3 {
 			handleFunc := handleInterface.(route.HandleFunc3)
 			ext1 := c.extensions[handleDeps[0]].(*client.ClientSocket)
 			ext2 := c.extensions[handleDeps[1]].(*client.ClientSocket)
 			ext3 := c.extensions[handleDeps[3]].(*client.ClientSocket)
-			reply = handleFunc(request, ext1, ext2, ext3)
+			reply = handleFunc(*request, ext1, ext2, ext3)
 		} else {
 			handleFunc := handleInterface.(route.HandleFuncN)
 			depClients := route.FilterExtensionClients(handleDeps, c.extensions)
-			reply = handleFunc(request, depClients...)
+			reply = handleFunc(*request, depClients...)
 		}
 	}
 
