@@ -37,12 +37,14 @@ func (c *Handler) processMessage(msgRaw []string, metadata map[string]string) (m
 	}
 	//request.AddRequestStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id)
 
-	handleInterface, handleDeps, err := route.HandleFunc(request.Command, c.routes, c.routeDeps)
+	handleInterface, handleDeps, err := route.Route(request.Command, c.routes, c.routeDeps)
 	if err != nil {
-		return request.Fail(fmt.Sprintf("route.HandleFunc(%s)", request.Command)), nil
+		return request.Fail(fmt.Sprintf("route.Route(%s)", request.Command)), nil
 	}
 
-	reply := route.HandleReq(request, handleInterface, handleDeps, c.extensions)
+	depClients := route.FilterExtensionClients(handleDeps, c.extensions)
+
+	reply := route.Handle(request, handleInterface, depClients)
 
 	// update the stack
 	//if err = reply.SetStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id); err != nil {
