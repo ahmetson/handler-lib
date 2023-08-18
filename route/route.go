@@ -18,14 +18,6 @@ type Route struct {
 // Any route name
 const Any string = "*"
 
-// Routes Binding of Command to the Command Handler.
-type Routes = key_value.List
-
-// NewRoutes returns an empty routes
-func NewRoutes() *Routes {
-	return key_value.NewList()
-}
-
 // NewRoute returns a new route handler. It's used by the controllers.
 func NewRoute(handler interface{}, extensions ...string) *Route {
 	return &Route{
@@ -61,11 +53,6 @@ func FilterExtensionClients(deps []string, clients client.Clients) []*client.Cli
 	return routeClients
 }
 
-//func (route *Route) Handle(request message.Request, logger *log.Logger, allExtensions client.Clients) message.Reply {
-//	extensions := route.filterExtensionClients(allExtensions)
-//	return route.handler(request, logger, extensions...)
-//}
-
 // Reply creates a successful message.Reply with the given reply parameters.
 func Reply(reply interface{}) (message.Reply, error) {
 	replyParameters, err := key_value.NewFromInterface(reply)
@@ -78,19 +65,4 @@ func Reply(reply interface{}) (message.Reply, error) {
 		Message:    "",
 		Parameters: replyParameters,
 	}, nil
-}
-
-// Commands returns the commands from the routes
-func Commands(routes *Routes) []string {
-	commands := make([]string, routes.Len())
-
-	list := routes.List()
-
-	i := 0
-	for name := range list {
-		commands[i] = name.(string)
-		i++
-	}
-
-	return commands
 }
