@@ -1,6 +1,7 @@
 package route
 
 import (
+	"fmt"
 	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/message"
 )
@@ -18,10 +19,52 @@ type HandleFunc2 = func(message.Request, depSock, depSock) message.Reply
 type HandleFunc3 = func(message.Request, depSock, depSock, depSock) message.Reply
 type HandleFuncN = func(message.Request, ...depSock) message.Reply
 
+// DepAmount returns -1 if the interface is not a valid HandleFunc.
+// If the interface has more than 3 arguments, it returns 4.
+// Otherwise, it returns 0..3
+func DepAmount(handleInterface interface{}) int {
+	_, ok := handleInterface.(HandleFunc0)
+	if ok {
+		return 0
+	}
+	_, ok = handleInterface.(HandleFunc1)
+	if ok {
+		return 1
+	}
+	_, ok = handleInterface.(HandleFunc2)
+	if ok {
+		return 2
+	}
+	_, ok = handleInterface.(HandleFunc3)
+	if ok {
+		return 3
+	}
+	_, ok = handleInterface.(HandleFuncN)
+	if ok {
+		return 4
+	}
+
+	return -1
+}
+
 // Handle calls the handle func for the req.
 // Optionally, if the handler requires the extensions, it will pass the socket clients to the handle func.
 func Handle(req *message.Request, handleInterface interface{}, depClients []*client.ClientSocket) *message.Reply {
 	var reply message.Reply
+
+	depAmount := DepAmount(handleInterface)
+	if depAmount == -1 {
+		reply = req.Fail("handleInterface is not a HandleFunc")
+		return &reply
+	}
+	if depAmount > 3 && len(depClients) < 4 {
+		reply = req.Fail("handle func requires N deps, but Handle func received less dep clients")
+		return &reply
+	}
+	if depAmount != len(depClients) {
+		reply = req.Fail(fmt.Sprintf("handle func requires %d deps, but Handle received %d dep clients", depAmount, len(depClients)))
+		return &reply
+	}
 
 	if len(depClients) == 0 {
 		handleFunc := handleInterface.(HandleFunc0)
