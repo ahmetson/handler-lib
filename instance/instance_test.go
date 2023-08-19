@@ -23,6 +23,7 @@ type TestInstanceSuite struct {
 	instance0 *Instance
 	handle0   interface{}
 	handle1   interface{}
+	parentId  string
 
 	clients   key_value.KeyValue
 	routes    key_value.KeyValue
@@ -42,6 +43,7 @@ func (test *TestInstanceSuite) SetupTest() {
 
 	test.handle0 = handle0
 	test.handle1 = handle1
+	test.parentId = "parent_0"
 }
 
 func (test *TestInstanceSuite) Test_0_New() {
@@ -49,11 +51,10 @@ func (test *TestInstanceSuite) Test_0_New() {
 
 	handlerType := config.SyncReplierType
 	id := "instance_0"
-	parentId := "parent_0"
 
 	logger, _ := log.New("instance_test", true)
 
-	test.instance0 = New(handlerType, id, parentId, logger)
+	test.instance0 = New(handlerType, id, test.parentId, logger)
 
 	s.Require().Equal(test.instance0.Status(), PREPARE)
 }
