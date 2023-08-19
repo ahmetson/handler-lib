@@ -177,15 +177,15 @@ func (test *TestInstanceSuite) Test_12_Close() {
 	s.Require().Equal(test.instance0.Status(), READY)
 
 	// Sending a close message
-	client, err := zmq.NewSocket(zmq.REQ)
+	instanceManager, err := zmq.NewSocket(zmq.REQ)
 	s.Require().NoError(err)
-	err = client.Connect(config.InstanceUrl(test.instance0.parentId, test.instance0.Id))
+	err = instanceManager.Connect(config.InstanceUrl(test.instance0.parentId, test.instance0.Id))
 	s.Require().NoError(err)
 	req := message.Request{Command: "close", Parameters: key_value.Empty()}
 	reqStr, err := req.String()
 	s.Require().NoError(err)
 
-	_, err = client.SendMessage(reqStr)
+	_, err = instanceManager.SendMessage(reqStr)
 	s.Require().NoError(err)
 
 	// Waiting
@@ -193,7 +193,7 @@ func (test *TestInstanceSuite) Test_12_Close() {
 	s.Require().Equal(test.instance0.Status(), CLOSED)
 
 	// Clean out the things
-	err = client.Close()
+	err = instanceManager.Close()
 	s.Require().NoError(err)
 }
 
