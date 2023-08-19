@@ -45,3 +45,18 @@ func SocketType(handlerType HandlerType) zmq.Type {
 
 	return zmq.Type(-1)
 }
+
+// ClientSocketType gets the ZMQ analog of the handler type for the clients
+func ClientSocketType(handlerType HandlerType) zmq.Type {
+	if handlerType == SyncReplierType {
+		return zmq.REQ
+	} else if handlerType == ReplierType {
+		return zmq.DEALER
+	} else if handlerType == PusherType {
+		return zmq.PULL
+	} else if handlerType == PublisherType {
+		return zmq.SUB
+	}
+
+	return zmq.Type(-1)
+}
