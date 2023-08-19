@@ -6,6 +6,7 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/route"
 	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 )
@@ -186,7 +187,7 @@ func (c *Instance) Run() {
 
 		for _, polled := range sockets {
 			if polled.Socket == handler {
-				data, _, err := handler.RecvMessageWithMetadata(0)
+				data, meta, err := handler.RecvMessageWithMetadata(0)
 				if err != nil {
 					newErr := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
 					if err := c.replyError(handler, newErr); err != nil {
@@ -197,7 +198,12 @@ func (c *Instance) Run() {
 
 				c.logger.Info("message received", "messages", data)
 
-				if err := c.reply(handler, message.Reply{}); err != nil {
+				reply, err := c.processMessage(data, meta)
+				if err != nil {
+					c.logger.Fatal("processMessage", "message", data, "meta", meta, "error", err)
+				}
+
+				if err := c.reply(handler, reply); err != nil {
 					c.logger.Fatal("failed")
 				}
 			} else if polled.Socket == manage {
@@ -224,4 +230,37 @@ func (c *Instance) Run() {
 	}
 
 	c.logger.Warn("end of the instance.Run no more things to do.")
+}
+
+func (c *Instance) processMessage(msgRaw []string, metadata map[string]string) (message.Reply, error) {
+	// All request types derive from the basic request.
+	// We first attempt to parse basic request from the raw message
+	request, err := message.NewReqWithMeta(msgRaw, metadata)
+	if err != nil {
+		newErr := fmt.Errorf("message.ParseRequest: %w", err)
+
+		return message.Reply{}, newErr
+	}
+
+	// Add the trace
+	//if request.IsFirst() {
+	//	request.SetUuid()
+	//}
+	//request.AddRequestStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id)
+
+	handleInterface, depNames, err := route.Route(request.Command, *c.routes, *c.routeDeps)
+	if err != nil {
+		return request.Fail(fmt.Sprintf("route.Route(%s)", request.Command)), nil
+	}
+
+	depClients := route.FilterExtensionClients(depNames, *c.depClients)
+
+	reply := route.Handle(request, handleInterface, depClients)
+
+	// update the stack
+	//if err = reply.SetStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id); err != nil {
+	//	c.logger.Warn("failed to update the reply stack", "error", err)
+	//}
+
+	return *reply, nil
 }
