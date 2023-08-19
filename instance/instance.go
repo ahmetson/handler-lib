@@ -12,9 +12,10 @@ import (
 )
 
 const (
-	CLOSED  = "close"
-	READY   = "ready"
-	PREPARE = "prepare"
+	PREPARE  = "prepare"  // instance is created, but not yet running
+	READY    = "ready"    // instance is running and waiting for messages to handle
+	HANDLING = "handling" // instance is running, but busy by handling messages
+	CLOSED   = "close"    // instance was closed
 )
 
 // The Instance is the socket wrapper for the handler instance
@@ -41,7 +42,7 @@ type Instance struct {
 	depClients     *client.Clients
 	logger         *log.Logger
 	close          bool
-	status         string
+	status         string // Instance status
 }
 
 // New handler of the handlerType
@@ -106,6 +107,24 @@ func (c *Instance) Run() {
 		return
 	}
 
+	err = parent.Connect(config.ParentUrl(c.parentId))
+	if err != nil {
+		c.logger.Fatal("failed to connect to the parent", "error", err)
+	}
+
+	// Notify the parent that it's getting prepared
+	req := message.Request{
+		Command:    "status",
+		Parameters: key_value.Empty().Set("id", c.Id).Set("status", PREPARE),
+	}
+	reqStr, _ := req.String()
+	c.logger.Info("sending a message to the parent as its prepared")
+	_, err = parent.SendMessageDontwait(reqStr)
+	if err != nil {
+		c.logger.Fatal("failed to send status as PREPARE to parent", "err", err)
+	}
+	c.logger.Info("message was sent")
+
 	handler, err := zmq.NewSocket(config.GetSocket(c.Type()))
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to create a handler socket of %s type: %v", c.Type(), err)
@@ -144,6 +163,12 @@ func (c *Instance) Run() {
 
 	c.status = READY
 	c.close = false
+	req.Parameters.Set("status", READY)
+	reqStr, _ = req.String()
+	_, err = parent.SendMessageDontwait(reqStr)
+	if err != nil {
+		c.logger.Fatal("failed to send status as READY to parent", "err", err)
+	}
 
 	for {
 		if c.close {
@@ -157,6 +182,13 @@ func (c *Instance) Run() {
 				c.logger.Fatal("remove manager", "error", err)
 			}
 			c.status = CLOSED
+
+			req.Parameters.Set("status", CLOSED)
+			reqStr, _ = req.String()
+			_, err = parent.SendMessageDontwait(reqStr)
+			if err != nil {
+				c.logger.Fatal("failed to send status as CLOSED to parent", "err", err)
+			}
 
 			break
 		}
@@ -184,9 +216,23 @@ func (c *Instance) Run() {
 
 				c.logger.Info("message received", "messages", data)
 
+				req.Parameters.Set("status", HANDLING)
+				reqStr, _ = req.String()
+				_, err = parent.SendMessageDontwait(reqStr)
+				if err != nil {
+					c.logger.Fatal("failed to send status as HANDLING to parent", "err", err)
+				}
+
 				reply, err := c.processMessage(data, meta)
 				if err != nil {
 					c.logger.Fatal("processMessage", "message", data, "meta", meta, "error", err)
+				}
+
+				req.Parameters.Set("status", READY)
+				reqStr, _ = req.String()
+				_, err = parent.SendMessageDontwait(reqStr)
+				if err != nil {
+					c.logger.Fatal("failed to send status as READY after handling to parent", "err", err)
 				}
 
 				if err := c.reply(handler, reply); err != nil {
