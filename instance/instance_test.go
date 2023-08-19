@@ -56,7 +56,7 @@ func (test *TestInstanceSuite) Test_0_New() {
 
 	test.instance0 = New(handlerType, id, test.parentId, logger)
 
-	s.Require().Equal(test.instance0.Status(), PREPARE)
+	s.Require().Equal(PREPARE, test.instance0.Status())
 }
 
 // Test_10_SetRoutes tests the setting routes references from handler.
@@ -169,14 +169,14 @@ func (test *TestInstanceSuite) Test_12_Close() {
 	s := &test.Suite
 
 	// First, it should be prepared
-	s.Require().Equal(test.instance0.Status(), PREPARE)
+	s.Require().Equal(PREPARE, test.instance0.Status())
 
 	// Let's run the service
 	go test.instance0.Run()
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
 	// Make sure that the service is running
-	s.Require().Equal(test.instance0.Status(), READY)
+	s.Require().Equal(READY, test.instance0.Status())
 
 	// Sending a close message
 	instanceManager, err := zmq.NewSocket(zmq.REQ)
@@ -192,7 +192,7 @@ func (test *TestInstanceSuite) Test_12_Close() {
 
 	// Waiting
 	time.Sleep(time.Millisecond * 100)
-	s.Require().Equal(test.instance0.Status(), CLOSED)
+	s.Require().Equal(CLOSED, test.instance0.Status())
 
 	// Clean out the things
 	err = instanceManager.Close()
@@ -208,7 +208,7 @@ func (test *TestInstanceSuite) Test_13_Handle() {
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
 	// Make sure that the service is running
-	s.Require().Equal(test.instance0.Status(), READY)
+	s.Require().Equal(READY, test.instance0.Status())
 
 	// Now we will send some random requests
 	// Sending a close message
@@ -243,7 +243,7 @@ func (test *TestInstanceSuite) Test_13_Handle() {
 
 	// Then we will close it
 	time.Sleep(time.Millisecond * 100)
-	s.Require().Equal(test.instance0.Status(), CLOSED)
+	s.Require().Equal(CLOSED, test.instance0.Status())
 
 	// Clean out the things
 	err = instanceManager.Close()
