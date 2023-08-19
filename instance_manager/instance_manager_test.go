@@ -4,6 +4,8 @@ import (
 	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/instance"
 	"github.com/ahmetson/log-lib"
 	"testing"
 	"time"
@@ -75,10 +77,51 @@ func (test *TestInstanceSuite) Test_10_Close() {
 	s.Require().Equal(Idle, test.parent.Status())
 }
 
-// In order for 'go test' to run this suite, we need to create
-// a normal test function and pass our suite to suite.Run
-func TestInstance(t *testing.T) {
-	suite.Run(t, new(TestInstanceSuite))
+// Test_11_AddInstance tests adding a new instance.
+//
+// We won't test DeleteInstance, as it's already done by parent.Close().
+func (test *TestInstanceSuite) Test_11_AddInstance() {
+	s := &test.Suite
+
+	test.routes = key_value.Empty().
+		Set("handle_0", test.handle0).
+		Set("handle_1", test.handle1)
+	test.routeDeps = key_value.Empty().
+		Set("handle_1", []string{"dep_1"})
+	test.clients = key_value.Empty().
+		Set("handle_1", &client.ClientSocket{})
+
+	// Make sure that there are no instances
+	s.Require().Len(test.parent.instances, 0)
+
+	// Adding a new instance when manager is not running should fail
+	_, err := test.parent.AddInstance(config.SyncReplierType, &test.routes, &test.routeDeps, &test.clients)
+	s.Require().Error(err)
+
+	// Running instance manager
+	go test.parent.Run()
+
+	// waiting a bit for initialization
+	time.Sleep(time.Millisecond * 10)
+	s.Require().Equal(Running, test.parent.Status())
+
+	// Now adding a new instance should work
+	instanceId, err := test.parent.AddInstance(config.SyncReplierType, &test.routes, &test.routeDeps, &test.clients)
+	s.Require().NoError(err)
+
+	// The instance should be created
+	s.Require().Len(test.parent.instances, 1)
+	s.Equal(InstanceCreated, test.parent.instances[instanceId].status)
+
+	// Instance should be ready
+	time.Sleep(time.Millisecond * 100)
+	s.Equal(instance.READY, test.parent.instances[instanceId].status)
+
+	// Clean out after adding a new instance
+	test.parent.Close()
+	time.Sleep(time.Millisecond * 100)
+	s.Equal(Idle, test.parent.Status())
+	s.Require().Len(test.parent.instances, 0)
 }
 
 // In order for 'go test' to run this suite, we need to create
