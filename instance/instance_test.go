@@ -23,9 +23,6 @@ type TestInstanceSuite struct {
 	instance0 *Instance
 	handle0   interface{}
 	handle1   interface{}
-	handle2   interface{}
-	handle3   interface{}
-	handleN   interface{}
 
 	clients   key_value.KeyValue
 	routes    key_value.KeyValue
@@ -41,21 +38,9 @@ func (test *TestInstanceSuite) SetupTest() {
 	handle1 := func(request message.Request, _ *client.ClientSocket) message.Reply {
 		return request.Ok(key_value.Empty())
 	}
-	handle2 := func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
-		return request.Ok(key_value.Empty())
-	}
-	handle3 := func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
-		return request.Ok(key_value.Empty())
-	}
-	handleN := func(request message.Request, _ ...*client.ClientSocket) message.Reply {
-		return request.Ok(key_value.Empty())
-	}
 
 	test.handle0 = handle0
 	test.handle1 = handle1
-	test.handle2 = handle2
-	test.handle3 = handle3
-	test.handleN = handleN
 }
 
 func (test *TestInstanceSuite) Test_0_New() {
