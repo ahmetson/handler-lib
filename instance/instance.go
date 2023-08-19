@@ -33,18 +33,16 @@ const (
 //
 // The publisher returns two clients.
 type Instance struct {
-	Id                 string
-	parentId           string
-	socket             *zmq.Socket
-	controllerType     config.HandlerType
-	routes             *key_value.KeyValue
-	routeDeps          *key_value.KeyValue
-	depClients         *client.Clients
-	requiredExtensions []string
-	extensionConfigs   key_value.KeyValue
-	logger             *log.Logger
-	close              bool
-	status             string
+	Id             string
+	parentId       string
+	socket         *zmq.Socket
+	controllerType config.HandlerType
+	routes         *key_value.KeyValue
+	routeDeps      *key_value.KeyValue
+	depClients     *client.Clients
+	logger         *log.Logger
+	close          bool
+	status         string
 }
 
 // New handler of the handlerType
