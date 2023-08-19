@@ -162,6 +162,7 @@ func (c *Instance) Run() {
 	poller.Add(manage, zmq.POLLIN)
 
 	c.status = READY
+	c.close = false
 
 	for {
 		if c.close {
