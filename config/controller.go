@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"github.com/ahmetson/os-lib/net"
+	zmq "github.com/pebbe/zmq4"
 )
 
 type Handler struct {
@@ -28,4 +29,18 @@ func NewHandler(as HandlerType, cat string) (*Handler, error) {
 	}
 
 	return control, nil
+}
+
+func GetSocket(handlerType HandlerType) zmq.Type {
+	if handlerType == SyncReplierType {
+		return zmq.REP
+	} else if handlerType == ReplierType {
+		return zmq.ROUTER
+	} else if handlerType == PusherType {
+		return zmq.PUSH
+	} else if handlerType == PublisherType {
+		return zmq.PUB
+	}
+
+	return zmq.Type(-1)
 }
