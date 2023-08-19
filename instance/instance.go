@@ -37,8 +37,8 @@ type Instance struct {
 	Id             string
 	parentId       string
 	controllerType config.HandlerType
-	routes         *key_value.KeyValue
-	routeDeps      *key_value.KeyValue
+	routes         *key_value.KeyValue // handler routing
+	routeDeps      *key_value.KeyValue // handler deps
 	depClients     *client.Clients
 	logger         *log.Logger
 	close          bool
@@ -46,7 +46,9 @@ type Instance struct {
 }
 
 // New handler of the handlerType
-func New(handlerType config.HandlerType, id string, parentId string, logger *log.Logger) *Instance {
+func New(handlerType config.HandlerType, id string, parentId string, parent *log.Logger) *Instance {
+	logger := parent.Child(id)
+
 	return &Instance{
 		Id:             id,
 		parentId:       parentId,
