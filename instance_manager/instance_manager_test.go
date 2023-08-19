@@ -36,7 +36,9 @@ func (test *TestInstanceSuite) SetupTest() {
 		time.Sleep(time.Millisecond * 200)
 		return request.Ok(key_value.Empty())
 	}
+	// delays 1 second for testing ready instances
 	handle1 := func(request message.Request, _ *client.ClientSocket) message.Reply {
+		time.Sleep(time.Second)
 		return request.Ok(key_value.Empty())
 	}
 
