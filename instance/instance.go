@@ -6,9 +6,14 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
-	"github.com/ahmetson/os-lib/net"
-	"github.com/ahmetson/os-lib/process"
+	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
+)
+
+const (
+	CLOSED  = "close"
+	READY   = "ready"
+	PREPARE = "prepare"
 )
 
 // The Instance is the socket wrapper for the handler instance
@@ -37,6 +42,8 @@ type Instance struct {
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
 	logger             *log.Logger
+	close              bool
+	status             string
 }
 
 // New handler of the handlerType
@@ -49,6 +56,8 @@ func New(handlerType config.HandlerType, id string, parentId string, logger *log
 		routeDeps:      nil,
 		depClients:     nil,
 		logger:         logger,
+		close:          false,
+		status:         PREPARE,
 	}
 }
 
@@ -87,65 +96,116 @@ func (c *Instance) Type() config.HandlerType {
 	return c.controllerType
 }
 
-func (c *Instance) Close() error {
-	if c.socket == nil {
-		return nil
-	}
+// Status of the instance
+func (c *Instance) Status() string {
+	return c.status
+}
 
-	err := c.socket.Close()
+//func (c *Instance) Close() error {
+//	if c.socket == nil {
+//		return nil
+//	}
+//
+//	err := c.socket.Close()
+//	if err != nil {
+//		return fmt.Errorf("server.socket.Close: %w", err)
+//	}
+//
+//	return nil
+//}
+
+func (c *Instance) Run() {
+	// set up the parent socket, parent will now about the status of the instance
+	// set up the handler socket.
+	// set up the manage socket.
+	// if manage url receives a message to close, close the instance.
+	parent, err := zmq.NewSocket(zmq.PUSH)
 	if err != nil {
-		return fmt.Errorf("server.socket.Close: %w", err)
+		c.logger.Warn("failed to create a parent client socket, parent should check it")
+		return
 	}
 
-	return nil
-}
-
-func url(name string, port uint64) string {
-	if port == 0 {
-		return fmt.Sprintf("inproc://%s", name)
-	}
-	url := fmt.Sprintf("tcp://*:%d", port)
-	return url
-}
-
-func getSocket(handlerType config.HandlerType) zmq.Type {
-	if handlerType == config.SyncReplierType {
-		return zmq.REP
-	} else if handlerType == config.ReplierType {
-		return zmq.ROUTER
-	} else if handlerType == config.PusherType {
-		return zmq.PUSH
-	} else if handlerType == config.PublisherType {
-		return zmq.PUB
-	}
-
-	return zmq.Type(-1)
-}
-
-func bind(sock *zmq.Socket, url string, port uint64) error {
-	if err := sock.Bind(url); err != nil {
-		if port > 0 {
-			// for now, the host name is hardcoded. later we need to get it from the orchestra
-			if net.IsPortUsed("localhost", port) {
-				pid, err := process.PortToPid(port)
-				if err != nil {
-					err = fmt.Errorf("config.PortToPid(%d): %w", port, err)
-				} else {
-					currentPid := process.CurrentPid()
-					if currentPid == pid {
-						err = fmt.Errorf("another dependency is using it within this orchestra")
-					} else {
-						err = fmt.Errorf("operating system uses it for another service. pid=%d", pid)
-					}
-				}
-			} else {
-				err = fmt.Errorf(`server.socket.bind("tcp://*:%d)": %w`, port, err)
-			}
-			return err
-		} else {
-			return fmt.Errorf(`server.socket.bind("inproc://%s"): %w`, url, err)
+	handler, err := zmq.NewSocket(config.GetSocket(c.Type()))
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to create a handler socket of %s type: %v", c.Type(), err)
+		reply := message.Reply{Status: message.FAIL, Parameters: key_value.Empty(), Message: errMsg}
+		replyStr, _ := reply.String()
+		if _, err := parent.SendMessage(replyStr); err != nil {
+			c.logger.Warn("failed to send a message to parent", "message", reply)
+			return
 		}
 	}
 
-	return nil
+	err = handler.Bind(config.InstanceHandleUrl(c.parentId, c.Id))
+	if err != nil {
+		c.logger.Fatal("bind error", "error", err)
+	}
+
+	manage, err := zmq.NewSocket(zmq.REP)
+	if err != nil {
+		errMsg := fmt.Sprintf("failed to create a manager socket: %v", err)
+		reply := message.Reply{Status: message.FAIL, Parameters: key_value.Empty(), Message: errMsg}
+		replyStr, _ := reply.String()
+		if _, err := parent.SendMessage(replyStr); err != nil {
+			c.logger.Warn("failed to send a message to parent", "message", reply)
+			return
+		}
+	}
+
+	err = manage.Bind(config.InstanceUrl(c.parentId, c.Id))
+	if err != nil {
+		c.logger.Fatal("bind error", "error", err)
+	}
+
+	poller := zmq.NewPoller()
+	poller.Add(handler, zmq.POLLIN)
+	poller.Add(manage, zmq.POLLIN)
+
+	c.status = READY
+
+	for {
+		if c.close {
+			c.logger.Warn("received a close signal, stop receiving messages")
+			poller.RemoveBySocket(handler)
+			poller.RemoveBySocket(manage)
+			c.status = CLOSED
+
+			break
+		}
+
+		sockets, err := poller.Poll(-1)
+		if err != nil {
+			newErr := fmt.Errorf("poller.Poll(%s): %w", c.Type(), err)
+			c.logger.Fatal("failed", "error", newErr)
+		}
+
+		if len(sockets) == 0 {
+			continue
+		}
+
+		for _, polled := range sockets {
+			if polled.Socket == handler {
+				data, _, err := handler.RecvMessageWithMetadata(0)
+				if err != nil {
+					newErr := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
+					if err := c.replyError(handler, newErr); err != nil {
+						c.logger.Fatal("error", "message", err)
+					}
+					c.logger.Fatal("error", "message", newErr)
+				}
+
+				c.logger.Info("message received", "messages", data)
+
+				if err := c.reply(handler, message.Reply{}); err != nil {
+					c.logger.Fatal("failed")
+				}
+			} else if polled.Socket == manage {
+				// close it
+				c.logger.Warn("received a signal, we assume its a close")
+				c.close = true
+			}
+		}
+	}
+
+	c.logger.Warn("end of the instance.Run no more things to do.")
 }

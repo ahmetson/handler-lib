@@ -7,7 +7,9 @@ import (
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/log-lib"
+	zmq "github.com/pebbe/zmq4"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/suite"
 )
@@ -57,6 +59,8 @@ func (test *TestInstanceSuite) SetupTest() {
 }
 
 func (test *TestInstanceSuite) Test_0_New() {
+	s := &test.Suite
+
 	handlerType := config.SyncReplierType
 	id := "instance_0"
 	parentId := "parent_0"
@@ -64,6 +68,8 @@ func (test *TestInstanceSuite) Test_0_New() {
 	logger, _ := log.New("instance_test", true)
 
 	test.instance0 = New(handlerType, id, parentId, logger)
+
+	s.Require().Equal(test.instance0.Status(), PREPARE)
 }
 
 // Test_10_SetRoutes tests the setting routes references from handler.
@@ -169,7 +175,41 @@ func (test *TestInstanceSuite) Test_11_SetClients() {
 
 		index++
 	}
+}
 
+// Test_12_Close tests running and closing the instance
+func (test *TestInstanceSuite) Test_12_Close() {
+	s := &test.Suite
+
+	// First, it should be prepared
+	s.Require().Equal(test.instance0.Status(), PREPARE)
+
+	// Let's run the service
+	go test.instance0.Run()
+	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
+
+	// Make sure that the service is running
+	s.Require().Equal(test.instance0.Status(), READY)
+
+	// Sending a close message
+	client, err := zmq.NewSocket(zmq.REQ)
+	s.Require().NoError(err)
+	err = client.Connect(config.InstanceUrl(test.instance0.parentId, test.instance0.Id))
+	s.Require().NoError(err)
+	req := message.Request{Command: "close", Parameters: key_value.Empty()}
+	reqStr, err := req.String()
+	s.Require().NoError(err)
+
+	_, err = client.SendMessage(reqStr)
+	s.Require().NoError(err)
+
+	// Waiting
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(test.instance0.Status(), CLOSED)
+
+	// Clean out the things
+	err = client.Close()
+	s.Require().NoError(err)
 }
 
 // In order for 'go test' to run this suite, we need to create
