@@ -23,6 +23,10 @@ type TestInstanceSuite struct {
 	handle2   interface{}
 	handle3   interface{}
 	handleN   interface{}
+
+	clients   key_value.KeyValue
+	routes    key_value.KeyValue
+	routeDeps key_value.KeyValue
 }
 
 // Make sure that Account is set to five
@@ -66,15 +70,15 @@ func (test *TestInstanceSuite) Test_0_New() {
 func (test *TestInstanceSuite) Test_10_SetRoutes() {
 	s := &test.Suite
 
-	routes := key_value.Empty()
-	routeDeps := key_value.Empty()
+	test.routes = key_value.Empty()
+	test.routeDeps = key_value.Empty()
 
 	// Before setting the routes, the instance should have a nil there
 	s.Require().Nil(test.instance0.routes)
 	s.Require().Nil(test.instance0.routeDeps)
 
 	// Update the routes
-	test.instance0.SetRoutes(&routes, &routeDeps)
+	test.instance0.SetRoutes(&test.routes, &test.routeDeps)
 
 	// Now, the instance should have the empty routes since we added empty routes
 	s.Require().NotNil(test.instance0.routes)
@@ -83,13 +87,13 @@ func (test *TestInstanceSuite) Test_10_SetRoutes() {
 	s.Require().Len(*test.instance0.routeDeps, 0)
 
 	// Let's imitate the handler updated the routes
-	routes.Set("handle_0", test.handle0)
+	test.routes.Set("handle_0", test.handle0)
 	s.Require().Len(*test.instance0.routes, 1)
 	s.Require().Len(*test.instance0.routeDeps, 0)
 
 	// Let's imitate that handler updated the route dependencies
-	routes.Set("handle_1", test.handle1)
-	routeDeps.Set("handle_1", []string{"dep_1"})
+	test.routes.Set("handle_1", test.handle1)
+	test.routeDeps.Set("handle_1", []string{"dep_1"})
 	s.Require().Len(*test.instance0.routes, 2)
 	s.Require().Len(*test.instance0.routeDeps, 1)
 
@@ -97,7 +101,7 @@ func (test *TestInstanceSuite) Test_10_SetRoutes() {
 	index := 0
 	for cmdName := range *test.instance0.routes {
 		routeIndex := 0
-		for routeCmdName := range routes {
+		for routeCmdName := range test.routes {
 			if index == routeIndex {
 				s.Require().Equal(routeCmdName, cmdName, fmt.Sprintf("expected '%s' at index %d", routeCmdName, routeIndex))
 				break
@@ -113,7 +117,7 @@ func (test *TestInstanceSuite) Test_10_SetRoutes() {
 	index = 0
 	for cmdName := range *test.instance0.routeDeps {
 		routeIndex := 0
-		for routeCmdName := range routeDeps {
+		for routeCmdName := range test.routeDeps {
 			if index == routeIndex {
 				s.Require().Equal(routeCmdName, cmdName)
 				break
@@ -131,27 +135,27 @@ func (test *TestInstanceSuite) Test_10_SetRoutes() {
 func (test *TestInstanceSuite) Test_11_SetClients() {
 	s := &test.Suite
 
-	clients := key_value.Empty()
+	test.clients = key_value.Empty()
 
 	// Before setting the clients, the instance should have a nil there
 	s.Require().Nil(test.instance0.depClients)
 
 	// Update the clients
-	test.instance0.SetClients(&clients)
+	test.instance0.SetClients(&test.clients)
 
 	// Now, the instance should have the empty clients since we added empty clients
 	s.Require().NotNil(test.instance0.depClients)
 	s.Require().Len(*test.instance0.depClients, 0)
 
 	// Let's imitate the handler updated the clients
-	clients.Set("handle_0", &client.ClientSocket{})
+	test.clients.Set("handle_0", &client.ClientSocket{})
 	s.Require().Len(*test.instance0.depClients, 1)
 
 	// Make sure that instance's clients lint to the valid parameters.
 	index := 0
 	for cmdName := range *test.instance0.depClients {
 		routeIndex := 0
-		for routeCmdName := range clients {
+		for routeCmdName := range test.clients {
 			if index == routeIndex {
 				s.Require().Equal(routeCmdName, cmdName)
 				break
