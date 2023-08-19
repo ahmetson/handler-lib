@@ -98,12 +98,12 @@ func (test *TestInstanceSuite) Test_10_SetRoutes() {
 	for cmdName := range *test.instance0.routes {
 		routeIndex := 0
 		for routeCmdName := range test.routes {
-			if index == routeIndex {
-				s.Require().Equal(routeCmdName, cmdName, fmt.Sprintf("expected '%s' at index %d, routes: %v", routeCmdName, routeIndex, test.routes))
+			routeIndex++
+
+			if index == routeIndex-1 {
+				s.Require().Equal(routeCmdName, cmdName, fmt.Sprintf("expected '%s' at index %d, routes: %v, instance routes: %v", routeCmdName, routeIndex, test.routes, *test.instance0.routes))
 				break
 			}
-
-			routeIndex++
 		}
 
 		index++
