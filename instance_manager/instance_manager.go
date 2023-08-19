@@ -21,8 +21,8 @@ const (
 )
 
 type Child struct {
-	status string      // instance status
-	sock   *zmq.Socket // interact with the instance
+	status        string      // instance status
+	managerSocket *zmq.Socket // interact with the instance
 }
 
 type Parent struct {
@@ -78,10 +78,10 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 	}
 
 	if status == instance.CLOSED {
-		err = child.sock.Close()
+		err = child.managerSocket.Close()
 		delete(parent.instances, instanceId)
 		if err != nil {
-			return req.Fail(fmt.Sprintf("child(%s).sock.Close: %v", instanceId, err))
+			return req.Fail(fmt.Sprintf("child(%s).managerSocket.Close: %v", instanceId, err))
 		}
 	} else {
 		parent.instances[instanceId].status = status
@@ -127,7 +127,7 @@ func (parent *Parent) Run() {
 
 		raw, err := sock.RecvMessage(0)
 		if err != nil {
-			parent.status = fmt.Sprintf("sock.RecvMessage: %v", err)
+			parent.status = fmt.Sprintf("managerSocket.RecvMessage: %v", err)
 			break
 		}
 
@@ -157,7 +157,7 @@ func (parent *Parent) Run() {
 
 	err = sock.Close()
 	if err != nil {
-		parent.status = fmt.Sprintf("sock.Close: %v", err)
+		parent.status = fmt.Sprintf("managerSocket.Close: %v", err)
 		return
 	}
 
@@ -200,8 +200,8 @@ func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, 
 	}
 
 	parent.instances[id] = &Child{
-		status: InstanceCreated,
-		sock:   childSock,
+		status:        InstanceCreated,
+		managerSocket: childSock,
 	}
 	go added.Run()
 
@@ -239,12 +239,12 @@ func (parent *Parent) DeleteInstance(instanceId string) error {
 		return fmt.Errorf("req.String: %w", err)
 	}
 
-	_, err = child.sock.SendMessage(reqStr)
+	_, err = child.managerSocket.SendMessage(reqStr)
 	if err != nil {
 		return fmt.Errorf("child(%s).SendMessage(%s): %w", instanceId, reqStr, err)
 	}
 
-	replyStr, err := child.sock.RecvMessage(0)
+	replyStr, err := child.managerSocket.RecvMessage(0)
 	if err != nil {
 		return fmt.Errorf("child(%s).RecvMessage: %w", instanceId, err)
 	}
