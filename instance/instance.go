@@ -114,7 +114,7 @@ func (c *Instance) Run() {
 
 	// Notify the parent that it's getting prepared
 	req := message.Request{
-		Command:    "status",
+		Command:    "set_status",
 		Parameters: key_value.Empty().Set("id", c.Id).Set("status", PREPARE),
 	}
 	reqStr, _ := req.String()
@@ -236,12 +236,19 @@ func (c *Instance) Run() {
 				}
 
 				if err := c.reply(handler, reply); err != nil {
-					c.logger.Fatal("failed")
+					c.logger.Fatal("failed to reply back to handler", "request string", data, "reply", reply, "error", err)
 				}
 			} else if polled.Socket == manage {
+				data, err := manage.RecvMessage(0)
+				if err != nil {
+					c.logger.Fatal("failed to receive manager message", "error", err)
+				}
 				// close it
-				c.logger.Warn("received a signal, we assume its a close")
 				c.close = true
+				reply := message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
+				if err := c.reply(manage, reply); err != nil {
+					c.logger.Fatal("failed to reply back to manager", "request string", data, "error", err)
+				}
 			}
 		}
 	}
