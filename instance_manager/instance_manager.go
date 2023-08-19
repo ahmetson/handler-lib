@@ -214,6 +214,8 @@ func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, 
 		}
 	}(parent, id)
 
+	parent.lastInstanceId++
+
 	return id, nil
 }
 
