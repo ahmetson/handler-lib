@@ -207,5 +207,20 @@ func (c *Instance) Run() {
 		}
 	}
 
+	err = manage.Close()
+	if err != nil {
+		c.logger.Fatal("manage close", "error", err)
+	}
+
+	err = handler.Close()
+	if err != nil {
+		c.logger.Fatal("handler close", "error", err)
+	}
+
+	err = parent.Close()
+	if err != nil {
+		c.logger.Fatal("parent client close", "error", err)
+	}
+
 	c.logger.Warn("end of the instance.Run no more things to do.")
 }
