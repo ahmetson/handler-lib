@@ -32,8 +32,8 @@ func ContextName(url string) string {
 	return "orchestra." + fileName
 }
 
-// HandlerUrl returns the url of the handler to be connected by the instances
-func HandlerUrl(handlerId string) string {
+// ParentUrl returns the url of the handler to be connected by the instances
+func ParentUrl(handlerId string) string {
 	return fmt.Sprintf("inproc://handler_%s", handlerId)
 }
 
