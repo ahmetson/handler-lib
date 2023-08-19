@@ -35,7 +35,6 @@ const (
 type Instance struct {
 	Id             string
 	parentId       string
-	socket         *zmq.Socket
 	controllerType config.HandlerType
 	routes         *key_value.KeyValue
 	routeDeps      *key_value.KeyValue
