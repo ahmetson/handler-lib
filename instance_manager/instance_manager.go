@@ -111,7 +111,7 @@ func (parent *Parent) Run() {
 	poller.Add(sock, zmq.POLLIN)
 
 	for {
-		if parent.close {
+		if parent.close && len(parent.instances) == 0 {
 			break
 		}
 
@@ -147,8 +147,6 @@ func (parent *Parent) Run() {
 			parent.status = fmt.Sprintf("onInstanceStatus: %s [%v]", reply.Message, req.Parameters)
 			break
 		}
-
-		parent.logger.Info("set_instance_status", "parameters", req.Parameters)
 	}
 
 	err = poller.RemoveBySocket(sock)
@@ -169,28 +167,36 @@ func (parent *Parent) Run() {
 
 func (parent *Parent) Close() {
 	parent.close = true
+	// removing all running instances
+	for instanceId := range parent.instances {
+		err := parent.DeleteInstance(instanceId)
+		if err != nil {
+			parent.status = fmt.Sprintf("parent.DeleteInstance(%s): %v", instanceId, err)
+			break
+		}
+	}
 }
 
 // AddInstance to the handler
-func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, routeDeps kvRef, clients kvRef) error {
+func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, routeDeps kvRef, clients kvRef) (string, error) {
 	if parent.Status() != Running {
-		return fmt.Errorf("instance_manager is not running. unexpected status: %s", parent.Status())
+		return "", fmt.Errorf("instance_manager is not running. unexpected status: %s", parent.Status())
 	}
 
 	instanceNum := parent.lastInstanceId + 1
-	id := fmt.Sprintf("instance_%d", instanceNum)
+	id := fmt.Sprintf("%s_instance_%d", parent.id, instanceNum)
 
-	added := instance.New(handlerType, parent.id, id, parent.logger)
+	added := instance.New(handlerType, id, parent.id, parent.logger)
 	added.SetRoutes(routes, routeDeps)
 	added.SetClients(clients)
 
 	childSock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
-		return fmt.Errorf("new childSocket(%s): %v", id, err)
+		return id, fmt.Errorf("new childSocket(%s): %v", id, err)
 	}
 	err = childSock.Connect(config.InstanceUrl(parent.id, id))
 	if err != nil {
-		return fmt.Errorf("bind childSocket(%s): %v", id, err)
+		return id, fmt.Errorf("bind childSocket(%s): %v", id, err)
 	}
 
 	parent.instances[id] = &Child{
@@ -208,7 +214,7 @@ func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, 
 		}
 	}(parent, id)
 
-	return nil
+	return id, nil
 }
 
 // DeleteInstance sends a signal to close the instance
@@ -236,6 +242,19 @@ func (parent *Parent) DeleteInstance(instanceId string) error {
 	_, err = child.sock.SendMessage(reqStr)
 	if err != nil {
 		return fmt.Errorf("child(%s).SendMessage(%s): %w", instanceId, reqStr, err)
+	}
+
+	replyStr, err := child.sock.RecvMessage(0)
+	if err != nil {
+		return fmt.Errorf("child(%s).RecvMessage: %w", instanceId, err)
+	}
+	reply, err := message.ParseReply(replyStr)
+	if err != nil {
+		return fmt.Errorf("parseReply(%s): %w", replyStr, err)
+	}
+
+	if !reply.IsOK() {
+		return fmt.Errorf("instance close failed: %s", reply.Message)
 	}
 
 	return nil
