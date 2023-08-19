@@ -287,3 +287,14 @@ func (parent *Parent) Instances() map[string]string {
 
 	return instances
 }
+
+// Ready returns an instance that's ready to handle requests
+func (parent *Parent) Ready() *zmq.Socket {
+	for _, child := range parent.instances {
+		if child.status == instance.READY {
+			return child.handleSocket
+		}
+	}
+
+	return nil
+}

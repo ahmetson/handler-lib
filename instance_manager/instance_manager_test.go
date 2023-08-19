@@ -126,6 +126,84 @@ func (test *TestInstanceSuite) Test_11_AddInstance() {
 	s.Require().Len(test.parent.instances, 0)
 }
 
+// Test_12_Ready tests the handling requests by ready worker.
+func (test *TestInstanceSuite) Test_12_Ready() {
+	s := &test.Suite
+
+	// request to send
+	req := message.Request{Command: "handle_1", Parameters: key_value.Empty()}
+	reqStr, err := req.String()
+	s.Require().NoError(err)
+
+	// Make sure that there are no instances
+	s.Require().Len(test.parent.instances, 0)
+	s.Require().Nil(test.parent.Ready())
+
+	// The instance should be idle before running
+	s.Require().Equal(Idle, test.parent.Status())
+
+	// Running instance manager
+	go test.parent.Run()
+
+	// waiting a bit for initialization
+	time.Sleep(time.Millisecond * 10)
+	s.Require().Equal(Running, test.parent.Status())
+
+	// Now adding a new instance should work
+	instanceId, err := test.parent.AddInstance(config.SyncReplierType, &test.routes, &test.routeDeps, &test.clients)
+	s.Require().NoError(err)
+	instanceId2, err := test.parent.AddInstance(config.SyncReplierType, &test.routes, &test.routeDeps, &test.clients)
+	s.Require().NoError(err)
+
+	// Instances are in the parent
+	s.Require().Len(test.parent.instances, 2)
+
+	// Instance should be ready
+	time.Sleep(time.Millisecond * 100)
+	s.Equal(instance.READY, test.parent.instances[instanceId].status)
+	s.Equal(instance.READY, test.parent.instances[instanceId2].status)
+
+	// Let's test the ready instances
+	handler := test.parent.Ready()
+	s.Require().NotNil(handler)
+
+	_, err = handler.SendMessageDontwait(reqStr)
+	s.Require().NoError(err)
+
+	// Waiting the instance will notify instance manager that it's busy
+	// Since, we are sending messages without waiting their update
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(instance.HANDLING, test.parent.instances[instanceId].status)
+
+	// Get the second ready worker
+	handler2 := test.parent.Ready()
+	s.Require().NotNil(handler2)
+
+	_, err = handler2.SendMessageDontwait(reqStr)
+	s.Require().NoError(err)
+
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(instance.HANDLING, test.parent.instances[instanceId2].status)
+
+	// There should not be any ready worker
+	handler3 := test.parent.Ready()
+	s.Require().Nil(handler3)
+
+	// After handling, the first worker should be READY again
+	msg, err := handler.RecvMessage(0)
+	s.Require().NoError(err)
+	test.parent.logger.Info("handling result from the first instance", "msg", msg)
+
+	handler4 := test.parent.Ready()
+	s.Require().NotNil(handler4)
+
+	// Clean out after adding a new instance
+	test.parent.Close()
+	time.Sleep(time.Millisecond * 100)
+	s.Equal(Idle, test.parent.Status())
+	s.Require().Len(test.parent.instances, 0)
+}
+
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestInstance(t *testing.T) {
