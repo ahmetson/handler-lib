@@ -23,6 +23,7 @@ const (
 type Child struct {
 	status        string      // instance status
 	managerSocket *zmq.Socket // interact with the instance
+	handleSocket  *zmq.Socket // instance's handler
 }
 
 type Parent struct {
@@ -82,6 +83,10 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 		delete(parent.instances, instanceId)
 		if err != nil {
 			return req.Fail(fmt.Sprintf("child(%s).managerSocket.Close: %v", instanceId, err))
+		}
+		err = child.handleSocket.Close()
+		if err != nil {
+			return req.Fail(fmt.Sprintf("child(%s).handleSocket.Close: %v", instanceId, err))
 		}
 	} else {
 		parent.instances[instanceId].status = status
@@ -196,12 +201,22 @@ func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, 
 	}
 	err = childSock.Connect(config.InstanceUrl(parent.id, id))
 	if err != nil {
-		return id, fmt.Errorf("bind childSocket(%s): %v", id, err)
+		return id, fmt.Errorf("connect childSocket(%s): %v", id, err)
+	}
+
+	handleSock, err := zmq.NewSocket(config.ClientSocketType(handlerType))
+	if err != nil {
+		return "", fmt.Errorf("new handleSocket(%s): %v", id, err)
+	}
+	err = handleSock.Connect(config.InstanceHandleUrl(parent.id, id))
+	if err != nil {
+		return "", fmt.Errorf("connect handleSocket(%s): %v", id, err)
 	}
 
 	parent.instances[id] = &Child{
 		status:        InstanceCreated,
 		managerSocket: childSock,
+		handleSocket:  handleSock,
 	}
 	go added.Run()
 
