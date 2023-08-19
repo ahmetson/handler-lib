@@ -225,7 +225,7 @@ func (test *TestInstanceSuite) Test_13_Handle() {
 
 		reply, err := handleClient.RecvMessage(0)
 		s.Require().NoError(err)
-		test.instance0.logger.Info("replie back", "message", reply)
+		test.instance0.logger.Info("client received a handler result", "message", reply)
 	}
 
 	// Sending a close message
