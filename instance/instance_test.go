@@ -1,6 +1,7 @@
 package instance
 
 import (
+	"fmt"
 	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
@@ -58,11 +59,11 @@ func (test *TestInstanceSuite) Test_0_New() {
 	test.instance0 = New(handlerType, id, parentId)
 }
 
-// Test_1_SetRoutes tests the setting routes references from instance.
+// Test_10_SetRoutes tests the setting routes references from handler.
 // If the routes are changed by the parent, then instances should have the updated routes.
 // Let's test it here. We imitate a parent. And set the routes.
 // Then we update the route.
-func (test *TestInstanceSuite) Test_1_SetRoutes() {
+func (test *TestInstanceSuite) Test_10_SetRoutes() {
 	s := &test.Suite
 
 	routes := key_value.Empty()
@@ -98,7 +99,7 @@ func (test *TestInstanceSuite) Test_1_SetRoutes() {
 		routeIndex := 0
 		for routeCmdName := range routes {
 			if index == routeIndex {
-				s.Require().Equal(routeCmdName, cmdName)
+				s.Require().Equal(routeCmdName, cmdName, fmt.Sprintf("expected '%s' at index %d", routeCmdName, routeIndex))
 				break
 			}
 
@@ -113,6 +114,44 @@ func (test *TestInstanceSuite) Test_1_SetRoutes() {
 	for cmdName := range *test.instance0.routeDeps {
 		routeIndex := 0
 		for routeCmdName := range routeDeps {
+			if index == routeIndex {
+				s.Require().Equal(routeCmdName, cmdName)
+				break
+			}
+
+			routeIndex++
+		}
+
+		index++
+	}
+
+}
+
+// Test_11_SetClients tests the setting dep references from handler.
+func (test *TestInstanceSuite) Test_11_SetClients() {
+	s := &test.Suite
+
+	clients := key_value.Empty()
+
+	// Before setting the clients, the instance should have a nil there
+	s.Require().Nil(test.instance0.depClients)
+
+	// Update the clients
+	test.instance0.SetClients(&clients)
+
+	// Now, the instance should have the empty clients since we added empty clients
+	s.Require().NotNil(test.instance0.depClients)
+	s.Require().Len(*test.instance0.depClients, 0)
+
+	// Let's imitate the handler updated the clients
+	clients.Set("handle_0", &client.ClientSocket{})
+	s.Require().Len(*test.instance0.depClients, 1)
+
+	// Make sure that instance's clients lint to the valid parameters.
+	index := 0
+	for cmdName := range *test.instance0.depClients {
+		routeIndex := 0
+		for routeCmdName := range clients {
 			if index == routeIndex {
 				s.Require().Equal(routeCmdName, cmdName)
 				break
