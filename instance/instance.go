@@ -102,24 +102,7 @@ func (c *Instance) Status() string {
 	return c.status
 }
 
-//func (c *Instance) Close() error {
-//	if c.socket == nil {
-//		return nil
-//	}
-//
-//	err := c.socket.Close()
-//	if err != nil {
-//		return fmt.Errorf("server.socket.Close: %w", err)
-//	}
-//
-//	return nil
-//}
-
 func (c *Instance) Run() {
-	// set up the parent socket, parent will now about the status of the instance
-	// set up the handler socket.
-	// set up the manage socket.
-	// if manage url receives a message to close, close the instance.
 	parent, err := zmq.NewSocket(zmq.PUSH)
 	if err != nil {
 		c.logger.Warn("failed to create a parent client socket, parent should check it")
