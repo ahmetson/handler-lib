@@ -33,6 +33,7 @@ type TestInstanceSuite struct {
 // before each test
 func (test *TestInstanceSuite) SetupTest() {
 	handle0 := func(request message.Request) message.Reply {
+		time.Sleep(time.Millisecond * 200)
 		return request.Ok(key_value.Empty())
 	}
 	handle1 := func(request message.Request, _ *client.ClientSocket) message.Reply {
