@@ -1,7 +1,6 @@
 package route
 
 import (
-	"fmt"
 	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 )
@@ -47,7 +46,6 @@ func Route(cmd string, routeFuncs key_value.KeyValue, routeDeps key_value.KeyVal
 	if err == nil {
 		handleInterface = routeFuncs[cmd]
 		err = routeDeps.Exist(cmd)
-		fmt.Printf("checkins is %s has deps: %v\n", cmd, err)
 		if err == nil {
 			handleDeps, err = routeDeps.GetStringList(cmd)
 		} else {
