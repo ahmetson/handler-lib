@@ -1,12 +1,13 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 )
 
 // UrlToFileName converts the given url to the file name. Simply it replaces the slashes with dots.
 //
-// Url returns the full url to connect to the orchestra.
+// HandleUrl returns the full url to connect to the orchestra.
 //
 // The orchestra url is defined from the main service's url.
 //
@@ -29,6 +30,21 @@ func ManagerName(url string) string {
 func ContextName(url string) string {
 	fileName := UrlToFileName(url)
 	return "orchestra." + fileName
+}
+
+// HandlerUrl returns the url of the handler to be connected by the instances
+func HandlerUrl(handlerId string) string {
+	return fmt.Sprintf("inproc://handler_%s", handlerId)
+}
+
+// InstanceHandleUrl returns the url of the instance for handling the requests
+func InstanceHandleUrl(parentId string, id string) string {
+	return fmt.Sprintf("inproc://inst_handle_%s_%s", parentId, id)
+}
+
+// InstanceUrl returns the url of the instance for managing the instance itself
+func InstanceUrl(parentId string, id string) string {
+	return fmt.Sprintf("inproc://inst_manage_%s_%s", parentId, id)
 }
 
 func NewInternalHandler(as HandlerType, cat string) *Handler {

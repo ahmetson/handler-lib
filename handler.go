@@ -162,7 +162,7 @@ func (c *Handler) Close() error {
 	return nil
 }
 
-// Url creates url of the server url for binding.
+// HandleUrl creates url of the server url for binding.
 // For clients to connect to this url, call client.ClientUrl()
 func url(name string, port uint64) string {
 	if port == 0 {
