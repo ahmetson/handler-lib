@@ -127,7 +127,7 @@ func (c *Instance) Run() {
 	}
 	c.logger.Info("message was sent")
 
-	handler, err := zmq.NewSocket(config.GetSocket(c.Type()))
+	handler, err := zmq.NewSocket(config.SocketType(c.Type()))
 	if err != nil {
 		errMsg := fmt.Sprintf("failed to create a handler socket of %s type: %v", c.Type(), err)
 		reply := message.Reply{Status: message.FAIL, Parameters: key_value.Empty(), Message: errMsg}

@@ -31,7 +31,8 @@ func NewHandler(as HandlerType, cat string) (*Handler, error) {
 	return control, nil
 }
 
-func GetSocket(handlerType HandlerType) zmq.Type {
+// SocketType gets the ZMQ analog of the handler type
+func SocketType(handlerType HandlerType) zmq.Type {
 	if handlerType == SyncReplierType {
 		return zmq.REP
 	} else if handlerType == ReplierType {
