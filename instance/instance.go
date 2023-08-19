@@ -149,8 +149,14 @@ func (c *Instance) Run() {
 	for {
 		if c.close {
 			c.logger.Warn("received a close signal, stop receiving messages")
-			poller.RemoveBySocket(handler)
-			poller.RemoveBySocket(manage)
+			err = poller.RemoveBySocket(handler)
+			if err != nil {
+				c.logger.Fatal("remove handler", "error", err)
+			}
+			err = poller.RemoveBySocket(manage)
+			if err != nil {
+				c.logger.Fatal("remove manager", "error", err)
+			}
 			c.status = CLOSED
 
 			break
