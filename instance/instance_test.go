@@ -197,6 +197,57 @@ func (test *TestInstanceSuite) Test_12_Close() {
 	s.Require().NoError(err)
 }
 
+// Test_13_Handle tests that instance can handle the messages
+func (test *TestInstanceSuite) Test_13_Handle() {
+	s := &test.Suite
+
+	// Let's run the service
+	go test.instance0.Run()
+	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
+
+	// Make sure that the service is running
+	s.Require().Equal(test.instance0.Status(), READY)
+
+	// Now we will send some random requests
+	// Sending a close message
+	handleClient, err := zmq.NewSocket(zmq.REQ)
+	s.Require().NoError(err)
+	err = handleClient.Connect(config.InstanceHandleUrl(test.instance0.parentId, test.instance0.Id))
+	s.Require().NoError(err)
+	for i := 0; i < 2; i++ {
+		req := message.Request{Command: "handle_0", Parameters: key_value.Empty()}
+		reqStr, err := req.String()
+		s.Require().NoError(err)
+
+		_, err = handleClient.SendMessage(reqStr)
+		s.Require().NoError(err)
+
+		reply, err := handleClient.RecvMessage(0)
+		s.Require().NoError(err)
+		test.instance0.logger.Info("replie back", "message", reply)
+	}
+
+	// Sending a close message
+	instanceManager, err := zmq.NewSocket(zmq.REQ)
+	s.Require().NoError(err)
+	err = instanceManager.Connect(config.InstanceUrl(test.instance0.parentId, test.instance0.Id))
+	s.Require().NoError(err)
+	req := message.Request{Command: "close", Parameters: key_value.Empty()}
+	reqStr, err := req.String()
+	s.Require().NoError(err)
+
+	_, err = instanceManager.SendMessage(reqStr)
+	s.Require().NoError(err)
+
+	// Then we will close it
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(test.instance0.Status(), CLOSED)
+
+	// Clean out the things
+	err = instanceManager.Close()
+	s.Require().NoError(err)
+}
+
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestInstance(t *testing.T) {
