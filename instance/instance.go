@@ -36,10 +36,11 @@ type Instance struct {
 	depClients         *client.Clients
 	requiredExtensions []string
 	extensionConfigs   key_value.KeyValue
+	logger             *log.Logger
 }
 
 // New handler of the handlerType
-func New(handlerType config.HandlerType, id string, parentId string) *Instance {
+func New(handlerType config.HandlerType, id string, parentId string, logger *log.Logger) *Instance {
 	return &Instance{
 		Id:             id,
 		parentId:       parentId,
@@ -47,6 +48,7 @@ func New(handlerType config.HandlerType, id string, parentId string) *Instance {
 		routes:         nil,
 		routeDeps:      nil,
 		depClients:     nil,
+		logger:         logger,
 	}
 }
 

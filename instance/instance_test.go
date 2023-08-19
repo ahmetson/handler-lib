@@ -6,6 +6,7 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/log-lib"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -60,7 +61,9 @@ func (test *TestInstanceSuite) Test_0_New() {
 	id := "instance_0"
 	parentId := "parent_0"
 
-	test.instance0 = New(handlerType, id, parentId)
+	logger, _ := log.New("instance_test", true)
+
+	test.instance0 = New(handlerType, id, parentId, logger)
 }
 
 // Test_10_SetRoutes tests the setting routes references from handler.
