@@ -16,7 +16,6 @@ type Reactor struct {
 	status         string
 	externalConfig *config.Handler
 	queue          *data_type.Queue
-	queueCap       uint
 }
 
 // New reactor is created
@@ -27,7 +26,6 @@ func New() *Reactor {
 		status:         CREATED,
 		externalConfig: nil,
 		queue:          data_type.NewQueue(),
-		queueCap:       100_000,
 	}
 }
 
