@@ -11,6 +11,10 @@ import (
 	"time"
 )
 
+const (
+	CREATED = "created"
+)
+
 type Reactor struct {
 	external        *zmq.Socket
 	sockets         *zmq.Reactor
