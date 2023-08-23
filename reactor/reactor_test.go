@@ -40,7 +40,6 @@ func (test *TestReactorSuite) Test_10_External() {
 	test.reactor.SetConfig(test.handleConfig)
 
 	// Queue is populated by External socket, so let's test it.
-	test.reactor.queueCap = 2
 	err := test.reactor.queue.SetCap(2)
 	s.Require().NoError(err)
 
