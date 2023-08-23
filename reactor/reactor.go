@@ -50,6 +50,15 @@ func (reactor *Reactor) SetInstanceManager(manager *instance_manager.Parent) {
 	reactor.instanceManager = manager
 }
 
+func (reactor *Reactor) Status() string {
+	return reactor.status
+}
+
+// IsError returns true if the reactor got issue during the running.
+func (reactor *Reactor) IsError() bool {
+	return reactor.status != CREATED && reactor.status != RUNNING
+}
+
 // prepareExternalSocket sets up the external socket.
 // the user requests are coming to external socket.
 // this socket is bound to the url from externalConfig.
