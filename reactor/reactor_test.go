@@ -3,9 +3,12 @@ package reactor
 import (
 	"fmt"
 	"github.com/ahmetson/client-lib"
+	"github.com/ahmetson/common-lib/data_type"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/instance_manager"
+	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 	"testing"
@@ -107,6 +110,88 @@ func (test *TestReactorSuite) Test_10_External() {
 
 	err = test.reactor.external.Close()
 	s.Require().NoError(err)
+
+	// clean out the queue
+	test.reactor.queue = data_type.NewQueue()
+}
+
+// Test_11_Consumer tests the consuming
+func (test *TestReactorSuite) Test_11_Consumer() {
+	s := &test.Suite
+	cmd := "hello"
+	handleHello := func(req message.Request) message.Reply {
+		time.Sleep(time.Second) // just to test consuming since there is no ready instances
+		return req.Ok(key_value.Empty())
+	}
+	routes := key_value.Empty().Set(cmd, handleHello)
+	routeDeps := key_value.Empty()
+	depClients := key_value.Empty()
+
+	// Consumer requires Instance Manager
+	err := test.reactor.handleConsume()
+	s.Require().Error(err)
+
+	// Added Instance Manager
+	logger, err := log.New(test.handleConfig.Id, true)
+	s.Require().NoError(err)
+	instanceManager := instance_manager.New(test.handleConfig.Id, logger)
+
+	go instanceManager.Run()
+
+	time.Sleep(time.Millisecond * 50) // wait until it updates the status
+	instanceId, err := instanceManager.AddInstance(test.handleConfig.Type, &routes, &routeDeps, &depClients)
+	s.Require().NoError(err)
+
+	time.Sleep(time.Millisecond * 50) // wait until the instance will be loaded
+
+	test.reactor.SetInstanceManager(instanceManager) // adding
+
+	// Empty queue does nothing
+	s.Require().True(test.reactor.queue.IsEmpty())
+
+	// Instance manager is set, zeromq reactor is set, but no queue should do nothing
+	err = test.reactor.handleConsume()
+	s.Require().Error(err)
+
+	// Also, consumer requires zeromq reactor
+	test.reactor.prepareSockets()
+
+	// Instance manager is set, zeromq reactor is set, but no queue should do nothing
+	err = test.reactor.handleConsume()
+	s.Require().NoError(err)
+
+	// add a message into the queue
+	req := message.Request{Command: cmd, Parameters: key_value.Empty()}
+	reqStr, err := req.String()
+	s.Require().NoError(err)
+	messageId := "msg_1"
+
+	s.Require().True(test.reactor.queue.IsEmpty())
+	test.reactor.queue.Push([]string{messageId, "", reqStr})
+	s.Require().False(test.reactor.queue.IsEmpty())
+
+	// Before testing handle consume with queue,
+	// make sure that processing is empty.
+	// Consuming the message should remove the message from queue, and add it to the processing list
+	s.Require().True(test.reactor.processing.IsEmpty())
+
+	// Consuming the message
+	err = test.reactor.handleConsume()
+	s.Require().NoError(err)
+
+	// The consumed message should be moved from queue to the processing
+	s.Require().True(test.reactor.queue.IsEmpty())
+	s.Require().False(test.reactor.processing.IsEmpty())
+
+	// The processing list has the expected tracking. Such as instance handles the message id
+	rawMessageId, err := test.reactor.processing.Get(instanceId)
+	s.Require().NoError(err)
+	s.Require().EqualValues(messageId, rawMessageId.(string))
+
+	// clean out
+	instanceManager.Close()
+
+	time.Sleep(time.Millisecond * 100) // wait until instance manager ends
 }
 
 // In order for 'go test' to run this suite, we need to create
