@@ -183,14 +183,18 @@ func (parent *Parent) Close() {
 	}
 }
 
-// AddInstance to the handler
+func (parent *Parent) NewInstanceId() string {
+	instanceNum := parent.lastInstanceId + 1
+	return fmt.Sprintf("%s_instance_%d", parent.id, instanceNum)
+}
+
+// AddInstance to the handler. Returns generated instance id and error
 func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, routeDeps kvRef, clients kvRef) (string, error) {
 	if parent.Status() != Running {
 		return "", fmt.Errorf("instance_manager is not running. unexpected status: %s", parent.Status())
 	}
 
-	instanceNum := parent.lastInstanceId + 1
-	id := fmt.Sprintf("%s_instance_%d", parent.id, instanceNum)
+	id := parent.NewInstanceId()
 
 	added := instance.New(handlerType, id, parent.id, parent.logger)
 	added.SetRoutes(routes, routeDeps)
