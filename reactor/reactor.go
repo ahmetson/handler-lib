@@ -47,7 +47,8 @@ func (reactor *Reactor) SetInstanceManager(manager *instance_manager.Parent) {
 	reactor.instanceManager = manager
 }
 
-// prepareExternalSocket sets up the external socket that bind to the url from externalConfig.
+// prepareExternalSocket sets up the external socket that binds to the url from externalConfig.
+// so that handler can receive requests from external sources.
 func (reactor *Reactor) prepareExternalSocket() error {
 	socketType := config.SocketType(reactor.externalConfig.Type)
 	if reactor.externalConfig.Type == config.SyncReplierType {
@@ -69,20 +70,24 @@ func (reactor *Reactor) prepareExternalSocket() error {
 	return nil
 }
 
-// prepareSockets sets up the zeromq's reactor to handle all sockets
+// prepareSockets sets up the zeromq's reactor to handle all External, instances in a one thread
 func (reactor *Reactor) prepareSockets() {
 	reactor.sockets = zmq.NewReactor()
 }
 
+// runExternalReceiver adds the external socket to zeromq reactor to invoke handleFrontend when it receives a message.
 func (reactor *Reactor) runExternalReceiver() {
 	reactor.sockets.AddSocket(reactor.external, zmq.POLLIN, func(e zmq.State) error { return reactor.handleFrontend() })
 }
 
+// runConsumer adds the consumer to the zeromq reactor to check for queue and send the messages to instances.
+// It runs every millisecond, or 1000 times in a second.
 func (reactor *Reactor) runConsumer() {
 	reactor.consumerId = reactor.sockets.AddChannelTime(time.Tick(time.Millisecond), 0,
 		func(_ interface{}) error { return reactor.handleConsume() })
 }
 
+// runInstanceReceiver makes sure to invoke handleInstance when an instance returns the result.
 func (reactor *Reactor) runInstanceReceiver(id string, socket *zmq.Socket) {
 	reactor.sockets.AddSocket(socket, zmq.POLLIN, func(e zmq.State) error { return reactor.handleInstance(id, socket) })
 }
@@ -108,7 +113,9 @@ func (reactor *Reactor) handleFrontend() error {
 	return nil
 }
 
-// Handling incoming messages
+// Invoked when instances return a response.
+// The invoked response returned to back to the external socket.
+// The external socket will reply it back to the user.
 func (reactor *Reactor) handleInstance(id string, sock *zmq.Socket) error {
 	messages, err := sock.RecvMessage(0)
 	if err != nil {
@@ -135,7 +142,12 @@ func (reactor *Reactor) handleInstance(id string, sock *zmq.Socket) error {
 	return nil
 }
 
-// This one consumes the message queue by each instance
+// handleConsume forwards the messages from queue to the ready instances.
+// requires instance manager and zeromq sockets to be set first.
+//
+// the forwards messages are taken from the queue and added to the processing list.
+// it also registers instance in the zeromq reactor, so that Reactor could handle when the instance
+// finishes its handling.
 func (reactor *Reactor) handleConsume() error {
 	if reactor.instanceManager == nil {
 		return fmt.Errorf("instanceManager not set")
