@@ -139,6 +139,9 @@ func (reactor *Reactor) handleInstance(id string, sock *zmq.Socket) error {
 		return fmt.Errorf("processing.Take(%s): %w", id, err)
 	}
 
+	// avoiding receiving the incoming messages from instances again
+	reactor.sockets.RemoveSocket(sock)
+
 	return nil
 }
 
