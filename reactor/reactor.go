@@ -25,6 +25,7 @@ type Reactor struct {
 	processing      *key_value.List // Tracking messages processed by the instances
 	instanceManager *instance_manager.Parent
 	consumerId      uint64
+	close           bool
 }
 
 // New reactor is created
@@ -36,6 +37,8 @@ func New() *Reactor {
 		queue:           data_type.NewQueue(),
 		processing:      key_value.NewList(),
 		instanceManager: nil,
+		consumerId:      0,
+		close:           false,
 	}
 }
 
@@ -51,6 +54,10 @@ func (reactor *Reactor) SetInstanceManager(manager *instance_manager.Parent) {
 // the user requests are coming to external socket.
 // this socket is bound to the url from externalConfig.
 func (reactor *Reactor) prepareExternalSocket() error {
+	if err := reactor.closeExternal(); err != nil {
+		return fmt.Errorf("reactor.closeExternal: %w", err)
+	}
+
 	socketType := config.SocketType(reactor.externalConfig.Type)
 	if reactor.externalConfig.Type == config.SyncReplierType {
 		socketType = config.SocketType(config.ReplierType)
@@ -110,6 +117,72 @@ func (reactor *Reactor) handleFrontend() error {
 	}
 
 	reactor.queue.Push(msg)
+
+	return nil
+}
+
+func (reactor *Reactor) closeExternal() error {
+	if reactor.external != nil {
+		reactor.sockets.RemoveSocket(reactor.external)
+		if err := reactor.external.Close(); err != nil {
+			return fmt.Errorf("closing already running external socket: %w", err)
+		}
+
+		reactor.external = nil
+	}
+
+	return nil
+}
+
+// Close stops all sockets, and clear out the queue, processing
+func (reactor *Reactor) Close() error {
+	fmt.Printf("reactor closed? %v \n", reactor.close)
+	if reactor.close {
+		return nil
+	}
+
+	fmt.Printf("reactor status: %s, it's running? %v \n", reactor.status, reactor.status == RUNNING)
+	if reactor.status != RUNNING {
+		return nil
+	}
+
+	fmt.Printf("mark reactor as closed\n")
+	reactor.close = true // stop zeromq's reactor running
+
+	fmt.Printf("reactor sockets (zeromq's reactor) initialized? %v \n", reactor.sockets != nil)
+	if reactor.sockets == nil {
+		return nil
+	}
+
+	fmt.Printf("reactor closes external socket, has external socket? %v\n", reactor.external != nil)
+	if err := reactor.closeExternal(); err != nil {
+		return fmt.Errorf("reactor.closeExternal: %w", err)
+	}
+	fmt.Printf("reactor closes external socket, external socket closed? %v\n", reactor.external == nil)
+
+	fmt.Printf("reactor closes consumer, has consumer? %v\n", reactor.consumerId > 0)
+
+	// remove consumer from zeromq's reactor
+	if reactor.consumerId > 0 {
+		reactor.sockets.RemoveChannel(reactor.consumerId)
+		reactor.consumerId = 0
+	}
+	fmt.Printf("reactor closes consumer, consumer closed? %v\n", reactor.consumerId == 0)
+
+	// remove instance sockets from zeromq's reactor
+	fmt.Printf("reactor closes instance receivers? %v, has instance manager? %v\n", reactor.processing.IsEmpty(), reactor.instanceManager != nil)
+	if !reactor.processing.IsEmpty() && reactor.instanceManager != nil {
+		list := reactor.processing.List()
+		for raw := range list {
+			instanceId := raw.(string)
+			sock := reactor.instanceManager.Handler(instanceId)
+			if sock != nil {
+				reactor.sockets.RemoveSocket(sock)
+			}
+		}
+
+		reactor.processing = key_value.NewList()
+	}
 
 	return nil
 }
