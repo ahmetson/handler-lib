@@ -47,8 +47,9 @@ func (reactor *Reactor) SetInstanceManager(manager *instance_manager.Parent) {
 	reactor.instanceManager = manager
 }
 
-// prepareExternalSocket sets up the external socket that binds to the url from externalConfig.
-// so that handler can receive requests from external sources.
+// prepareExternalSocket sets up the external socket.
+// the user requests are coming to external socket.
+// this socket is bound to the url from externalConfig.
 func (reactor *Reactor) prepareExternalSocket() error {
 	socketType := config.SocketType(reactor.externalConfig.Type)
 	if reactor.externalConfig.Type == config.SyncReplierType {
@@ -75,8 +76,8 @@ func (reactor *Reactor) prepareSockets() {
 	reactor.sockets = zmq.NewReactor()
 }
 
-// runExternalReceiver adds the external socket to zeromq reactor to invoke handleFrontend when it receives a message.
-func (reactor *Reactor) runExternalReceiver() {
+// receiveExternalMessages adds the external socket to zeromq reactor to invoke handleFrontend when it receives a message.
+func (reactor *Reactor) receiveExternalMessages() {
 	reactor.sockets.AddSocket(reactor.external, zmq.POLLIN, func(e zmq.State) error { return reactor.handleFrontend() })
 }
 
@@ -87,8 +88,8 @@ func (reactor *Reactor) runConsumer() {
 		func(_ interface{}) error { return reactor.handleConsume() })
 }
 
-// runInstanceReceiver makes sure to invoke handleInstance when an instance returns the result.
-func (reactor *Reactor) runInstanceReceiver(id string, socket *zmq.Socket) {
+// receiveInstanceMessage makes sure to invoke handleInstance when an instance returns the result.
+func (reactor *Reactor) receiveInstanceMessage(id string, socket *zmq.Socket) {
 	reactor.sockets.AddSocket(socket, zmq.POLLIN, func(e zmq.State) error { return reactor.handleInstance(id, socket) })
 }
 // handleFrontend is an event invoked by the zmq4.Reactor whenever a new client request happens.
@@ -183,7 +184,7 @@ func (reactor *Reactor) handleConsume() error {
 		return fmt.Errorf("instance.SendMessageDontWait: %w", err)
 	}
 
-	reactor.runInstanceReceiver(id, sock)
+	reactor.receiveInstanceMessage(id, sock)
 
 	return nil
 }
