@@ -13,7 +13,6 @@ import (
 
 type Reactor struct {
 	external        *zmq.Socket
-	redirect        *zmq.Socket
 	sockets         *zmq.Reactor
 	id              string // Handler ID
 	status          string
@@ -28,7 +27,6 @@ type Reactor struct {
 func New() *Reactor {
 	return &Reactor{
 		external:        nil,
-		redirect:        nil,
 		status:          CREATED,
 		externalConfig:  nil,
 		queue:           data_type.NewQueue(),
@@ -43,14 +41,6 @@ func (reactor *Reactor) SetConfig(externalConfig *config.Handler) {
 
 func (reactor *Reactor) SetInstanceManager(manager *instance_manager.Parent) {
 	reactor.instanceManager = manager
-}
-
-// redirectUrl it only after adding a config.
-// returns an inproc url
-//
-// the name of the server should not contain a space or special character
-func (reactor *Reactor) redirectUrl() string {
-	return fmt.Sprintf("inproc://redirect_%s", reactor.id)
 }
 
 // prepareExternalSocket sets up the external socket that bind to the url from externalConfig.
