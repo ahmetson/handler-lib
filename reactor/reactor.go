@@ -13,6 +13,7 @@ import (
 
 const (
 	CREATED = "created"
+	RUNNING = "running"
 )
 
 type Reactor struct {
@@ -108,6 +109,50 @@ func (reactor *Reactor) runConsumer() {
 func (reactor *Reactor) receiveInstanceMessage(id string, socket *zmq.Socket) {
 	reactor.sockets.AddSocket(socket, zmq.POLLIN, func(e zmq.State) error { return reactor.handleInstance(id, socket) })
 }
+
+// Run the reactor
+func (reactor *Reactor) Run() {
+	if reactor.externalConfig == nil {
+		reactor.status = fmt.Sprintf("missing externalConfig")
+		return
+	}
+
+	if reactor.instanceManager == nil {
+		reactor.status = fmt.Sprintf("missing instanceManager")
+		return
+	}
+
+	if err := reactor.prepareExternalSocket(); err != nil {
+		reactor.status = fmt.Sprintf("prepareExternalSocket: %v", err)
+		return
+	}
+
+	reactor.prepareSockets()
+	reactor.receiveExternalMessages()
+	reactor.runConsumer()
+
+	reactor.status = RUNNING
+	for {
+		if reactor.close {
+			break
+		}
+
+		if err := reactor.sockets.Run(time.Millisecond); err != nil {
+			if !reactor.close {
+				reactor.status = fmt.Sprintf("sockets.Run (mark as closed? %v): %v", reactor.close, err)
+				return
+			}
+			break // break if marked as close
+		}
+	}
+
+	// exited due to closing? reset it
+	if reactor.close {
+		reactor.close = false
+		reactor.status = CREATED
+	}
+}
+
 // handleFrontend is an event invoked by the zmq4.Reactor whenever a new client request happens.
 //
 // This function will forward the messages to the backend.

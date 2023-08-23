@@ -116,7 +116,7 @@ func (test *TestReactorSuite) Test_10_External() {
 }
 
 // Test_11_Consumer tests the consuming
-func (test *TestReactorSuite) Test_11_Consumer() {
+func (test *TestReactorSuite) Test_12_Consumer() {
 	s := &test.Suite
 	cmd := "hello"
 	handleHello := func(req message.Request) message.Reply {
@@ -192,6 +192,35 @@ func (test *TestReactorSuite) Test_11_Consumer() {
 	instanceManager.Close()
 
 	time.Sleep(time.Millisecond * 100) // wait until instance manager ends
+}
+
+// Test_12_Run runs the Reactor
+func (test *TestReactorSuite) Test_13_Run() {
+	s := &test.Suite
+
+	// Queue is populated by External socket, so let's test it.
+	err := test.reactor.queue.SetCap(1)
+	s.Require().NoError(err)
+
+	// The reactor runs for the first time
+	s.Require().Equal(CREATED, test.reactor.Status())
+
+	// Run
+	go test.reactor.Run()
+
+	// Wait a bit for initialization
+	time.Sleep(time.Millisecond * 10)
+
+	// Running?
+	s.Require().Equal(RUNNING, test.reactor.Status())
+
+	// Close the reactor
+	err = test.reactor.Close()
+	s.Require().NoError(err)
+
+	// wait a bit before the socket runner stops
+	time.Sleep(time.Millisecond * 50)
+	s.Require().Equal(CREATED, test.reactor.Status())
 }
 
 // In order for 'go test' to run this suite, we need to create
