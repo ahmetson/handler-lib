@@ -188,6 +188,18 @@ func (parent *Parent) NewInstanceId() string {
 	return fmt.Sprintf("%s_instance_%d", parent.id, instanceNum)
 }
 
+// Handler socket of the instance.
+//
+// Don't do any operations on the socket, as it could lead to the unexpected behaviours of the instance manager.
+func (parent *Parent) Handler(instanceId string) *zmq.Socket {
+	child, ok := parent.instances[instanceId]
+	if child == nil || !ok || child.handleSocket == nil {
+		return nil
+	}
+
+	return child.handleSocket
+}
+
 // AddInstance to the handler. Returns generated instance id and error
 func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, routeDeps kvRef, clients kvRef) (string, error) {
 	if parent.Status() != Running {
