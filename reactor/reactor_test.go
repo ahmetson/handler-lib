@@ -33,8 +33,7 @@ func (test *TestReactorSuite) Test_0_New() {
 	test.reactor = New()
 }
 
-// Test_10_External tests the external socket is running and the messages are queued
-func (test *TestReactorSuite) Test_10_External() {
+func (test *TestReactorSuite) Test_10_SetConfig() {
 	s := &test.Suite
 
 	// The reactor has no info about the handler
@@ -42,12 +41,17 @@ func (test *TestReactorSuite) Test_10_External() {
 
 	test.reactor.SetConfig(test.handleConfig)
 
+	// The reactor has the configuration of the handler
+	s.Require().NotNil(test.reactor.externalConfig)
+}
+
+// Test_10_External tests the external socket is running and the messages are queued
+func (test *TestReactorSuite) Test_11_External() {
+	s := &test.Suite
+
 	// Queue is populated by External socket, so let's test it.
 	err := test.reactor.queue.SetCap(2)
 	s.Require().NoError(err)
-
-	// The reactor has the configuration of the handler
-	s.Require().NotNil(test.reactor.externalConfig)
 
 	// Let's prepare the external socket from the handle configuration
 	err = test.reactor.prepareExternalSocket()
