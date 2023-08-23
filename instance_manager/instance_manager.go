@@ -289,12 +289,12 @@ func (parent *Parent) Instances() map[string]string {
 }
 
 // Ready returns an instance that's ready to handle requests
-func (parent *Parent) Ready() *zmq.Socket {
-	for _, child := range parent.instances {
+func (parent *Parent) Ready() (string, *zmq.Socket) {
+	for id, child := range parent.instances {
 		if child.status == instance.READY {
-			return child.handleSocket
+			return id, child.handleSocket
 		}
 	}
 
-	return nil
+	return "", nil
 }

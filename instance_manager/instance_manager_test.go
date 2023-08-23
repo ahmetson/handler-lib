@@ -137,7 +137,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 
 	// Make sure that there are no instances
 	s.Require().Len(test.parent.instances, 0)
-	s.Require().Nil(test.parent.Ready())
+	s.Require().Empty(test.parent.Ready())
 
 	// The instance should be idle before running
 	s.Require().Equal(Idle, test.parent.Status())
@@ -164,7 +164,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 	s.Equal(instance.READY, test.parent.instances[instanceId2].status)
 
 	// Let's test the ready instances
-	handler := test.parent.Ready()
+	_, handler := test.parent.Ready()
 	s.Require().NotNil(handler)
 
 	_, err = handler.SendMessageDontwait(reqStr)
@@ -176,7 +176,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 	s.Require().Equal(instance.HANDLING, test.parent.instances[instanceId].status)
 
 	// Get the second ready worker
-	handler2 := test.parent.Ready()
+	_, handler2 := test.parent.Ready()
 	s.Require().NotNil(handler2)
 
 	_, err = handler2.SendMessageDontwait(reqStr)
@@ -186,7 +186,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 	s.Require().Equal(instance.HANDLING, test.parent.instances[instanceId2].status)
 
 	// There should not be any ready worker
-	handler3 := test.parent.Ready()
+	_, handler3 := test.parent.Ready()
 	s.Require().Nil(handler3)
 
 	// After handling, the first worker should be READY again
@@ -194,7 +194,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 	s.Require().NoError(err)
 	test.parent.logger.Info("handling result from the first instance", "msg", msg)
 
-	handler4 := test.parent.Ready()
+	_, handler4 := test.parent.Ready()
 	s.Require().NotNil(handler4)
 
 	// Clean out after adding a new instance
