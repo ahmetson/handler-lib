@@ -36,7 +36,7 @@ type Parent struct {
 	close          bool
 }
 
-// New instance manager is created
+// New instance manager is created with the handler id
 func New(id string, parent *log.Logger) *Parent {
 	logger := parent.Child("instance-manager")
 
@@ -96,6 +96,7 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 }
 
 // Run the instance manager to receive the data from the instances
+// Use the goroutine.
 func (parent *Parent) Run() {
 	sock, err := zmq.NewSocket(zmq.PULL)
 	if err != nil {
