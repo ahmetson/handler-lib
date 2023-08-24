@@ -71,16 +71,6 @@ func (test *TestHandlerSuite) SetupTest() {
 	// Setting the parameters of the Tcp Handler
 	test.tcpHandler.SetConfig(test.tcpConfig)
 	s.Require().NoError(test.tcpHandler.SetLogger(test.logger))
-
-	//go func() {
-	//	_ = test.inprocHandler.Run()
-	//}()
-	//go func() {
-	//	_ = test.tcpHandler.Run()
-	//}()
-
-	// Run for the controllers to be ready
-	//time.Sleep (time.Millisecond * 100)
 }
 
 // Test_11_Deps tests setting of the route dependencies
