@@ -9,6 +9,7 @@ import (
 	service "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/route"
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/os-lib/net"
 	"github.com/ahmetson/os-lib/process"
@@ -102,6 +103,10 @@ func (c *Handler) replyError(socket *zmq.Socket, err error) error {
 
 // Route adds a route along with its handler to this server
 func (c *Handler) Route(cmd string, handle any, deps ...string) error {
+	if !route.IsHandleFunc(handle) {
+		return fmt.Errorf("handle is not a valid handle function")
+	}
+
 	if err := c.routes.Exist(cmd); err == nil {
 		return nil
 	}

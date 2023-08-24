@@ -85,3 +85,32 @@ func Handle(req *message.Request, handleInterface interface{}, depClients []*cli
 
 	return &reply
 }
+
+// IsHandleFunc returns true if the given interface is convertible into HandleFunc
+func IsHandleFunc(handleInterface interface{}) bool {
+	_, ok := handleInterface.(HandleFunc0)
+	if ok {
+		return true
+	}
+	_, ok = handleInterface.(HandleFunc1)
+	if ok {
+		return true
+	}
+
+	_, ok = handleInterface.(HandleFunc2)
+	if ok {
+		return true
+	}
+
+	_, ok = handleInterface.(HandleFunc3)
+	if ok {
+		return true
+	}
+
+	_, ok = handleInterface.(HandleFuncN)
+	if ok {
+		return true
+	}
+
+	return false
+}
