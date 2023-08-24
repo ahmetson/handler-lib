@@ -138,7 +138,7 @@ func (test *TestHandlerManagerSuite) req(request message.Request) message.Reply 
 func (test *TestHandlerManagerSuite) Test_10_InvalidCommand() {
 	s := &test.Suite
 
-	// must fail since command is invalid
+	// must fail since the command is invalid
 	req := message.Request{Command: "no_command", Parameters: key_value.Empty()}
 	reply := test.req(req)
 	s.Require().False(reply.IsOK())
@@ -186,6 +186,66 @@ func (test *TestHandlerManagerSuite) Test_12_ClosePart() {
 
 	test.cleanOut()
 }
+
+// Test_13_RunPart trying to run some parts
+func (test *TestHandlerManagerSuite) Test_13_RunPart() {
+	s := &test.Suite
+	params := key_value.Empty()
+	req := message.Request{Command: "close_part", Parameters: params}
+
+	// Stopping the reactor that was run during test setup
+	params.Set("part", "reactor")
+	req.Parameters = params
+	reply := test.req(req)
+	s.Require().True(reply.IsOK())
+
+	// Make sure the reactor stopped
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(reactor.CREATED, test.reactor.Status())
+
+	// Let's test running it
+	req.Command = "run_part"
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	// Make sure it's running
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(reactor.RUNNING, test.reactor.Status())
+
+	//
+	// Testing with the instance manager
+	//
+
+	// stop the instance manager that was run during test setup
+	req.Command = "close_part"
+	params.Set("part", "instance_manager")
+	req.Parameters = params
+
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	// Make sure that instance manager stopped
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(instance_manager.Idle, test.instanceManager.Status())
+
+	// Run the instance manager
+	req.Command = "run_part"
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	// Make sure that instance manager is running
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(instance_manager.Running, test.instanceManager.Status())
+
+	//
+	// Re-running must fail
+	//
+	reply = test.req(req)
+	s.Require().False(reply.IsOK())
+
+	test.cleanOut()
+}
+
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestHandlerManager(t *testing.T) {
