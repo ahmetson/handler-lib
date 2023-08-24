@@ -22,6 +22,11 @@ func UrlToFileName(url string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(url, "/", "."), "\\", ".")
 }
 
+// ManagerUrl returns the handler manager socket
+func ManagerUrl(handlerId string) string {
+	return fmt.Sprintf("inproc://manager_%s", handlerId)
+}
+
 // ParentUrl returns the url of the instance manager
 func ParentUrl(handlerId string) string {
 	return fmt.Sprintf("inproc://handler_%s", handlerId)
