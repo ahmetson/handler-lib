@@ -192,7 +192,7 @@ func (c *Instance) Run() {
 			break
 		}
 
-		sockets, err := poller.Poll(-1)
+		sockets, err := poller.Poll(0)
 		if err != nil {
 			newErr := fmt.Errorf("poller.Poll(%s): %w", c.Type(), err)
 			c.logger.Fatal("failed", "error", newErr)
