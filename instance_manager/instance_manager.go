@@ -242,7 +242,6 @@ func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, 
 	go func(parent *Parent, instanceId string) {
 		time.Sleep(time.Millisecond * 200)
 		if parent.instances[instanceId] == nil || parent.instances[instanceId].status == InstanceCreated {
-			parent.logger.Warn("instance not initialized", "instance id", instanceId)
 			delete(parent.instances, instanceId)
 		}
 	}(parent, id)

@@ -120,12 +120,10 @@ func (c *Instance) Run() {
 		Parameters: key_value.Empty().Set("id", c.Id).Set("status", PREPARE),
 	}
 	reqStr, _ := req.String()
-	c.logger.Info("sending a message to the parent as its prepared")
 	_, err = parent.SendMessageDontwait(reqStr)
 	if err != nil {
 		c.logger.Fatal("failed to send status as PREPARE to parent", "err", err)
 	}
-	c.logger.Info("message was sent")
 
 	handler, err := zmq.NewSocket(config.SocketType(c.Type()))
 	if err != nil {
@@ -174,7 +172,6 @@ func (c *Instance) Run() {
 
 	for {
 		if c.close {
-			c.logger.Warn("received a close signal, stop receiving messages")
 			err = poller.RemoveBySocket(handler)
 			if err != nil {
 				c.logger.Fatal("remove handler", "error", err)
@@ -215,8 +212,6 @@ func (c *Instance) Run() {
 					}
 					c.logger.Fatal("error", "message", newErr)
 				}
-
-				c.logger.Info("message received", "messages", data)
 
 				req.Parameters.Set("status", HANDLING)
 				reqStr, _ = req.String()
