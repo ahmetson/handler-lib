@@ -29,7 +29,6 @@ type Child struct {
 type Parent struct {
 	instances      map[string]*Child
 	lastInstanceId uint
-	socket         *zmq.Socket
 	id             string
 	logger         *log.Logger
 	status         string
@@ -44,7 +43,6 @@ func New(id string, parent *log.Logger) *Parent {
 		id:             id,
 		lastInstanceId: 0,
 		instances:      make(map[string]*Child, 0),
-		socket:         nil,
 		logger:         logger,
 		status:         Idle,
 		close:          false,
@@ -98,6 +96,7 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 // Run the instance manager to receive the data from the instances
 // Use the goroutine.
 func (parent *Parent) Run() {
+	// This socket is receiving messages from the parents.
 	sock, err := zmq.NewSocket(zmq.PULL)
 	if err != nil {
 		parent.status = fmt.Sprintf("new_socket: %v", err)
@@ -143,6 +142,7 @@ func (parent *Parent) Run() {
 			break
 		}
 
+		// Only set_status is supported. If it's not set_status, throw an error.
 		if req.Command != "set_status" {
 			parent.status = fmt.Sprintf("command '%s' not supported", req.Command)
 			break
@@ -191,7 +191,7 @@ func (parent *Parent) NewInstanceId() string {
 
 // Handler socket of the instance.
 //
-// Don't do any operations on the socket, as it could lead to the unexpected behaviours of the instance manager.
+// Don't do any operations on the socket, as it could lead to the unexpected behaviors of the instance manager.
 func (parent *Parent) Handler(instanceId string) *zmq.Socket {
 	child, ok := parent.instances[instanceId]
 	if child == nil || !ok || child.handleSocket == nil {
