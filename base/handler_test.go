@@ -6,6 +6,7 @@ import (
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/instance_manager"
+	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/log-lib"
 	"github.com/stretchr/testify/suite"
 	"slices"
@@ -192,6 +193,7 @@ func (test *TestHandlerSuite) Test_12_DepConfig() {
 	s.Require().Error(test.inprocHandler.AddDepByService(depConfig))
 }
 
+// Test_13_InstanceManager tests setting of the instance manager and then listening to it.
 func (test *TestHandlerSuite) Test_13_InstanceManager() {
 	s := &test.Suite
 
@@ -227,26 +229,29 @@ func (test *TestHandlerSuite) Test_13_InstanceManager() {
 	s.Require().Empty(test.inprocHandler.instanceManager.Instances())
 }
 
-// All methods that begin with "Test" are run as tests within a
-// suite.
-func (test *TestHandlerSuite) TestRun() {
-	//var wg sync.WaitGroup
+// Test_14_Run runs the handler.
+func (test *TestHandlerSuite) Test_14_Run() {
+	s := &test.Suite
 
-	//wg.Add(1)
-	//// tcp client
-	//go func() {
-	//	// no route found
-	//	request3 := message.Request{
-	//		Command:    "command_3",
-	//		Parameters: key_value.Empty(),
-	//	}
-	//	_, err := test.tcpClient.RequestRemoteService(&request3)
-	//	test.Require().Error(err)
-	//
-	//	wg.Done()
-	//}()
+	err := test.inprocHandler.Start()
+	s.Require().NoError(err)
 
-	//wg.Wait()
+	// Wait a bit for initialization
+	time.Sleep(time.Millisecond * 100)
+
+	// Make sure that everything works
+	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Running)
+	s.Require().Equal(test.inprocHandler.reactor.Status(), reactor.RUNNING)
+
+	// Now let's close it
+	err = test.inprocHandler.Close()
+
+	// Wait a bit for closing
+	time.Sleep(time.Millisecond * 100)
+
+	// Make sure that everything is closed
+	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Idle)
+	s.Require().Equal(test.inprocHandler.reactor.Status(), reactor.CREATED)
 }
 
 // In order for 'go test' to run this suite, we need to create

@@ -52,7 +52,7 @@ type Interface interface {
 	// Close the server if it's running. If it's not running, then do nothing
 	Close() error
 
-	Run() error
+	Start() error
 }
 
 // Does nothing, simply returns the data

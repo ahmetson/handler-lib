@@ -313,8 +313,8 @@ func (c *Handler) runInstanceManager() {
 	c.instanceManagerRuns = false
 }
 
-// Run the handler in goroutine
-func (c *Handler) Run() error {
+// Start the handler directly, not by goroutine
+func (c *Handler) Start() error {
 	if c.config == nil {
 		return fmt.Errorf("configuration not set")
 	}
