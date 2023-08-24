@@ -21,25 +21,25 @@ import (
 
 // The Handler is the socket wrapper for the service.
 type Handler struct {
-	config             *config.Handler
-	socket             *zmq.Socket
-	logger             *log.Logger
-	routes             key_value.KeyValue
-	routeDeps          key_value.KeyValue
-	requiredExtensions []string
-	extensionConfigs   key_value.KeyValue
-	depClients         client.Clients
+	config     *config.Handler
+	socket     *zmq.Socket
+	logger     *log.Logger
+	routes     key_value.KeyValue
+	routeDeps  key_value.KeyValue
+	depIds     []string
+	depConfigs key_value.KeyValue
+	depClients client.Clients
 }
 
 // New handler
 func New() *Handler {
 	return &Handler{
-		logger:             nil,
-		routes:             key_value.Empty(),
-		routeDeps:          key_value.Empty(),
-		requiredExtensions: make([]string, 0),
-		extensionConfigs:   key_value.Empty(),
-		depClients:         key_value.Empty(),
+		logger:     nil,
+		routes:     key_value.Empty(),
+		routeDeps:  key_value.Empty(),
+		depIds:     make([]string, 0),
+		depConfigs: key_value.Empty(),
+		depClients: key_value.Empty(),
 	}
 }
 
@@ -59,23 +59,23 @@ func (c *Handler) SetLogger(parent *log.Logger) error {
 	return nil
 }
 
-// AddDepByService adds the config of the extension that the server depends on.
-func (c *Handler) AddDepByService(extension *service.Client) {
-	c.extensionConfigs.Set(extension.Url, extension)
+// AddDepByService adds the config of the dependency. Intended to be called by Service not by developer
+func (c *Handler) AddDepByService(dep *service.Client) {
+	c.depConfigs.Set(dep.Id, dep)
 }
 
 // addDep marks the depClients that this server depends on.
 // Before running, the required extension should be added from the config.
 // Otherwise, server won't run.
-func (c *Handler) addDep(name string) {
-	if !slices.Contains(c.requiredExtensions, name) {
-		c.requiredExtensions = append(c.requiredExtensions, name)
+func (c *Handler) addDep(id string) {
+	if !slices.Contains(c.depIds, id) {
+		c.depIds = append(c.depIds, id)
 	}
 }
 
 // Deps return the list of extension names required by this server.
-func (c *Handler) Deps() []string {
-	return c.requiredExtensions
+func (c *Handler) DepIds() []string {
+	return c.depIds
 }
 
 // A reply sends to the caller the message.
@@ -102,26 +102,26 @@ func (c *Handler) replyError(socket *zmq.Socket, err error) error {
 }
 
 // Route adds a route along with its handler to this server
-func (c *Handler) Route(cmd string, handle any, deps ...string) error {
+func (c *Handler) Route(cmd string, handle any, depIds ...string) error {
 	if !route.IsHandleFunc(handle) {
 		return fmt.Errorf("handle is not a valid handle function")
 	}
 	depAmount := route.DepAmount(handle)
-	if !route.IsHandleFuncWithDeps(handle, len(deps)) {
-		return fmt.Errorf("the '%s' command handler requires %d dependencies, but route has %d dependencies", cmd, depAmount, len(deps))
+	if !route.IsHandleFuncWithDeps(handle, len(depIds)) {
+		return fmt.Errorf("the '%s' command handler requires %d dependencies, but route has %d dependencies", cmd, depAmount, len(depIds))
 	}
 
 	if err := c.routes.Exist(cmd); err == nil {
 		return nil
 	}
 
-	for _, dep := range deps {
+	for _, dep := range depIds {
 		c.addDep(dep)
 	}
 
 	c.routes.Set(cmd, handle)
-	if len(deps) > 0 {
-		c.routeDeps.Set(cmd, deps)
+	if len(depIds) > 0 {
+		c.routeDeps.Set(cmd, depIds)
 	}
 
 	return nil
@@ -130,9 +130,9 @@ func (c *Handler) Route(cmd string, handle any, deps ...string) error {
 // extensionsAdded checks that the required depClients are added into the server.
 // If no depClients are added by calling server.addDep(), then it will return nil.
 func (c *Handler) extensionsAdded() error {
-	for _, name := range c.requiredExtensions {
-		if err := c.extensionConfigs.Exist(name); err != nil {
-			return fmt.Errorf("required '%s' extension. but it wasn't added to the server (does it exist in config.yml?)", name)
+	for _, id := range c.depIds {
+		if err := c.depConfigs.Exist(id); err != nil {
+			return fmt.Errorf("'%s' dependency not added", id)
 		}
 	}
 
@@ -156,7 +156,7 @@ func (c *Handler) Type() config.HandlerType {
 // are not initiated within the same goroutine, then zeromq doesn't guarantee the socket work
 // as it's intended.
 func (c *Handler) initExtensionClients() error {
-	for _, extensionInterface := range c.extensionConfigs {
+	for _, extensionInterface := range c.depConfigs {
 		extensionConfig := extensionInterface.(*service.Client)
 		extension, err := client.NewReq(extensionConfig.Url, extensionConfig.Port, c.logger)
 		if err != nil {

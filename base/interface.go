@@ -34,8 +34,8 @@ type Interface interface {
 	// This function is intended to be called by the service.
 	AddDepByService(*clientConfig.Client)
 
-	// Deps return the list of dep ids collected from all routes.
-	Deps() []string
+	// DepIds return the list of dep ids collected from all routes.
+	DepIds() []string
 
 	// Route adds a new route and it's handlers for this server
 	Route(string, any, ...string) error
