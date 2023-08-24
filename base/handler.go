@@ -131,7 +131,7 @@ func (c *Handler) extensionsAdded() error {
 }
 
 func (c *Handler) Type() config.HandlerType {
-	return c.controllerType
+	return c.config.Type
 }
 
 // initExtensionClients will set up the extension clients for this server.
