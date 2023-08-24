@@ -30,13 +30,10 @@ type Handler struct {
 	depClients         client.Clients
 }
 
-// New handler of the handlerType.
-func New(parent *log.Logger) *Handler {
-	logger := parent.Child("server", "type", handlerType)
-
+// New handler
+func New() *Handler {
 	return &Handler{
-		logger:             logger,
-		controllerType:     handlerType,
+		logger:             nil,
 		routes:             key_value.Empty(),
 		routeDeps:          key_value.Empty(),
 		requiredExtensions: make([]string, 0),
