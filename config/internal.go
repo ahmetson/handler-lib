@@ -22,17 +22,7 @@ func UrlToFileName(url string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(url, "/", "."), "\\", ".")
 }
 
-func ManagerName(url string) string {
-	fileName := UrlToFileName(url)
-	return "manager." + fileName
-}
-
-func ContextName(url string) string {
-	fileName := UrlToFileName(url)
-	return "orchestra." + fileName
-}
-
-// ParentUrl returns the url of the handler to be connected by the instances
+// ParentUrl returns the url of the instance manager
 func ParentUrl(handlerId string) string {
 	return fmt.Sprintf("inproc://handler_%s", handlerId)
 }
@@ -56,9 +46,4 @@ func NewInternalHandler(as HandlerType, cat string) *Handler {
 		InstanceAmount: 1,
 		Port:           0,
 	}
-}
-
-// ClientUrlParameters return the endpoint to connect to this server from other services
-func ClientUrlParameters(name string) (string, uint64) {
-	return name, 0
 }
