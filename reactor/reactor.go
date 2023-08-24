@@ -174,7 +174,6 @@ func (reactor *Reactor) Run() {
 // Frontend will still receive the messages, however, they will be queued until external will not be added to the reactor.
 func (reactor *Reactor) handleFrontend() error {
 	msg, err := reactor.external.RecvMessage(0)
-	fmt.Printf("recevied: '%s', '%v'\n", msg[2:], err)
 	if err != nil {
 		return fmt.Errorf("handleFrontend: external.RecvMessage: %w", err)
 	}
@@ -215,41 +214,31 @@ func (reactor *Reactor) closeExternal() error {
 
 // Close stops all sockets, and clear out the queue, processing
 func (reactor *Reactor) Close() error {
-	fmt.Printf("reactor closed? %v \n", reactor.close)
 	if reactor.close {
 		return nil
 	}
 
-	fmt.Printf("reactor status: %s, it's running? %v \n", reactor.status, reactor.status == RUNNING)
 	if reactor.status != RUNNING {
 		return nil
 	}
 
-	fmt.Printf("mark reactor as closed\n")
 	reactor.close = true // stop zeromq's reactor running
 
-	fmt.Printf("reactor sockets (zeromq's reactor) initialized? %v \n", reactor.sockets != nil)
 	if reactor.sockets == nil {
 		return nil
 	}
 
-	fmt.Printf("reactor closes external socket, has external socket? %v\n", reactor.external != nil)
 	if err := reactor.closeExternal(); err != nil {
 		return fmt.Errorf("reactor.closeExternal: %w", err)
 	}
-	fmt.Printf("reactor closes external socket, external socket closed? %v\n", reactor.external == nil)
-
-	fmt.Printf("reactor closes consumer, has consumer? %v\n", reactor.consumerId > 0)
 
 	// remove consumer from zeromq's reactor
 	if reactor.consumerId > 0 {
 		reactor.sockets.RemoveChannel(reactor.consumerId)
 		reactor.consumerId = 0
 	}
-	fmt.Printf("reactor closes consumer, consumer closed? %v\n", reactor.consumerId == 0)
 
 	// remove instance sockets from zeromq's reactor
-	fmt.Printf("reactor closes instance receivers? %v, has instance manager? %v\n", reactor.processing.IsEmpty(), reactor.instanceManager != nil)
 	if !reactor.processing.IsEmpty() && reactor.instanceManager != nil {
 		list := reactor.processing.List()
 		for raw := range list {

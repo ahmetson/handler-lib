@@ -1,7 +1,6 @@
 package reactor
 
 import (
-	"fmt"
 	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type"
 	"github.com/ahmetson/common-lib/data_type/key_value"
@@ -71,13 +70,11 @@ func (test *TestReactorSuite) Test_11_External() {
 	s.Require().EqualValues(test.reactor.queue.Len(), uint(0))
 
 	for i := 1; i <= 2; i++ {
-		fmt.Printf("user sending %d/%d\n", i, 2)
 		msg := message.Request{Command: "cmd", Parameters: key_value.Empty().Set("id", i).Set("cap", 2)}
 		msgStr, err := msg.String()
 		s.Require().NoError(err)
 		_, err = user.SendMessage("", msgStr)
 		s.Require().NoError(err)
-		fmt.Printf("user sent %d/%d\n", i, 2)
 	}
 
 	// A delay a bit, until frontend will catch the user messages
@@ -93,23 +90,18 @@ func (test *TestReactorSuite) Test_11_External() {
 
 	// If we try to send a message, it should fail
 	i := 3
-	fmt.Printf("user sending %d/%d\n", i, 2)
 	msg := message.Request{Command: "cmd", Parameters: key_value.Empty().Set("id", i).Set("cap", 2)}
 	msgStr, err := msg.String()
 	s.Require().NoError(err)
 	_, err = user.SendMessage("", msgStr)
 	s.Require().NoError(err)
-	fmt.Printf("user sent %d/%d\n", i, 2)
 
-	fmt.Printf("external waits %d/%d\n", i, 2)
 	err = test.reactor.handleFrontend()
 	s.Require().NoError(err)
-	fmt.Printf("external received: %d/%d with error: %v\n", i, 2, err)
 
 	// However, the third message that user receives should be a failure
 	reply, err := user.RecvMessage(0)
 	s.Require().NoError(err)
-	fmt.Printf("reply #3: %v\n", reply)
 	rep, err := message.ParseReply(reply)
 	s.Require().NoError(err)
 	s.Require().False(rep.IsOK())
@@ -309,13 +301,15 @@ func (test *TestReactorSuite) Test_13_Run() {
 	time.Sleep(time.Millisecond * 50)
 
 	// Now we receive the messages
-	fmt.Printf("user waits for the replies\n")
 	repl, err := user.RecvMessage(0)
-	fmt.Printf("reply 1 [%s]: %v\n\n", repl, err)
-	repl, err = user.RecvMessage(0)
-	fmt.Printf("reply 2 [%s]: %v\n\n", repl, err)
-	repl, err = user.RecvMessage(0)
-	fmt.Printf("reply 3 [%s]: %v\n\n", repl, err)
+	s.Require().NoError(err)
+	errorRepl, err := message.ParseReply(repl)
+	s.Require().NoError(err)
+	s.Require().False(errorRepl.IsOK())
+	_, err = user.RecvMessage(0)
+	s.Require().NoError(err)
+	_, err = user.RecvMessage(0)
+	s.Require().NoError(err)
 
 	// Close the reactor
 	err = test.reactor.Close()
