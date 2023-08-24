@@ -15,9 +15,14 @@ import (
 type kvRef = *key_value.KeyValue
 
 const (
-	InstanceCreated = "created" // instance is created, but not initialized yet
-	Running         = "running"
-	Idle            = "idle"
+	InstanceCreated      = "created" // Instance is created, but not initialized yet. Used for child instances
+	Running              = "running"
+	Idle                 = "idle"
+	EventIdle            = "idle"             // notify instance manager is not running but created
+	EventReady           = "ready"            // notify instance manager is ready
+	EventError           = "error"            // notify if in the instance manager occurred an error
+	EventInstanceAdded   = "instance_added"   // notify if a new instance added
+	EventInstanceDeleted = "instance_deleted" // notify if the instance is deleted
 )
 
 type Child struct {
@@ -28,6 +33,7 @@ type Child struct {
 
 type Parent struct {
 	instances      map[string]*Child
+	eventSock      *zmq.Socket
 	lastInstanceId uint
 	id             string
 	logger         *log.Logger
@@ -44,6 +50,7 @@ func New(id string, parent *log.Logger) *Parent {
 		lastInstanceId: 0,
 		instances:      make(map[string]*Child, 0),
 		logger:         logger,
+		eventSock:      nil,
 		status:         Idle,
 		close:          false,
 	}
@@ -52,6 +59,69 @@ func New(id string, parent *log.Logger) *Parent {
 // Status of the instance manager.
 func (parent *Parent) Status() string {
 	return parent.status
+}
+
+// Broadcast that instance manager received a close signal
+func (parent *Parent) pubIdle(closeSignal bool) error {
+	parameters := key_value.Empty().Set("close", closeSignal)
+	if err := parent.pubEvent(EventIdle, parameters); err != nil {
+		return fmt.Errorf("parent.pubEvent('idle'): %w", err)
+	}
+	return nil
+}
+
+func (parent *Parent) pubReady() error {
+	parameters := key_value.Empty()
+	if err := parent.pubEvent(EventReady, parameters); err != nil {
+		return fmt.Errorf("parent.pubEvent('ready'): %w", err)
+	}
+	return nil
+}
+
+func (parent *Parent) pubError() error {
+	parameters := key_value.Empty().Set("message", parent.status)
+	if err := parent.pubEvent(EventError, parameters); err != nil {
+		return fmt.Errorf("parent.pubEvent('error'): %w", err)
+	}
+	return nil
+}
+
+func (parent *Parent) pubInstanceAdded(id string) error {
+	parameters := key_value.Empty().Set("id", id)
+	if err := parent.pubEvent(EventInstanceAdded, parameters); err != nil {
+		return fmt.Errorf("parent.pubEvent('error'): %w", err)
+	}
+	return nil
+}
+
+func (parent *Parent) pubInstanceDeleted(id string) error {
+	parameters := key_value.Empty().Set("id", id)
+	if err := parent.pubEvent(EventInstanceDeleted, parameters); err != nil {
+		return fmt.Errorf("parent.pubEvent('error'): %w", err)
+	}
+	return nil
+}
+
+func (parent *Parent) pubEvent(event string, parameters key_value.KeyValue) error {
+	if parent.eventSock == nil {
+		return fmt.Errorf("event sock not set")
+	}
+	req := message.Request{Command: event, Parameters: parameters}
+	reqStr, err := req.String()
+	if err != nil {
+		return fmt.Errorf("req.String: %w", err)
+	}
+
+	parent.logger.Info("publishing", "request", req)
+
+	_, err = parent.eventSock.SendMessage(reqStr)
+	if err != nil {
+		return fmt.Errorf("eventSock.SendMessageDontWait: %w", err)
+	}
+
+	parent.logger.Info("published", "request", req)
+
+	return nil
 }
 
 // onInstanceStatus updates the instance status.
@@ -86,7 +156,15 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 		if err != nil {
 			return req.Fail(fmt.Sprintf("child(%s).handleSocket.Close: %v", instanceId, err))
 		}
+		if err := parent.pubInstanceDeleted(instanceId); err != nil {
+			parent.status = fmt.Sprintf("parent.pubInstanceDeleted(%s): %v", instanceId, err)
+		}
 	} else {
+		if status == instance.READY {
+			if err := parent.pubInstanceAdded(instanceId); err != nil {
+				parent.status = fmt.Sprintf("parent.pubInstanceAdded(%s): %v", instanceId, err)
+			}
+		}
 		parent.instances[instanceId].status = status
 	}
 
@@ -96,21 +174,47 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 // Run the instance manager to receive the data from the instances
 // Use the goroutine.
 func (parent *Parent) Run() {
+	eventSock, err := zmq.NewSocket(zmq.PUB)
+	if err != nil {
+		parent.status = fmt.Sprintf("new_socket: %v", err)
+		return
+	}
+	eventUrl := config.InstanceManagerEventUrl(parent.id)
+	err = eventSock.Bind(config.InstanceManagerEventUrl(parent.id))
+	if err != nil {
+		parent.status = fmt.Sprintf("instanceManager(%s).eventSock.Bind('%s'): %v", parent.id, eventUrl, err)
+		return
+	} else {
+		parent.eventSock = eventSock
+	}
+	parent.logger.Info("event publisher socket is bound", "url", eventUrl)
+
 	// This socket is receiving messages from the parents.
 	sock, err := zmq.NewSocket(zmq.PULL)
 	if err != nil {
 		parent.status = fmt.Sprintf("new_socket: %v", err)
+		if err := parent.pubError(); err != nil {
+			parent.status = fmt.Sprintf("parent.pubError: %v", err)
+		}
 		return
 	}
 
 	err = sock.Bind(config.ParentUrl(parent.id))
 	if err != nil {
 		parent.status = fmt.Sprintf("bind: %v", err)
+		if err := parent.pubError(); err != nil {
+			parent.status = fmt.Sprintf("parent.pubError: %v", err)
+		}
 		return
 	}
 
-	parent.status = Running
 	parent.close = false
+	parent.logger.Info("parent status is ready is published")
+	if err := parent.pubReady(); err != nil {
+		parent.status = fmt.Sprintf("parent.pubError: %v", err)
+		return
+	}
+	parent.status = Running
 
 	poller := zmq.NewPoller()
 	poller.Add(sock, zmq.POLLIN)
@@ -123,6 +227,9 @@ func (parent *Parent) Run() {
 		sockets, err := poller.Poll(time.Millisecond * 10)
 		if err != nil {
 			parent.status = fmt.Sprintf("poller.Poll: %v", err)
+			if err := parent.pubError(); err != nil {
+				parent.status = fmt.Sprintf("parent.pubError: %v", err)
+			}
 			break
 		}
 
@@ -133,42 +240,74 @@ func (parent *Parent) Run() {
 		raw, err := sock.RecvMessage(0)
 		if err != nil {
 			parent.status = fmt.Sprintf("managerSocket.RecvMessage: %v", err)
+			if err := parent.pubError(); err != nil {
+				parent.status = fmt.Sprintf("parent.pubError: %v", err)
+			}
 			break
 		}
 
 		req, err := message.NewReq(raw)
 		if err != nil {
 			parent.status = fmt.Sprintf("message.NewRaw(%s): %v", raw, req)
+			if err := parent.pubError(); err != nil {
+				parent.status = fmt.Sprintf("parent.pubError: %v", err)
+			}
 			break
 		}
 
 		// Only set_status is supported. If it's not set_status, throw an error.
 		if req.Command != "set_status" {
 			parent.status = fmt.Sprintf("command '%s' not supported", req.Command)
+			if err := parent.pubError(); err != nil {
+				parent.status = fmt.Sprintf("parent.pubError: %v", err)
+			}
 			break
 		}
 
 		reply := parent.onInstanceStatus(*req)
 		if !reply.IsOK() {
 			parent.status = fmt.Sprintf("onInstanceStatus: %s [%v]", reply.Message, req.Parameters)
+			if err := parent.pubError(); err != nil {
+				parent.status = fmt.Sprintf("parent.pubError: %v", err)
+			}
 			break
 		}
 	}
 
+	parent.close = false
+
 	err = poller.RemoveBySocket(sock)
 	if err != nil {
 		parent.status = fmt.Sprintf("poller.RemoveBySocket: %v", err)
+		if err := parent.pubError(); err != nil {
+			parent.status = fmt.Sprintf("parent.pubError: %v", err)
+		}
 		return
 	}
 
 	err = sock.Close()
 	if err != nil {
 		parent.status = fmt.Sprintf("managerSocket.Close: %v", err)
+		if err := parent.pubError(); err != nil {
+			parent.status = fmt.Sprintf("parent.pubError: %v", err)
+		}
 		return
 	}
 
 	parent.status = Idle
-	parent.close = false
+	if err := parent.pubIdle(true); err != nil {
+		parent.status = fmt.Sprintf("parent.pubClosed: %v", err)
+	}
+
+	err = eventSock.Close()
+	if err != nil {
+		parent.status = fmt.Sprintf("eventSock.Close: %v", err)
+		if err := parent.pubError(); err != nil {
+			parent.status = fmt.Sprintf("parent.pubError: %v", err)
+		}
+		return
+	}
+
 }
 
 // Close the instance manager. It deletes all instances
