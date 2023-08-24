@@ -78,6 +78,12 @@ func (reactor *Reactor) prepareExternalSocket() error {
 		return fmt.Errorf("newFrontend(%s): %v", reactor.externalConfig.Type, err)
 	}
 
+	// Keep in memory one message
+	// Rather than queueing the messages in the Zeromq, we queue in Reactor
+	if err := external.SetRcvhwm(1); err != nil {
+		return fmt.Errorf("external.SetRcvhwm(1): %w", err)
+	}
+
 	url := config.HandleUrl(reactor.externalConfig.Id, reactor.externalConfig.Port)
 	err = external.Bind(url)
 	if err != nil {
