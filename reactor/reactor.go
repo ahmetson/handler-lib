@@ -123,6 +123,7 @@ func (reactor *Reactor) Run() {
 		return
 	}
 
+	// Instance Manager maybe not running. We won't block the reactor from it.
 	if reactor.instanceManager == nil {
 		reactor.status = fmt.Sprintf("missing instanceManager")
 		return
@@ -143,6 +144,11 @@ func (reactor *Reactor) Run() {
 			break
 		}
 
+		// Zeromq's reactor (sockets) sets the poll timeout not as infinite, for two reasons.
+		// First, zeromq's reactor requires a timeout if we add a channel.
+		// The Reactor's consumer is channel-based.
+		// The second reason is due to external socket.
+		// If the external socket receives a message, but the queue is full, then the message will be returned back
 		if err := reactor.sockets.Run(time.Millisecond); err != nil {
 			if !reactor.close {
 				reactor.status = fmt.Sprintf("sockets.Run (mark as closed? %v): %v", reactor.close, err)
