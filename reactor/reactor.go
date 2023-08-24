@@ -85,7 +85,7 @@ func (reactor *Reactor) prepareExternalSocket() error {
 		return fmt.Errorf("external.SetRcvhwm(1): %w", err)
 	}
 
-	url := config.HandleUrl(reactor.externalConfig.Id, reactor.externalConfig.Port)
+	url := config.ExternalUrl(reactor.externalConfig.Id, reactor.externalConfig.Port)
 	err = external.Bind(url)
 	if err != nil {
 		return fmt.Errorf("external(%s).Bind(%s): %v", reactor.externalConfig.Type, url, err)

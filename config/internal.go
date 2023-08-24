@@ -7,7 +7,7 @@ import (
 
 // UrlToFileName converts the given url to the file name. Simply it replaces the slashes with dots.
 //
-// HandleUrl returns the full url to connect to the orchestra.
+// ExternalUrl returns the full url to connect to the orchestra.
 //
 // The orchestra url is defined from the main service's url.
 //
