@@ -1,6 +1,7 @@
 package route
 
 import (
+	"fmt"
 	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 )
@@ -61,6 +62,8 @@ func Route(cmd string, routeFuncs key_value.KeyValue, routeDeps key_value.KeyVal
 			} else {
 				err = nil
 			}
+		} else {
+			err = fmt.Errorf("the '%s' command handler not found", cmd)
 		}
 	}
 
