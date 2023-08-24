@@ -9,6 +9,8 @@ import (
 	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/instance_manager"
+	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/handler-lib/route"
 	"github.com/ahmetson/log-lib"
 	"github.com/ahmetson/os-lib/net"
@@ -21,31 +23,36 @@ import (
 
 // The Handler is the socket wrapper for the clientConfig.
 type Handler struct {
-	config     *config.Handler
-	socket     *zmq.Socket
-	logger     *log.Logger
-	routes     key_value.KeyValue
-	routeDeps  key_value.KeyValue
-	depIds     []string
-	depConfigs key_value.KeyValue
-	depClients client.Clients
+	config          *config.Handler
+	socket          *zmq.Socket
+	logger          *log.Logger
+	routes          key_value.KeyValue
+	routeDeps       key_value.KeyValue
+	depIds          []string
+	depConfigs      key_value.KeyValue
+	depClients      client.Clients
+	reactor         *reactor.Reactor
+	instanceManager *instance_manager.Parent
 }
 
 // New handler
 func New() *Handler {
 	return &Handler{
-		logger:     nil,
-		routes:     key_value.Empty(),
-		routeDeps:  key_value.Empty(),
-		depIds:     make([]string, 0),
-		depConfigs: key_value.Empty(),
-		depClients: key_value.Empty(),
+		logger:          nil,
+		routes:          key_value.Empty(),
+		routeDeps:       key_value.Empty(),
+		depIds:          make([]string, 0),
+		depConfigs:      key_value.Empty(),
+		depClients:      key_value.Empty(),
+		reactor:         reactor.New(),
+		instanceManager: nil,
 	}
 }
 
 // SetConfig adds the parameters of the server from the config.
 func (c *Handler) SetConfig(controller *config.Handler) {
 	c.config = controller
+	c.reactor.SetConfig(controller)
 }
 
 // SetLogger sets the logger.
@@ -55,6 +62,9 @@ func (c *Handler) SetLogger(parent *log.Logger) error {
 	}
 	logger := parent.Child(c.config.Id)
 	c.logger = logger
+
+	c.instanceManager = instance_manager.New(c.config.Id, c.logger)
+	c.reactor.SetInstanceManager(c.instanceManager)
 
 	return nil
 }
