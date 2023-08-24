@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ahmetson/common-lib/data_type"
 	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/instance_manager"
 	zmq "github.com/pebbe/zmq4"
@@ -172,14 +173,26 @@ func (reactor *Reactor) Run() {
 // Since the queue is removed, it will remove the external from the reactor.
 // Frontend will still receive the messages, however, they will be queued until external will not be added to the reactor.
 func (reactor *Reactor) handleFrontend() error {
-	if reactor.queue.IsFull() {
-		return fmt.Errorf("queue full")
-	}
-
 	msg, err := reactor.external.RecvMessage(0)
 	fmt.Printf("recevied: '%s', '%v'\n", msg[2:], err)
 	if err != nil {
-		return fmt.Errorf("external.RecvMessage: %w", err)
+		return fmt.Errorf("handleFrontend: external.RecvMessage: %w", err)
+	}
+	req, err := message.NewReq(msg[2:])
+	if err != nil {
+		return fmt.Errorf("handleFrontend: message.NewReq: %w", err)
+	}
+
+	if reactor.queue.IsFull() {
+		reply := req.Fail("queue is full")
+		replyStr, err := reply.String()
+		if err != nil {
+			return fmt.Errorf("handleFrontend: reply.String: %w", err)
+		}
+		if _, err := reactor.external.SendMessageDontwait(msg[0], msg[1], replyStr); err != nil {
+			return fmt.Errorf("handleFrontend: reactor.external.SendMessageDontwait: %w", err)
+		}
+		return nil
 	}
 
 	reactor.queue.Push(msg)
