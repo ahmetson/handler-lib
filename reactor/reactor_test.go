@@ -247,6 +247,76 @@ func (test *TestReactorSuite) Test_13_Run() {
 	// Running?
 	s.Require().Equal(RUNNING, test.reactor.Status())
 
+	// The external user sends the request.
+	// The request is handled by one instance.
+	//
+	// Assuming each request is handled in 1 second.
+	// User sends the first request to make the instance busy.
+	// He then sends the second request that should be queued
+	// (before 1 second of instance handling expires).
+	// User sends the third request
+	// (before 1 second of instance handling expires).
+	// The third request should not be added to the queue, since the queue is full.
+	// User will be idle
+	clientUrl := client.ClientUrl(test.reactor.externalConfig.Id, test.reactor.externalConfig.Port)
+	user, err := zmq.NewSocket(zmq.DEALER)
+	s.Require().NoError(err)
+	err = user.Connect(clientUrl)
+	s.Require().NoError(err)
+
+	req := message.Request{Command: cmd, Parameters: key_value.Empty().Set("id", 1)}
+	reqStr, err := req.String()
+	s.Require().NoError(err)
+
+	// Everything should be empty
+	s.Require().True(test.reactor.queue.IsEmpty())
+	s.Require().True(test.reactor.processing.IsEmpty())
+
+	// The first message consumed instantly
+	_, err = user.SendMessage("", reqStr)
+	s.Require().NoError(err)
+
+	// Delay a bit for socket transfers
+	time.Sleep(time.Millisecond * 50)
+
+	// It's processing?
+	s.Require().True(!test.reactor.queue.IsEmpty() || !test.reactor.processing.IsEmpty())
+
+	// Sending the second message
+	s.Require().True(test.reactor.queue.IsEmpty())
+	req.Parameters.Set("id", 2)
+	reqStr, err = req.String()
+	s.Require().NoError(err)
+
+	_, err = user.SendMessage("", reqStr)
+	s.Require().NoError(err)
+
+	// Wait a bit for transmission between sockets
+	time.Sleep(time.Millisecond * 50)
+
+	// The reactor queued
+	s.Require().True(test.reactor.queue.IsFull())
+
+	// Sending the third message
+	req.Parameters.Set("id", 3)
+	reqStr, err = req.String()
+	s.Require().NoError(err)
+
+	_, err = user.SendMessage("", reqStr)
+	s.Require().NoError(err)
+
+	// Wait a bit for transmission between sockets
+	time.Sleep(time.Millisecond * 50)
+
+	// Now we receive the messages
+	fmt.Printf("user waits for the replies\n")
+	repl, err := user.RecvMessage(0)
+	fmt.Printf("reply 1 [%s]: %v\n\n", repl, err)
+	repl, err = user.RecvMessage(0)
+	fmt.Printf("reply 2 [%s]: %v\n\n", repl, err)
+	repl, err = user.RecvMessage(0)
+	fmt.Printf("reply 3 [%s]: %v\n\n", repl, err)
+
 	// Close the reactor
 	err = test.reactor.Close()
 	s.Require().NoError(err)
@@ -254,6 +324,10 @@ func (test *TestReactorSuite) Test_13_Run() {
 	// wait a bit before the socket runner stops
 	time.Sleep(time.Millisecond * 50)
 	s.Require().Equal(CREATED, test.reactor.Status())
+
+	err = user.Close()
+	s.Require().NoError(err)
+
 }
 
 // In order for 'go test' to run this suite, we need to create
