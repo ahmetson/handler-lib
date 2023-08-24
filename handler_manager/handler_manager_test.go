@@ -28,7 +28,7 @@ type TestHandlerManagerSuite struct {
 	inprocConfig *config.Handler
 	inprocClient *zmq.Socket
 	logger       *log.Logger
-	routes       map[string]interface{}
+	routes       key_value.KeyValue
 }
 
 // Make sure that Account is set to five
@@ -49,13 +49,13 @@ func (test *TestHandlerManagerSuite) SetupTest() {
 	}
 
 	// Socket to talk to clients
-	test.routes = make(map[string]interface{}, 2)
-	test.routes["command_1"] = func(request message.Request) message.Reply {
+	test.routes = key_value.Empty()
+	test.routes.Set("command_1", func(request message.Request) message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
-	}
-	test.routes["command_2"] = func(request message.Request) message.Reply {
+	})
+	test.routes.Set("command_2", func(request message.Request) message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
-	}
+	})
 
 	test.reactor = reactor.New()
 	test.reactor.SetConfig(test.inprocConfig)
