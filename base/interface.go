@@ -1,4 +1,4 @@
-package handler
+package base
 
 import (
 	"fmt"
@@ -24,6 +24,10 @@ import (
 type Interface interface {
 	// SetConfig adds the parameters of the server from the config
 	SetConfig(*config.Handler)
+
+	// SetLogger adds the logger. The function accepts a parent, and function derives handler logger
+	// Requires configuration to be set first
+	SetLogger(*log.Logger) error
 
 	// AddDepByService adds the config of the extension that the server depends on
 	AddDepByService(*clientConfig.Client)

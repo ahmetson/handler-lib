@@ -1,4 +1,7 @@
-package handler
+// Package base keeps the generic Handler.
+// It's not intended to be used independently.
+// Other handlers should be defined based on this handler
+package base
 
 import (
 	"fmt"
@@ -20,7 +23,6 @@ type Handler struct {
 	config             *config.Handler
 	socket             *zmq.Socket
 	logger             *log.Logger
-	controllerType     config.HandlerType
 	routes             key_value.KeyValue
 	routeDeps          key_value.KeyValue
 	requiredExtensions []string
@@ -28,8 +30,8 @@ type Handler struct {
 	depClients         client.Clients
 }
 
-// New handler of the handlerType
-func New(handlerType config.HandlerType, parent *log.Logger) *Handler {
+// New handler of the handlerType.
+func New(parent *log.Logger) *Handler {
 	logger := parent.Child("server", "type", handlerType)
 
 	return &Handler{
@@ -43,12 +45,23 @@ func New(handlerType config.HandlerType, parent *log.Logger) *Handler {
 	}
 }
 
+// SetLogger sets the logger.
+func (c *Handler) SetLogger(parent *log.Logger) error {
+	if c.config == nil {
+		return fmt.Errorf("missing configuration")
+	}
+	logger := parent.Child(c.config.Id)
+	c.logger = logger
+
+	return nil
+}
+
 // SetConfig adds the parameters of the server from the config.
 func (c *Handler) SetConfig(controller *config.Handler) {
 	c.config = controller
 }
 
-// AddDepByService adds the config of the extension that the server depends on
+// AddDepByService adds the config of the extension that the server depends on.
 func (c *Handler) AddDepByService(extension *service.Client) {
 	c.extensionConfigs.Set(extension.Url, extension)
 }
@@ -62,7 +75,7 @@ func (c *Handler) addDep(name string) {
 	}
 }
 
-// Deps return the list of extension names required by this server
+// Deps return the list of extension names required by this server.
 func (c *Handler) Deps() []string {
 	return c.requiredExtensions
 }
