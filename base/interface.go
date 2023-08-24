@@ -31,12 +31,13 @@ type Interface interface {
 	SetLogger(*log.Logger) error
 
 	// AddDepByService adds the config of the extension that the server depends on
+	// This function is intended to be called by the service.
 	AddDepByService(*clientConfig.Client)
 
 	// Deps return the list of dep ids collected from all routes.
 	Deps() []string
 
-	// Route registers a new route and it's handlers for this server
+	// Route adds a new route and it's handlers for this server
 	Route(string, any, ...string) error
 
 	// Type returns the type of the server

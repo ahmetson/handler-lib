@@ -47,6 +47,7 @@ func InstanceUrl(parentId string, id string) string {
 	return fmt.Sprintf("inproc://inst_manage_%s_%s", parentId, id)
 }
 
+// NewInternalHandler returns the configuration with the default parameters
 func NewInternalHandler(as HandlerType, cat string) *Handler {
 	return &Handler{
 		Type:           as,

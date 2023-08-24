@@ -14,6 +14,10 @@ type Handler struct {
 	Id             string
 }
 
+// NewHandler configuration of the HandlerType and category.
+// It generates the ID of the handler, as well as gets the free port.
+//
+// If not possible to get the port, it returns an error.
 func NewHandler(as HandlerType, cat string) (*Handler, error) {
 	port := net.GetFreePort()
 	if port == 0 {
