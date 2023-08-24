@@ -171,30 +171,6 @@ func (c *Handler) Close() error {
 	return nil
 }
 
-// HandleUrl creates url of the server url for binding.
-// For clients to connect to this url, call client.ClientUrl()
-func url(name string, port uint64) string {
-	if port == 0 {
-		return fmt.Sprintf("inproc://%s", name)
-	}
-	url := fmt.Sprintf("tcp://*:%d", port)
-	return url
-}
-
-func getSocket(handlerType config.HandlerType) *zmq.Socket {
-	if handlerType == config.SyncReplierType {
-		return zmq.REP
-	} else if handlerType == config.ReplierType {
-		return zmq.ROUTER
-	} else if handlerType == config.PusherType {
-		return zmq.PUSH
-	} else if handlerType == config.PublisherType {
-		return zmq.PUB
-	}
-
-	return nil
-}
-
 func bind(sock *zmq.Socket, url string, port uint64) error {
 	if err := sock.Bind(url); err != nil {
 		if port > 0 {
