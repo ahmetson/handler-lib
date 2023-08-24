@@ -292,7 +292,7 @@ func (c *Handler) runInstanceManager() {
 			close, _ := req.Parameters.GetBoolean("close")
 			c.logger.Warn("instance manager is idle", "id", c.config.Id, "close signal received?", close)
 			if close {
-				firstInstance = false
+				break
 			}
 		} else {
 			c.logger.Warn("unhandled instance manager event", "id", c.config.Id, "event", req.Command, "parameters", req.Parameters)
