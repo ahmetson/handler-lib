@@ -9,7 +9,7 @@ import (
 type depSock = *client.ClientSocket
 
 // HandleFunc0 is the function type that manipulates the commands.
-// It accepts at least message.Request and log.Logger then returns message.Reply.
+// It accepts at least message.Request and log.Logger then returns a message.Reply.
 //
 // Optionally, the server can pass the shared states in the additional parameters.
 // The most use case for optional request is to pass the link to the Database.
@@ -53,16 +53,9 @@ func Handle(req *message.Request, handleInterface interface{}, depClients []*cli
 	var reply message.Reply
 
 	depAmount := DepAmount(handleInterface)
-	if depAmount == -1 {
-		reply = req.Fail("handleInterface is not a HandleFunc")
-		return &reply
-	}
-	if depAmount > 3 && len(depClients) < 4 {
-		reply = req.Fail("handle func requires N deps, but Handle func received less dep clients")
-		return &reply
-	}
-	if depAmount != len(depClients) {
-		reply = req.Fail(fmt.Sprintf("handle func requires %d deps, but Handle received %d dep clients", depAmount, len(depClients)))
+	if !IsHandleFuncWithDeps(handleInterface, len(depClients)) {
+		reply = req.Fail(fmt.Sprintf("the '%s' command handler requires %d dependencies, but route has %d dependencies",
+			req.Command, depAmount, len(depClients)))
 		return &reply
 	}
 
@@ -88,29 +81,21 @@ func Handle(req *message.Request, handleInterface interface{}, depClients []*cli
 
 // IsHandleFunc returns true if the given interface is convertible into HandleFunc
 func IsHandleFunc(handleInterface interface{}) bool {
-	_, ok := handleInterface.(HandleFunc0)
-	if ok {
-		return true
+	return DepAmount(handleInterface) > -1
+}
+
+// IsHandleFuncWithDeps returns true if the handle function can pass the given dependencies
+func IsHandleFuncWithDeps(handleInterface interface{}, actualAmount int) bool {
+	depAmount := DepAmount(handleInterface)
+	if depAmount == -1 {
+		return false
 	}
-	_, ok = handleInterface.(HandleFunc1)
-	if ok {
-		return true
+	if depAmount > 3 && actualAmount < 4 {
+		return false
+	}
+	if depAmount != actualAmount {
+		return false
 	}
 
-	_, ok = handleInterface.(HandleFunc2)
-	if ok {
-		return true
-	}
-
-	_, ok = handleInterface.(HandleFunc3)
-	if ok {
-		return true
-	}
-
-	_, ok = handleInterface.(HandleFuncN)
-	if ok {
-		return true
-	}
-
-	return false
+	return true
 }
