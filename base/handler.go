@@ -130,7 +130,11 @@ func (c *Handler) extensionsAdded() error {
 	return nil
 }
 
+// Type returns the handler type. If the configuration is not set, returns config.UnknownType.
 func (c *Handler) Type() config.HandlerType {
+	if c.config == nil {
+		return config.UnknownType
+	}
 	return c.config.Type
 }
 
