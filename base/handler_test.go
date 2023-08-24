@@ -1,7 +1,6 @@
 package base
 
 import (
-	"fmt"
 	"github.com/ahmetson/client-lib"
 	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/message"

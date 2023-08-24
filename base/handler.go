@@ -173,7 +173,7 @@ func (c *Handler) Type() config.HandlerType {
 	return c.config.Type
 }
 
-// initExtensionClients will set up the extension clients for this server.
+// initDepClients will set up the extension clients for this server.
 // It will be called by c.Run(), automatically.
 //
 // The reason for why we call it by c.Run() is due to the thread-safety.
@@ -181,7 +181,7 @@ func (c *Handler) Type() config.HandlerType {
 // The server is intended to be called as the goroutine. And if the sockets
 // are not initiated within the same goroutine, then zeromq doesn't guarantee the socket work
 // as it's intended.
-func (c *Handler) initExtensionClients() error {
+func (c *Handler) initDepClients() error {
 	for _, extensionInterface := range c.depConfigs {
 		extensionConfig := extensionInterface.(*clientConfig.Client)
 		extension, err := client.NewReq(extensionConfig.Url, extensionConfig.Port, c.logger)
@@ -203,6 +203,31 @@ func (c *Handler) Close() error {
 	if err != nil {
 		return fmt.Errorf("server.socket.Close: %w", err)
 	}
+
+	return nil
+}
+
+// Run the handler in goroutine
+func (c *Handler) Run() error {
+	if c.config == nil {
+		return fmt.Errorf("configuration not set")
+	}
+	if err := c.depConfigsAdded(); err != nil {
+		return fmt.Errorf("depConfigsAdded: %w", err)
+	}
+	if c.instanceManager == nil {
+		return fmt.Errorf("instance manager not set")
+	}
+	if c.reactor == nil {
+		return fmt.Errorf("reactor not set")
+	}
+	if err := c.initDepClients(); err != nil {
+		return fmt.Errorf("initDepClients: %w", err)
+	}
+
+	// Adding the first instance manager
+	go c.instanceManager.Run()
+	go c.reactor.Run()
 
 	return nil
 }
