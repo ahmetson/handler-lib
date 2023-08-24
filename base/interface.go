@@ -7,6 +7,7 @@ import (
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/route"
+	"github.com/ahmetson/log-lib"
 )
 
 // Interface of the server.
