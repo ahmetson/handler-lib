@@ -171,6 +171,7 @@ func (parent *Parent) Run() {
 	parent.close = false
 }
 
+// Close the instance manager. It deletes all instances
 func (parent *Parent) Close() {
 	parent.close = true
 	// removing all running instances
