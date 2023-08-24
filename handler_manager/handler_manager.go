@@ -71,7 +71,7 @@ func (m *HandlerManager) setRoutes() {
 	}
 	// Stop one of the parts
 	// Either: reactor or instance manager
-	onClose := func(req message.Request) message.Reply {
+	onClosePart := func(req message.Request) message.Reply {
 		part, err := req.Parameters.GetString("part")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
@@ -98,7 +98,7 @@ func (m *HandlerManager) setRoutes() {
 		}
 	}
 
-	onRun := func(req message.Request) message.Reply {
+	onRunPart := func(req message.Request) message.Reply {
 		part, err := req.Parameters.GetString("part")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
@@ -133,8 +133,8 @@ func (m *HandlerManager) setRoutes() {
 	}
 
 	m.routes.Set("status", onStatus)
-	m.routes.Set("close", onClose)
-	m.routes.Set("run", onRun)
+	m.routes.Set("close_part", onClosePart)
+	m.routes.Set("run_part", onRunPart)
 	m.routes.Set("instance_amount", onInstanceAmount)
 	m.routes.Set("message_amount", onMessageAmount)
 }
