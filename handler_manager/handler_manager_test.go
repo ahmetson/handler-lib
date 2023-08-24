@@ -246,6 +246,53 @@ func (test *TestHandlerManagerSuite) Test_13_RunPart() {
 	test.cleanOut()
 }
 
+// Test_14_InstanceAmount trying check that instance amount is correct
+func (test *TestHandlerManagerSuite) Test_14_InstanceAmount() {
+	s := &test.Suite
+	req := message.Request{Command: "instance_amount", Parameters: key_value.Empty()}
+
+	// No instances were added, so it must return 0
+	reply := test.req(req)
+	s.Require().True(reply.IsOK())
+
+	instanceAmount, err := reply.Parameters.GetUint64("instance_amount")
+	s.Require().NoError(err)
+	s.Require().Zero(instanceAmount)
+
+	// Add a new instance
+	empty := key_value.Empty()
+	instanceId, err := test.instanceManager.AddInstance(test.inprocConfig.Type, &test.routes, &empty, &empty)
+	s.Require().NoError(err)
+
+	// Wait a bit for instance initialization
+	time.Sleep(time.Millisecond * 100)
+
+	// The instance amount is not 0
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+	instanceAmount, err = reply.Parameters.GetUint64("instance_amount")
+	s.Require().NoError(err)
+	s.Require().NotZero(instanceAmount)
+
+	//
+	// After instance deletion, the instance_amount should return a correct result
+	//
+	err = test.instanceManager.DeleteInstance(instanceId)
+	s.Require().NoError(err)
+
+	// Wait a bit for the closing of the instance thread
+	time.Sleep(time.Millisecond * 100)
+
+	// Must be 0 instances
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+	instanceAmount, err = reply.Parameters.GetUint64("instance_amount")
+	s.Require().NoError(err)
+	s.Require().Zero(instanceAmount)
+
+	test.cleanOut()
+}
+
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestHandlerManager(t *testing.T) {
