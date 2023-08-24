@@ -120,7 +120,9 @@ func (test *TestHandlerSuite) Test_11_Deps() {
 	err = test.inprocHandler.Route("command_4", test.routes["command_4"], "dep_1", "dep_3") // command_3 handler requires two dependencies
 	s.Require().NoError(err)
 
-	s.Require().Len(test.inprocHandler.DepIds(), 3)
+	depIds := test.inprocHandler.DepIds()
+	s.Require().Len(depIds, 3)
+	s.Require().EqualValues([]string{"dep_1", "dep_2", "dep_3"}, depIds)
 }
 }
 
