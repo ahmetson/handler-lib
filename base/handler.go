@@ -270,6 +270,7 @@ func (c *Handler) runInstanceManager() {
 				addedInstanceId, err := req.Parameters.GetString("id")
 				if err != nil {
 					c.logger.Warn("req.Parameters.GetString('id')", "id", c.config.Id, "event", req.Command, "instanceId", instanceId, "error", err)
+					continue
 				}
 				if addedInstanceId != instanceId {
 					continue
