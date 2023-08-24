@@ -94,12 +94,18 @@ func (test *TestHandlerManagerSuite) cleanOut() {
 	err := test.inprocClient.Close()
 	s.Require().NoError(err)
 
-	test.instanceManager.Close()
+	if test.instanceManager.Status() == instance_manager.Running {
+		test.instanceManager.Close()
+	}
 
-	err = test.reactor.Close()
-	s.Require().NoError(err)
+	if test.reactor.Status() == reactor.RUNNING {
+		err = test.reactor.Close()
+		s.Require().NoError(err)
+	}
 
-	test.handlerManager.Close()
+	if test.handlerManager.status == SocketReady {
+		test.handlerManager.Close()
+	}
 
 	// Wait a bit for closing
 	time.Sleep(time.Millisecond * 100)
