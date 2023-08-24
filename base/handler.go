@@ -73,7 +73,7 @@ func (c *Handler) addDep(id string) {
 	}
 }
 
-// Deps return the list of extension names required by this server.
+// DepIds return the list of extension names required by this server.
 func (c *Handler) DepIds() []string {
 	return c.depIds
 }
