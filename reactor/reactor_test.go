@@ -132,31 +132,13 @@ func (test *TestReactorSuite) Test_11_External() {
 // Test_12_Consumer tests the consuming
 func (test *TestReactorSuite) Test_12_Consumer() {
 	s := &test.Suite
-	cmd := "hello"
-	handleHello := func(req message.Request) message.Reply {
-		time.Sleep(time.Second) // just to test consuming since there is no ready instances
-		return req.Ok(key_value.Empty())
-	}
-	routes := key_value.Empty().Set(cmd, handleHello)
-	routeDeps := key_value.Empty()
-	depClients := key_value.Empty()
 
 	// Consumer requires Instance Manager
 	err := test.reactor.handleConsume()
 	s.Require().Error(err)
 
 	// Added Instance Manager
-	logger, err := log.New(test.handleConfig.Id, true)
-	s.Require().NoError(err)
-	instanceManager := instance_manager.New(test.handleConfig.Id, logger)
-
-	go instanceManager.Run()
-
-	time.Sleep(time.Millisecond * 50) // wait until it updates the status
-	instanceId, err := instanceManager.AddInstance(test.handleConfig.Type, &routes, &routeDeps, &depClients)
-	s.Require().NoError(err)
-
-	time.Sleep(time.Millisecond * 50) // wait until the instance will be loaded
+	cmd, instanceId, instanceManager := test.instanceManager()
 
 	test.reactor.SetInstanceManager(instanceManager) // adding
 
@@ -186,7 +168,7 @@ func (test *TestReactorSuite) Test_12_Consumer() {
 
 	// Before testing handle consume with queue,
 	// make sure that processing is empty.
-	// Consuming the message should remove the message from queue, and add it to the processing list
+	// Consuming the message should remove the message from queue and add it to the processing list
 	s.Require().True(test.reactor.processing.IsEmpty())
 
 	// Consuming the message
@@ -208,6 +190,40 @@ func (test *TestReactorSuite) Test_12_Consumer() {
 	time.Sleep(time.Millisecond * 100) // wait until instance manager ends
 }
 
+// Create an instance manager. Returns a test command, instance id and instance manager itself
+func (test *TestReactorSuite) instanceManager() (string, string, *instance_manager.Parent) {
+	s := &test.Suite
+
+	cmd := "hello"
+	handleHello := func(req message.Request) message.Reply {
+		time.Sleep(time.Second) // just to test consuming since there are no ready instances
+		id, err := req.Parameters.GetUint64("id")
+		if err != nil {
+			id = 0
+		}
+		return req.Ok(key_value.Empty().Set("id", id))
+	}
+	routes := key_value.Empty().Set(cmd, handleHello)
+	routeDeps := key_value.Empty()
+	depClients := key_value.Empty()
+
+	// Added Instance Manager
+	logger, err := log.New(test.handleConfig.Id, true)
+	s.Require().NoError(err)
+	instanceManager := instance_manager.New(test.handleConfig.Id, logger)
+
+	go instanceManager.Run()
+
+	time.Sleep(time.Millisecond * 50) // wait until it updates the status
+	instanceId, err := instanceManager.AddInstance(test.handleConfig.Type, &routes, &routeDeps, &depClients)
+	s.Require().NoError(err)
+
+	time.Sleep(time.Millisecond * 50) // wait until the instance will be loaded
+
+	return cmd, instanceId, instanceManager
+}
+
+// Test_13_Run runs the Reactor
 func (test *TestReactorSuite) Test_13_Run() {
 	s := &test.Suite
 
