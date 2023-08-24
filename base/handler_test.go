@@ -5,10 +5,12 @@ import (
 	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/instance_manager"
 	"github.com/ahmetson/log-lib"
 	"github.com/stretchr/testify/suite"
 	"slices"
 	"testing"
+	"time"
 )
 
 // Define the suite, and absorb the built-in basic suite
@@ -198,6 +200,41 @@ func (test *TestHandlerSuite) Test_12_DepConfig() {
 		Port: 0,
 	}
 	s.Require().Error(test.inprocHandler.AddDepByService(depConfig))
+}
+
+func (test *TestHandlerSuite) Test_13_InstanceManager() {
+	s := &test.Suite
+
+	// the instance manager requires
+	s.Require().NotNil(test.inprocHandler.instanceManager)
+
+	// It should be idle
+	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Idle)
+	s.Require().False(test.inprocHandler.instanceManagerRuns)
+	s.Require().Empty(test.inprocHandler.instanceManager.Instances())
+
+	// Running instance manager
+	go test.inprocHandler.runInstanceManager()
+
+	// Waiting a bit for instance manager initialization
+	time.Sleep(time.Millisecond * 2000)
+
+	// Instance Manager should be running
+	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Running)
+	test.inprocHandler.logger.Info("instance manager", "status", test.inprocHandler.instanceManager.Status())
+	s.Require().True(test.inprocHandler.instanceManagerRuns)
+	s.Require().Len(test.inprocHandler.instanceManager.Instances(), 1)
+
+	// Let's send the close signal
+	s.Require().NoError(test.inprocHandler.Close())
+
+	// Waiting a bit for instance manager closing
+	time.Sleep(time.Millisecond * 10)
+
+	// Check that Instance Manager is not running
+	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Idle)
+	s.Require().False(test.inprocHandler.instanceManagerRuns)
+	s.Require().Empty(test.inprocHandler.instanceManager.Instances())
 }
 
 // All methods that begin with "Test" are run as tests within a
