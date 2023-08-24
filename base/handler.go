@@ -43,6 +43,11 @@ func New() *Handler {
 	}
 }
 
+// SetConfig adds the parameters of the server from the config.
+func (c *Handler) SetConfig(controller *config.Handler) {
+	c.config = controller
+}
+
 // SetLogger sets the logger.
 func (c *Handler) SetLogger(parent *log.Logger) error {
 	if c.config == nil {
@@ -52,11 +57,6 @@ func (c *Handler) SetLogger(parent *log.Logger) error {
 	c.logger = logger
 
 	return nil
-}
-
-// SetConfig adds the parameters of the server from the config.
-func (c *Handler) SetConfig(controller *config.Handler) {
-	c.config = controller
 }
 
 // AddDepByService adds the config of the extension that the server depends on.
