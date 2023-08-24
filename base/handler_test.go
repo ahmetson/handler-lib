@@ -14,14 +14,14 @@ import (
 // returns the current testing orchestra
 type TestHandlerSuite struct {
 	suite.Suite
-	tcpController    *Handler
-	inprocController *Handler
-	tcpConfig        *config.Handler
-	inprocConfig     *config.Handler
-	tcpClient        *client.ClientSocket
-	inprocClient     *client.ClientSocket
-	logger           *log.Logger
-	routes           map[string]interface{}
+	tcpHandler    *Handler
+	inprocHandler *Handler
+	tcpConfig     *config.Handler
+	inprocConfig  *config.Handler
+	tcpClient     *client.ClientSocket
+	inprocClient  *client.ClientSocket
+	logger        *log.Logger
+	routes        map[string]interface{}
 }
 
 // Todo test in-process and external types of controllers
@@ -35,8 +35,8 @@ func (test *TestHandlerSuite) SetupTest() {
 	test.Suite.Require().NoError(err, "failed to create logger")
 	test.logger = logger
 
-	test.tcpController = New()
-	test.inprocController = New()
+	test.tcpHandler = New()
+	test.inprocHandler = New()
 
 	// Socket to talk to clients
 	test.routes = make(map[string]interface{}, 2)
@@ -47,18 +47,18 @@ func (test *TestHandlerSuite) SetupTest() {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
 
-	err = test.inprocController.Route("command_1", test.routes["command_1"])
-	err = test.inprocController.Route("command_2", test.routes["command_2"])
+	err = test.inprocHandler.Route("command_1", test.routes["command_1"])
+	err = test.inprocHandler.Route("command_2", test.routes["command_2"])
 
 	test.inprocConfig = config.NewInternalHandler(config.SyncReplierType, "test")
 	test.tcpConfig, err = config.NewHandler(config.SyncReplierType, "test")
 	s.Require().NoError(err)
 
 	//go func() {
-	//	_ = test.inprocController.Run()
+	//	_ = test.inprocHandler.Run()
 	//}()
 	//go func() {
-	//	_ = test.tcpController.Run()
+	//	_ = test.tcpHandler.Run()
 	//}()
 
 	// Run for the controllers to be ready
@@ -70,17 +70,18 @@ func (test *TestHandlerSuite) Test_10_Sets() {
 	s := &test.Suite
 
 	// Setting a logger should fail since we don't have a configuration set
-	s.Require().Error(test.inprocController.SetLogger(test.logger))
+	s.Require().Error(test.inprocHandler.SetLogger(test.logger))
 
 	// Setting the configuration
-	test.inprocController.SetConfig(test.inprocConfig)
+	test.inprocHandler.SetConfig(test.inprocConfig)
 
 	// Setting the logger should be successful
-	s.Require().NoError(test.inprocController.SetLogger(test.logger))
+	s.Require().NoError(test.inprocHandler.SetLogger(test.logger))
 
 	// Setting the parameters of the Tcp Handler
-	test.tcpController.SetConfig(test.tcpConfig)
-	s.Require().NoError(test.tcpController.SetLogger(test.logger))
+	test.tcpHandler.SetConfig(test.tcpConfig)
+	s.Require().NoError(test.tcpHandler.SetLogger(test.logger))
+}
 }
 
 // All methods that begin with "Test" are run as tests within a
