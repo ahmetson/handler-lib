@@ -106,6 +106,10 @@ func (c *Handler) Route(cmd string, handle any, deps ...string) error {
 	if !route.IsHandleFunc(handle) {
 		return fmt.Errorf("handle is not a valid handle function")
 	}
+	depAmount := route.DepAmount(handle)
+	if !route.IsHandleFuncWithDeps(handle, len(deps)) {
+		return fmt.Errorf("the '%s' command handler requires %d dependencies, but route has %d dependencies", cmd, depAmount, len(deps))
+	}
 
 	if err := c.routes.Exist(cmd); err == nil {
 		return nil
