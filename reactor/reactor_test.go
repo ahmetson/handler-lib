@@ -186,6 +186,7 @@ func (test *TestReactorSuite) Test_12_Consumer() {
 
 	// clean out
 	instanceManager.Close()
+	test.reactor.processing = key_value.NewList()
 
 	time.Sleep(time.Millisecond * 100) // wait until instance manager ends
 }
