@@ -18,6 +18,7 @@ const (
 	InstanceCreated      = "created" // Instance is created, but not initialized yet. Used for child instances
 	Running              = "running"
 	Idle                 = "idle"
+	EventClose           = "close"            // notify instance manager is starting to close
 	EventIdle            = "idle"             // notify instance manager is not running but created
 	EventReady           = "ready"            // notify instance manager is ready
 	EventError           = "error"            // notify if in the instance manager occurred an error
@@ -73,6 +74,14 @@ func (parent *Parent) pubIdle(closeSignal bool) error {
 func (parent *Parent) pubReady() error {
 	parameters := key_value.Empty()
 	if err := parent.pubEvent(EventReady, parameters); err != nil {
+		return fmt.Errorf("parent.pubEvent('ready'): %w", err)
+	}
+	return nil
+}
+
+func (parent *Parent) pubClose() error {
+	parameters := key_value.Empty()
+	if err := parent.pubEvent(EventClose, parameters); err != nil {
 		return fmt.Errorf("parent.pubEvent('ready'): %w", err)
 	}
 	return nil
@@ -307,6 +316,12 @@ func (parent *Parent) Run() {
 // Close the instance manager. It deletes all instances
 func (parent *Parent) Close() {
 	parent.close = true
+
+	err := parent.pubClose()
+	if err != nil {
+		parent.status = fmt.Sprintf("parent.pubClose: %v", err)
+	}
+
 	// removing all running instances
 	for instanceId := range parent.instances {
 		err := parent.DeleteInstance(instanceId)
