@@ -146,6 +146,46 @@ func (test *TestHandlerManagerSuite) Test_10_InvalidCommand() {
 	test.cleanOut()
 }
 
+// Test_12_ClosePart stops the parts
+func (test *TestHandlerManagerSuite) Test_12_ClosePart() {
+	s := &test.Suite
+	params := key_value.Empty()
+	req := message.Request{Command: "close_part", Parameters: params}
+
+	// Trying to stop without a part must fail
+	reply := test.req(req)
+	s.Require().False(reply.IsOK())
+
+	// Trying to stop a part that doesn't exist must fail
+	params.Set("part", "no_part")
+	req.Parameters = params
+	reply = test.req(req)
+	s.Require().False(reply.IsOK())
+
+	// Stopping the reactor must succeed
+	params.Set("part", "reactor")
+	req.Parameters = params
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	// Re-stopping the reactor must fail
+	time.Sleep(time.Millisecond * 100)
+	reply = test.req(req)
+	s.Require().False(reply.IsOK())
+
+	// Stopping the instance manager must succeed
+	params.Set("part", "instance_manager")
+	req.Parameters = params
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	// Re-stopping the reactor must fail
+	time.Sleep(time.Millisecond * 100)
+	reply = test.req(req)
+	s.Require().False(reply.IsOK())
+
+	test.cleanOut()
+}
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestHandlerManager(t *testing.T) {
