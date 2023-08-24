@@ -37,6 +37,11 @@ func InstanceUrl(parentId string, id string) string {
 	return fmt.Sprintf("inproc://inst_manage_%s_%s", parentId, id)
 }
 
+// InstanceManagerEventUrl returns a socket that's used to update the instance manager status
+func InstanceManagerEventUrl(handlerId string) string {
+	return fmt.Sprintf("inproc://inst_manage_stat_%s", handlerId)
+}
+
 // NewInternalHandler returns the configuration with the default parameters
 func NewInternalHandler(as HandlerType, cat string) *Handler {
 	return &Handler{
