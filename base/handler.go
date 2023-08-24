@@ -6,7 +6,7 @@ package base
 import (
 	"fmt"
 	"github.com/ahmetson/client-lib"
-	service "github.com/ahmetson/client-lib/config"
+	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/route"
@@ -19,7 +19,7 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// The Handler is the socket wrapper for the service.
+// The Handler is the socket wrapper for the clientConfig.
 type Handler struct {
 	config     *config.Handler
 	socket     *zmq.Socket
@@ -60,13 +60,26 @@ func (c *Handler) SetLogger(parent *log.Logger) error {
 }
 
 // AddDepByService adds the config of the dependency. Intended to be called by Service not by developer
-func (c *Handler) AddDepByService(dep *service.Client) {
+func (c *Handler) AddDepByService(dep *clientConfig.Client) error {
+	if c.AddedDepByService(dep.Id) {
+		return fmt.Errorf("dependency configuration already added")
+	}
+
+	if !slices.Contains(c.depIds, dep.Id) {
+		return fmt.Errorf("no handler depends on '%s'", dep.Id)
+	}
+
 	c.depConfigs.Set(dep.Id, dep)
+	return nil
 }
 
-// addDep marks the depClients that this server depends on.
-// Before running, the required extension should be added from the config.
-// Otherwise, server won't run.
+// AddedDepByService returns true if the configuration exists
+func (c *Handler) AddedDepByService(id string) bool {
+	return c.depConfigs.Exist(id) == nil
+}
+
+// addDep adds the dependency id required by one of the routes.
+// Already added dependency id skipped.
 func (c *Handler) addDep(id string) {
 	if !slices.Contains(c.depIds, id) {
 		c.depIds = append(c.depIds, id)
@@ -157,7 +170,7 @@ func (c *Handler) Type() config.HandlerType {
 // as it's intended.
 func (c *Handler) initExtensionClients() error {
 	for _, extensionInterface := range c.depConfigs {
-		extensionConfig := extensionInterface.(*service.Client)
+		extensionConfig := extensionInterface.(*clientConfig.Client)
 		extension, err := client.NewReq(extensionConfig.Url, extensionConfig.Port, c.logger)
 		if err != nil {
 			return fmt.Errorf("failed to create a request client: %w", err)
@@ -194,7 +207,7 @@ func bind(sock *zmq.Socket, url string, port uint64) error {
 					if currentPid == pid {
 						err = fmt.Errorf("another dependency is using it within this orchestra")
 					} else {
-						err = fmt.Errorf("operating system uses it for another service. pid=%d", pid)
+						err = fmt.Errorf("operating system uses it for another clientConfig. pid=%d", pid)
 					}
 				}
 			} else {

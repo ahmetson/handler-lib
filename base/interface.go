@@ -30,9 +30,15 @@ type Interface interface {
 	// Requires configuration to be set first
 	SetLogger(*log.Logger) error
 
-	// AddDepByService adds the config of the extension that the server depends on
+	// AddDepByService adds the config of the extension that the handler depends on.
 	// This function is intended to be called by the service.
-	AddDepByService(*clientConfig.Client)
+	//
+	// If any route does not require the dependency, it returns an error.
+	// If the configuration already added, it returns an error.
+	AddDepByService(*clientConfig.Client) error
+
+	// AddedDepByService returns true if the configuration already exists
+	AddedDepByService(string) bool
 
 	// DepIds return the list of dep ids collected from all routes.
 	DepIds() []string
