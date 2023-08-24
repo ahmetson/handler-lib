@@ -43,12 +43,14 @@ func (test *TestHandlerSuite) SetupTest() {
 	test.routes["command_1"] = func(request message.Request) message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
-	test.routes["command_2"] = func(request message.Request, _ *log.Logger, _ ...*client.ClientSocket) message.Reply {
+	test.routes["command_2"] = func(request message.Request) message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
 
 	err = test.inprocHandler.Route("command_1", test.routes["command_1"])
+	s.Require().NoError(err)
 	err = test.inprocHandler.Route("command_2", test.routes["command_2"])
+	s.Require().NoError(err)
 
 	test.inprocConfig = config.NewInternalHandler(config.SyncReplierType, "test")
 	test.tcpConfig, err = config.NewHandler(config.SyncReplierType, "test")
