@@ -112,14 +112,10 @@ func (parent *Parent) pubEvent(event string, parameters key_value.KeyValue) erro
 		return fmt.Errorf("req.String: %w", err)
 	}
 
-	parent.logger.Info("publishing", "request", req)
-
 	_, err = parent.eventSock.SendMessage(reqStr)
 	if err != nil {
 		return fmt.Errorf("eventSock.SendMessageDontWait: %w", err)
 	}
-
-	parent.logger.Info("published", "request", req)
 
 	return nil
 }
@@ -187,7 +183,6 @@ func (parent *Parent) Run() {
 	} else {
 		parent.eventSock = eventSock
 	}
-	parent.logger.Info("event publisher socket is bound", "url", eventUrl)
 
 	// This socket is receiving messages from the parents.
 	sock, err := zmq.NewSocket(zmq.PULL)
@@ -209,7 +204,6 @@ func (parent *Parent) Run() {
 	}
 
 	parent.close = false
-	parent.logger.Info("parent status is ready is published")
 	if err := parent.pubReady(); err != nil {
 		parent.status = fmt.Sprintf("parent.pubError: %v", err)
 		return

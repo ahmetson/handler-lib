@@ -213,7 +213,6 @@ func (test *TestHandlerSuite) Test_13_InstanceManager() {
 
 	// Instance Manager should be running
 	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Running)
-	test.inprocHandler.logger.Info("instance manager", "status", test.inprocHandler.instanceManager.Status())
 	s.Require().True(test.inprocHandler.instanceManagerRuns)
 	s.Require().Len(test.inprocHandler.instanceManager.Instances(), 1)
 

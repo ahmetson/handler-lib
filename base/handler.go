@@ -229,7 +229,6 @@ func (c *Handler) runInstanceManager() {
 	}
 
 	url := config.InstanceManagerEventUrl(c.config.Id)
-	c.logger.Info("run instance manager", "url", url)
 	err = socket.Connect(url)
 	if err != nil {
 		c.logger.Warn("eventSocket.Connect", "id", c.config.Id, "function", "runInstanceManager", "url", url, "error", err)
@@ -245,9 +244,7 @@ func (c *Handler) runInstanceManager() {
 	instanceId := ""
 
 	for {
-		c.logger.Info("waiting for messages from instance manager events")
 		raw, err := socket.RecvMessage(0)
-		c.logger.Info("instance manager event received", "message", raw, "error", err)
 		if err != nil {
 			c.logger.Warn("eventSocket.RecvMessage", "id", c.config.Id, "error", err)
 			break
@@ -258,8 +255,6 @@ func (c *Handler) runInstanceManager() {
 			c.logger.Warn("eventSocket: convert raw to message", "id", c.config.Id, "message", raw, "error", err)
 			continue
 		}
-
-		c.logger.Info("message", "event", req.Command, "parameters", req.Parameters, "first instance launched?", firstInstance)
 
 		if req.Command == instance_manager.EventReady {
 			if !firstInstance {
@@ -302,8 +297,6 @@ func (c *Handler) runInstanceManager() {
 			c.logger.Warn("unhandled instance manager event", "id", c.config.Id, "event", req.Command, "parameters", req.Parameters)
 		}
 	}
-
-	c.logger.Warn("instance manager sub ended")
 
 	err = socket.Close()
 	if err != nil {
