@@ -184,13 +184,18 @@ func (c *Handler) Type() config.HandlerType {
 // are not initiated within the same goroutine, then zeromq doesn't guarantee the socket work
 // as it's intended.
 func (c *Handler) initDepClients() error {
-	for _, extensionInterface := range c.depConfigs {
-		extensionConfig := extensionInterface.(*clientConfig.Client)
-		extension, err := client.NewReq(extensionConfig.Url, extensionConfig.Port, c.logger)
-		if err != nil {
-			return fmt.Errorf("failed to create a request client: %w", err)
+	for _, depInterface := range c.depConfigs {
+		depConfig := depInterface.(*clientConfig.Client)
+
+		if err := c.depClients.Exist(depConfig.Id); err == nil {
+			return fmt.Errorf("depClients.Exist('%s')", depConfig.Id)
 		}
-		c.depClients.Set(extensionConfig.Url, extension)
+
+		depClient, err := client.NewReq(depConfig.Id, depConfig.Port, c.logger)
+		if err != nil {
+			return fmt.Errorf("client.NewReq('%s', '%d'): %w", depConfig.Id, depConfig.Port, err)
+		}
+		c.depClients.Set(depConfig.Id, depClient)
 	}
 
 	return nil
