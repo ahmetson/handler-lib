@@ -45,7 +45,9 @@ func (test *TestReactorSuite) Test_10_SetConfig() {
 	s.Require().NotNil(test.reactor.externalConfig)
 }
 
-// Test_10_External tests the external socket is running and the messages are queued
+// Test_11_External tests the external socket is running and the messages are queued.
+//
+// It doesn't send the messages to the consumer.
 func (test *TestReactorSuite) Test_11_External() {
 	s := &test.Suite
 
@@ -101,8 +103,16 @@ func (test *TestReactorSuite) Test_11_External() {
 
 	fmt.Printf("external waits %d/%d\n", i, 2)
 	err = test.reactor.handleFrontend()
-	s.Require().Error(err)
+	s.Require().NoError(err)
 	fmt.Printf("external received: %d/%d with error: %v\n", i, 2, err)
+
+	// However, the third message that user receives should be a failure
+	reply, err := user.RecvMessage(0)
+	s.Require().NoError(err)
+	fmt.Printf("reply #3: %v\n", reply)
+	rep, err := message.ParseReply(reply)
+	s.Require().NoError(err)
+	s.Require().False(rep.IsOK())
 
 	// Trying to decrease the length should fail
 	err = test.reactor.queue.SetCap(1)
@@ -119,7 +129,7 @@ func (test *TestReactorSuite) Test_11_External() {
 	test.reactor.queue = data_type.NewQueue()
 }
 
-// Test_11_Consumer tests the consuming
+// Test_12_Consumer tests the consuming
 func (test *TestReactorSuite) Test_12_Consumer() {
 	s := &test.Suite
 	cmd := "hello"
@@ -198,7 +208,6 @@ func (test *TestReactorSuite) Test_12_Consumer() {
 	time.Sleep(time.Millisecond * 100) // wait until instance manager ends
 }
 
-// Test_12_Run runs the Reactor
 func (test *TestReactorSuite) Test_13_Run() {
 	s := &test.Suite
 
