@@ -84,6 +84,34 @@ func (test *TestHandlerSuite) Test_10_Sets() {
 	test.tcpHandler.SetConfig(test.tcpConfig)
 	s.Require().NoError(test.tcpHandler.SetLogger(test.logger))
 }
+
+// Test_11_Deps tests setting of the route dependencies
+func (test *TestHandlerSuite) Test_11_Deps() {
+	s := &test.Suite
+
+	// Handler must not have dependencies yet
+	s.Require().Empty(test.inprocHandler.Deps())
+	s.Require().Empty(test.tcpHandler.Deps())
+
+	test.routes["command_3"] = func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
+		return request.Ok(request.Parameters.Set("id", request.Command))
+	}
+
+	// Adding a new route with the dependencies
+	err := test.inprocHandler.Route("command_3", test.routes["command_3"], "dep_1", "dep_2")
+	s.Require().NoError(err)
+	err = test.tcpHandler.Route("command_3", test.routes["command_3"], "dep_1", "dep_2")
+	s.Require().NoError(err)
+
+	s.Require().Len(test.inprocHandler.Deps(), 2)
+	s.Require().Len(test.tcpHandler.Deps(), 2)
+
+	// Trying to route the handler with inconsistent dependencies must fail
+	err = test.tcpHandler.Route("command_4", test.routes["command_3"]) // command_3 handler requires two dependencies
+	s.Require().Error(err)
+
+	err = test.tcpHandler.Route("command_5", test.routes["command_2"], "dep_1", "dep_2") // command_2 handler not requires any dependencies
+	s.Require().Error(err)
 }
 
 // All methods that begin with "Test" are run as tests within a
