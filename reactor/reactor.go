@@ -292,8 +292,8 @@ func (reactor *Reactor) handleInstance(id string, sock *zmq.Socket) error {
 // it also registers instance in the zeromq reactor, so that Reactor could handle when the instance
 // finishes its handling.
 func (reactor *Reactor) handleConsume() error {
-	if reactor.instanceManager == nil {
-		return fmt.Errorf("instanceManager not set")
+	if reactor.instanceManager == nil || reactor.instanceManager.Status() != instance_manager.Running {
+		return fmt.Errorf("instanceManager not set or not running")
 	}
 
 	if reactor.sockets == nil {
