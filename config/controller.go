@@ -70,3 +70,8 @@ func HandleUrl(id string, port uint64) string {
 	url := fmt.Sprintf("tcp://*:%d", port)
 	return url
 }
+
+// CanReply returns true if the given Handler has to reply back to the user
+func CanReply(handlerType HandlerType) bool {
+	return handlerType == ReplierType || handlerType == SyncReplierType
+}

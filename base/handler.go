@@ -80,16 +80,12 @@ func (c *Handler) Deps() []string {
 	return c.requiredExtensions
 }
 
-func (c *Handler) isReply() bool {
-	return c.controllerType == config.SyncReplierType
-}
-
 // A reply sends to the caller the message.
 //
 // If a server doesn't support replying (for example, PULL server),
 // then it returns success.
 func (c *Handler) reply(socket *zmq.Socket, message message.Reply) error {
-	if !c.isReply() {
+	if !config.CanReply(c.config.Type) {
 		return nil
 	}
 
