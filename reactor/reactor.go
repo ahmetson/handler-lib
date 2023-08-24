@@ -56,6 +56,10 @@ func (reactor *Reactor) Status() string {
 	return reactor.status
 }
 
+func (reactor *Reactor) QueueLen() uint {
+	return reactor.queue.Len()
+}
+
 // IsError returns true if the reactor got issue during the running.
 func (reactor *Reactor) IsError() bool {
 	return reactor.status != CREATED && reactor.status != RUNNING
