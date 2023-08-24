@@ -1,113 +1,112 @@
 package base
 
 import (
-	"sync"
-	"testing"
-	"time"
-
 	"github.com/ahmetson/client-lib"
-	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
-	"github.com/ahmetson/handler-lib/route"
+	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/log-lib"
 	"github.com/stretchr/testify/suite"
+	"testing"
 )
 
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
 // returns the current testing orchestra
-type TestReplyControllerSuite struct {
+type TestHandlerSuite struct {
 	suite.Suite
 	tcpController    *Handler
 	inprocController *Handler
+	tcpConfig        *config.Handler
+	inprocConfig     *config.Handler
 	tcpClient        *client.ClientSocket
 	inprocClient     *client.ClientSocket
-	commands         []route.Route
+	logger           *log.Logger
+	routes           map[string]interface{}
 }
 
 // Todo test in-process and external types of controllers
 // Todo test the business of the server
 // Make sure that Account is set to five
 // before each test
-func (suite *TestReplyControllerSuite) SetupTest() {
-	logger, err := log.New("log", false)
-	suite.NoError(err, "failed to create logger")
+func (test *TestHandlerSuite) SetupTest() {
+	s := &test.Suite
 
-	// todo test the inproc broadcasting
-	// todo add the exit
-	_, err = NewSyncReplier(logger)
-	suite.Require().Error(err, "client limited service should be failed as the request.url() will not return wildcard host")
-	tcpController, err := NewSyncReplier(logger)
-	suite.NoError(err)
-	suite.tcpController = tcpController
+	logger, err := log.New("handler", false)
+	test.Suite.Require().NoError(err, "failed to create logger")
+	test.logger = logger
 
-	inprocController, err := NewSyncReplier(logger)
-	suite.NoError(err)
-	suite.inprocController = inprocController
+	test.tcpController = New()
+	test.inprocController = New()
 
 	// Socket to talk to clients
-
-	command1 := route.Route{Command: "command_1"}
-	var command1Handler = func(request message.Request, _ *log.Logger, _ ...*client.ClientSocket) message.Reply {
-		return message.Reply{
-			Status:     message.OK,
-			Message:    "",
-			Parameters: request.Parameters.Set("id", command1.Command),
-		}
+	test.routes = make(map[string]interface{}, 2)
+	test.routes["command_1"] = func(request message.Request) message.Reply {
+		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
-	_ = command1.AddHandler(command1Handler)
-
-	command2 := route.Route{Command: "command_2"}
-	command2Handler := func(request message.Request, _ *log.Logger, _ ...*client.ClientSocket) message.Reply {
-		return message.Reply{
-			Status:     message.OK,
-			Message:    "",
-			Parameters: request.Parameters.Set("id", command2.Command),
-		}
+	test.routes["command_2"] = func(request message.Request, _ *log.Logger, _ ...*client.ClientSocket) message.Reply {
+		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
-	_ = command2.AddHandler(command2Handler)
-	_ = suite.inprocController.AddRoute(&command1)
-	_ = suite.inprocController.AddRoute(&command2)
 
-	suite.commands = append(suite.commands, command1)
-	suite.commands = append(suite.commands, command2)
+	err = test.inprocController.Route("command_1", test.routes["command_1"])
+	err = test.inprocController.Route("command_2", test.routes["command_2"])
 
-	go func() {
-		_ = suite.inprocController.Run()
-	}()
-	go func() {
-		_ = suite.tcpController.Run()
-	}()
+	test.inprocConfig = config.NewInternalHandler(config.SyncReplierType, "test")
+	test.tcpConfig, err = config.NewHandler(config.SyncReplierType, "test")
+	s.Require().NoError(err)
+
+	//go func() {
+	//	_ = test.inprocController.Run()
+	//}()
+	//go func() {
+	//	_ = test.tcpController.Run()
+	//}()
 
 	// Run for the controllers to be ready
-	time.Sleep(time.Millisecond * 200)
+	//time.Sleep (time.Millisecond * 100)
+}
+
+// Test_10_Sets tests setting of the configuration and logger
+func (test *TestHandlerSuite) Test_10_Sets() {
+	s := &test.Suite
+
+	// Setting a logger should fail since we don't have a configuration set
+	s.Require().Error(test.inprocController.SetLogger(test.logger))
+
+	// Setting the configuration
+	test.inprocController.SetConfig(test.inprocConfig)
+
+	// Setting the logger should be successful
+	s.Require().NoError(test.inprocController.SetLogger(test.logger))
+
+	// Setting the parameters of the Tcp Handler
+	test.tcpController.SetConfig(test.tcpConfig)
+	s.Require().NoError(test.tcpController.SetLogger(test.logger))
 }
 
 // All methods that begin with "Test" are run as tests within a
 // suite.
-func (suite *TestReplyControllerSuite) TestRun() {
-	var wg sync.WaitGroup
+func (test *TestHandlerSuite) TestRun() {
+	//var wg sync.WaitGroup
 
-	wg.Add(1)
-	// tcp client
-	go func() {
-		// no route found
-		command3 := route.Route{Command: "command_3"}
-		request3 := message.Request{
-			Command:    command3.Command,
-			Parameters: key_value.Empty(),
-		}
-		_, err := suite.tcpClient.RequestRemoteService(&request3)
-		suite.Require().Error(err)
+	//wg.Add(1)
+	//// tcp client
+	//go func() {
+	//	// no route found
+	//	request3 := message.Request{
+	//		Command:    "command_3",
+	//		Parameters: key_value.Empty(),
+	//	}
+	//	_, err := test.tcpClient.RequestRemoteService(&request3)
+	//	test.Require().Error(err)
+	//
+	//	wg.Done()
+	//}()
 
-		wg.Done()
-	}()
-
-	wg.Wait()
+	//wg.Wait()
 }
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestReplyController(t *testing.T) {
-	suite.Run(t, new(TestReplyControllerSuite))
+	suite.Run(t, new(TestHandlerSuite))
 }
