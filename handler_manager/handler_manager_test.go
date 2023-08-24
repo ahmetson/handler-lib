@@ -116,12 +116,10 @@ func (test *TestHandlerManagerSuite) cleanOut() {
 	s.Require().Equal(SocketIdle, test.handlerManager.status)
 }
 
-// Test_10_InvalidCommand tries to send an invalid command
-func (test *TestHandlerManagerSuite) Test_10_InvalidCommand() {
+func (test *TestHandlerManagerSuite) req(request message.Request) message.Reply {
 	s := &test.Suite
 
-	req := message.Request{Command: "no_command", Parameters: key_value.Empty()}
-	reqStr, err := req.String()
+	reqStr, err := request.String()
 	s.Require().NoError(err)
 
 	_, err = test.inprocClient.SendMessage(reqStr)
@@ -133,7 +131,16 @@ func (test *TestHandlerManagerSuite) Test_10_InvalidCommand() {
 	reply, err := message.ParseReply(raw)
 	s.Require().NoError(err)
 
-	// It should fail
+	return reply
+}
+
+// Test_10_InvalidCommand tries to send an invalid command
+func (test *TestHandlerManagerSuite) Test_10_InvalidCommand() {
+	s := &test.Suite
+
+	// must fail since command is invalid
+	req := message.Request{Command: "no_command", Parameters: key_value.Empty()}
+	reply := test.req(req)
 	s.Require().False(reply.IsOK())
 
 	test.cleanOut()
