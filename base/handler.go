@@ -140,12 +140,15 @@ func (c *Handler) Route(cmd string, handle any, depIds ...string) error {
 	return nil
 }
 
-// extensionsAdded checks that the required depClients are added into the server.
+// depConfigsAdded checks that the required depClients are added into the server.
 // If no depClients are added by calling server.addDep(), then it will return nil.
-func (c *Handler) extensionsAdded() error {
+func (c *Handler) depConfigsAdded() error {
+	if len(c.depIds) != len(c.depConfigs) {
+		return fmt.Errorf("required dependencies and configurations are not matching")
+	}
 	for _, id := range c.depIds {
 		if err := c.depConfigs.Exist(id); err != nil {
-			return fmt.Errorf("'%s' dependency not added", id)
+			return fmt.Errorf("'%s' dependency configuration not added", id)
 		}
 	}
 

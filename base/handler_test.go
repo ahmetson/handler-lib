@@ -1,11 +1,14 @@
 package base
 
 import (
+	"fmt"
 	"github.com/ahmetson/client-lib"
+	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/log-lib"
 	"github.com/stretchr/testify/suite"
+	"slices"
 	"testing"
 )
 
@@ -56,6 +59,18 @@ func (test *TestHandlerSuite) SetupTest() {
 	test.tcpConfig, err = config.NewHandler(config.SyncReplierType, "test")
 	s.Require().NoError(err)
 
+	// Setting a logger should fail since we don't have a configuration set
+	s.Require().Error(test.inprocHandler.SetLogger(test.logger))
+
+	// Setting the configuration
+	// Setting the logger should be successful
+	test.inprocHandler.SetConfig(test.inprocConfig)
+	s.Require().NoError(test.inprocHandler.SetLogger(test.logger))
+
+	// Setting the parameters of the Tcp Handler
+	test.tcpHandler.SetConfig(test.tcpConfig)
+	s.Require().NoError(test.tcpHandler.SetLogger(test.logger))
+
 	//go func() {
 	//	_ = test.inprocHandler.Run()
 	//}()
@@ -65,24 +80,6 @@ func (test *TestHandlerSuite) SetupTest() {
 
 	// Run for the controllers to be ready
 	//time.Sleep (time.Millisecond * 100)
-}
-
-// Test_10_Sets tests setting of the configuration and logger
-func (test *TestHandlerSuite) Test_10_Sets() {
-	s := &test.Suite
-
-	// Setting a logger should fail since we don't have a configuration set
-	s.Require().Error(test.inprocHandler.SetLogger(test.logger))
-
-	// Setting the configuration
-	test.inprocHandler.SetConfig(test.inprocConfig)
-
-	// Setting the logger should be successful
-	s.Require().NoError(test.inprocHandler.SetLogger(test.logger))
-
-	// Setting the parameters of the Tcp Handler
-	test.tcpHandler.SetConfig(test.tcpConfig)
-	s.Require().NoError(test.tcpHandler.SetLogger(test.logger))
 }
 
 // Test_11_Deps tests setting of the route dependencies
@@ -123,7 +120,85 @@ func (test *TestHandlerSuite) Test_11_Deps() {
 	depIds := test.inprocHandler.DepIds()
 	s.Require().Len(depIds, 3)
 	s.Require().EqualValues([]string{"dep_1", "dep_2", "dep_3"}, depIds)
+
 }
+
+// Test_12_DepConfig tests setting of the dependency configurations
+func (test *TestHandlerSuite) Test_12_DepConfig() {
+	s := &test.Suite
+
+	s.Require().NotNil(test.inprocHandler.logger)
+
+	test.routes = make(map[string]interface{}, 2)
+	test.routes["command_1"] = func(request message.Request) message.Reply {
+		return request.Ok(request.Parameters.Set("id", request.Command))
+	}
+	test.routes["command_2"] = func(request message.Request) message.Reply {
+		return request.Ok(request.Parameters.Set("id", request.Command))
+	}
+	test.routes["command_3"] = func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
+		return request.Ok(request.Parameters.Set("id", request.Command))
+	}
+	test.routes["command_4"] = func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
+		return request.Ok(request.Parameters.Set("id", request.Command))
+	}
+
+	err := test.inprocHandler.Route("command_1", test.routes["command_1"])
+	s.Require().NoError(err)
+	err = test.inprocHandler.Route("command_2", test.routes["command_2"])
+	s.Require().NoError(err)
+	err = test.inprocHandler.Route("command_3", test.routes["command_3"], "dep_1", "dep_2")
+	s.Require().NoError(err)
+	err = test.inprocHandler.Route("command_4", test.routes["command_4"], "dep_1", "dep_3") // command_3 handler requires two dependencies
+	s.Require().NoError(err)
+
+	// No dependency configurations were added yet
+	s.Require().Error(test.inprocHandler.depConfigsAdded())
+
+	// No dependency config should be given
+	depIds := test.inprocHandler.DepIds()
+	//AddDepByService
+	for _, id := range depIds {
+		s.Require().False(test.inprocHandler.AddedDepByService(id))
+	}
+
+	// Adding the dependencies
+	for _, id := range depIds {
+		depConfig := &clientConfig.Client{
+			Id:   id,
+			Url:  "github.com/ahmetson/" + id,
+			Port: 0,
+		}
+
+		s.Require().NoError(test.inprocHandler.AddDepByService(depConfig))
+	}
+
+	// There should be dependency configurations now
+	for _, id := range depIds {
+		s.Require().True(test.inprocHandler.AddedDepByService(id))
+	}
+
+	// All dependency configurations were added
+	s.Require().NoError(test.inprocHandler.depConfigsAdded())
+
+	// trying to add the configuration for the dependency that doesn't exist should fail
+	depId := "not_exist"
+	s.Require().False(slices.Contains(depIds, depId))
+	depConfig := &clientConfig.Client{
+		Id:   depId,
+		Url:  "github.com/ahmetson/" + depId,
+		Port: 0,
+	}
+	s.Require().Error(test.inprocHandler.AddDepByService(depConfig))
+
+	// Trying to add the configuration that was already added should fail
+	depId = depIds[0]
+	depConfig = &clientConfig.Client{
+		Id:   depId,
+		Url:  "github.com/ahmetson/" + depId,
+		Port: 0,
+	}
+	s.Require().Error(test.inprocHandler.AddDepByService(depConfig))
 }
 
 // All methods that begin with "Test" are run as tests within a
