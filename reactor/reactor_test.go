@@ -234,6 +234,9 @@ func (test *TestReactorSuite) Test_13_Run() {
 	// The reactor runs for the first time
 	s.Require().Equal(CREATED, test.reactor.Status())
 
+	cmd, _, instanceManager := test.instanceManager()
+	test.reactor.SetInstanceManager(instanceManager)
+
 	// Run
 	go test.reactor.Run()
 
