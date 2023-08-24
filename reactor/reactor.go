@@ -305,7 +305,6 @@ func (reactor *Reactor) handleConsume() error {
 	}
 
 	id, sock := reactor.instanceManager.Ready()
-	fmt.Printf("instanceManager %s, has sock? %v\n", reactor.instanceManager.Status(), sock)
 	if reactor.processing.Exist(id) {
 		return nil
 	}
