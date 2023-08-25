@@ -51,6 +51,10 @@ func (test *TestHandlerManagerSuite) SetupTest() {
 	// Socket to talk to clients
 	test.routes = key_value.Empty()
 	test.routes.Set("command_1", func(request message.Request) message.Reply {
+		// Used for testing 'message_amount' command.
+		// While handling, the queue length should decrease.
+		// While handling, the processing length should increase.
+		time.Sleep(time.Second)
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	})
 	test.routes.Set("command_2", func(request message.Request) message.Reply {
@@ -289,6 +293,137 @@ func (test *TestHandlerManagerSuite) Test_14_InstanceAmount() {
 	instanceAmount, err = reply.Parameters.GetUint64("instance_amount")
 	s.Require().NoError(err)
 	s.Require().Zero(instanceAmount)
+
+	test.cleanOut()
+}
+
+// Test_15_InstanceAmount checks that instance amount is correct when instances come and go
+func (test *TestHandlerManagerSuite) Test_15_InstanceAmount() {
+	s := &test.Suite
+	req := message.Request{Command: "instance_amount", Parameters: key_value.Empty()}
+
+	// No instances were added, so it must return 0
+	reply := test.req(req)
+	s.Require().True(reply.IsOK())
+
+	instanceAmount, err := reply.Parameters.GetUint64("instance_amount")
+	s.Require().NoError(err)
+	s.Require().Zero(instanceAmount)
+
+	// Add a new instance
+	empty := key_value.Empty()
+	instanceId, err := test.instanceManager.AddInstance(test.inprocConfig.Type, &test.routes, &empty, &empty)
+	s.Require().NoError(err)
+
+	// Wait a bit for instance initialization
+	time.Sleep(time.Millisecond * 100)
+
+	// The instance amount is not 0
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+	instanceAmount, err = reply.Parameters.GetUint64("instance_amount")
+	s.Require().NoError(err)
+	s.Require().NotZero(instanceAmount)
+
+	//
+	// After instance deletion, the instance_amount should return a correct result
+	//
+	err = test.instanceManager.DeleteInstance(instanceId)
+	s.Require().NoError(err)
+
+	// Wait a bit for the closing of the instance thread
+	time.Sleep(time.Millisecond * 100)
+
+	// Must be 0 instances
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+	instanceAmount, err = reply.Parameters.GetUint64("instance_amount")
+	s.Require().NoError(err)
+	s.Require().Zero(instanceAmount)
+
+	test.cleanOut()
+}
+
+// Test_16_MessageAmount checks that queue and processing messages amount are correct
+func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
+	s := &test.Suite
+	req := message.Request{Command: "message_amount", Parameters: key_value.Empty()}
+
+	// Imitating the user that sends the message
+	clientType := config.ClientSocketType(test.inprocConfig.Type)
+	clientSocket, err := zmq.NewSocket(clientType)
+	s.Require().NoError(err)
+	clientUrl := config.ExternalUrl(test.inprocConfig.Id, test.inprocConfig.Port)
+	err = clientSocket.Connect(clientUrl)
+	s.Require().NoError(err)
+
+	// No instances were added, so it must return 0
+	reply := test.req(req)
+	s.Require().True(reply.IsOK())
+
+	queueAmount, err := reply.Parameters.GetUint64("queue_length")
+	s.Require().NoError(err)
+	s.Require().Zero(queueAmount)
+	procAmount, err := reply.Parameters.GetUint64("processing_length")
+	s.Require().NoError(err)
+	s.Require().Zero(procAmount)
+
+	// User sends a message
+	extReq := message.Request{Command: "command_1", Parameters: key_value.Empty()}
+	extReqStr, err := extReq.String()
+	s.Require().NoError(err)
+	_, err = clientSocket.SendMessageDontwait(extReqStr)
+	s.Require().NoError(err)
+
+	// Wait a bit for transfer between threads
+	time.Sleep(time.Millisecond * 100)
+
+	// Queue has one message
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	queueAmount, err = reply.Parameters.GetUint64("queue_length")
+	s.Require().NoError(err)
+	s.Require().NotZero(queueAmount)
+	procAmount, err = reply.Parameters.GetUint64("processing_length")
+	s.Require().NoError(err)
+	s.Require().Zero(procAmount)
+
+	// Add a new instance that will start processing the message
+	empty := key_value.Empty()
+	_, err = test.instanceManager.AddInstance(test.inprocConfig.Type, &test.routes, &empty, &empty)
+	s.Require().NoError(err)
+
+	// Wait a bit for instance initialization
+	time.Sleep(time.Millisecond * 100)
+
+	// The instance handles the request, so queue must be empty.
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	queueAmount, err = reply.Parameters.GetUint64("queue_length")
+	s.Require().NoError(err)
+	s.Require().Zero(queueAmount)
+	procAmount, err = reply.Parameters.GetUint64("processing_length")
+	s.Require().NoError(err)
+	s.Require().NotZero(procAmount)
+
+	// After handling, the queue and processing must be empty
+	_, err = clientSocket.RecvMessage(0) // handling finished
+
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	queueAmount, err = reply.Parameters.GetUint64("queue_length")
+	s.Require().NoError(err)
+	s.Require().Zero(queueAmount)
+	procAmount, err = reply.Parameters.GetUint64("processing_length")
+	s.Require().NoError(err)
+	s.Require().Zero(procAmount)
+
+	// clean out
+	err = clientSocket.Close()
+	s.Require().NoError(err)
 
 	test.cleanOut()
 }
