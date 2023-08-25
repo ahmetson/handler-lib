@@ -402,7 +402,11 @@ func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, 
 	return id, nil
 }
 
-// DeleteInstance sends a signal to close the instance
+// DeleteInstance closes the instance.
+// Sends the signal to the instance thread.
+// Instance sends back to instance manager a status update.
+//
+// instanceId must be registered in the instance manager.
 func (parent *Parent) DeleteInstance(instanceId string) error {
 	child, ok := parent.instances[instanceId]
 	if !ok {

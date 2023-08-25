@@ -642,6 +642,49 @@ func (test *TestHandlerManagerSuite) Test_19_AddInstance() {
 	test.cleanOut()
 }
 
+// Test_20_DeleteInstance deletes the instance
+func (test *TestHandlerManagerSuite) Test_20_DeleteInstance() {
+	s := &test.Suite
+	req := message.Request{Command: "delete_instance", Parameters: key_value.Empty()}
+
+	// There must not be any instances before adding
+	s.Require().Len(test.instanceManager.Instances(), 0)
+
+	// Delete must fail as no instance id
+	reply := test.req(req)
+	s.Require().False(reply.IsOK())
+
+	// Deleting non existence instance must fail
+	req.Parameters.Set("instance_id", "no_id")
+	reply = test.req(req)
+	s.Require().False(reply.IsOK())
+
+	// Let's add a new instance for deleting
+	req.Command = "add_instance"
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	instanceId, err := reply.Parameters.GetString("instance_id")
+	s.Require().NoError(err)
+
+	// Wait a bit for initialization of the instance
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Len(test.instanceManager.Instances(), 1)
+
+	// Delete the instance
+	req.Command = "delete_instance"
+	req.Parameters.Set("instance_id", instanceId)
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	// Wait a bit for deleting of the instance thread
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Len(test.instanceManager.Instances(), 0)
+
+	// Clean
+	test.cleanOut()
+}
+
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestHandlerManager(t *testing.T) {

@@ -155,12 +155,28 @@ func (m *HandlerManager) setRoutes() {
 		return req.Ok(params)
 	}
 
+	// Delete the instance
+	onDeleteInstance := func(req message.Request) message.Reply {
+		instanceId, err := req.Parameters.GetString("instance_id")
+		if err != nil {
+			return req.Fail(fmt.Sprintf("req.Parameters.GetString('instance_id'): %v", err))
+		}
+
+		err = m.instanceManager.DeleteInstance(instanceId)
+		if err != nil {
+			return req.Fail(fmt.Sprintf("instanceManager.DeleteInstance('%s'): %v", instanceId, err))
+		}
+
+		return req.Ok(key_value.Empty())
+	}
+
 	m.routes.Set("status", onStatus)
 	m.routes.Set("close_part", onClosePart)
 	m.routes.Set("run_part", onRunPart)
 	m.routes.Set("instance_amount", onInstanceAmount)
 	m.routes.Set("message_amount", onMessageAmount)
 	m.routes.Set("add_instance", onAddInstance)
+	m.routes.Set("delete_instance", onDeleteInstance)
 }
 
 // Close the handle manager
