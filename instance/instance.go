@@ -270,8 +270,6 @@ func (c *Instance) Run() {
 	if err != nil {
 		c.logger.Fatal("parent client close", "error", err)
 	}
-
-	c.logger.Warn("end of the instance.Run no more things to do.")
 }
 
 func (c *Instance) processMessage(msgRaw []string, metadata map[string]string) (message.Reply, error) {

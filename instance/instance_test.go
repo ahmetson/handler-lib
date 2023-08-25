@@ -94,23 +94,19 @@ func (test *TestInstanceSuite) Test_10_SetRoutes() {
 	s.Require().Len(*test.instance0.routeDeps, 1)
 
 	// Make sure that instance's routes lint to the valid parameters.
-	index := 0
-	for cmdName := range *test.instance0.routes {
-		routeIndex := 0
-		for routeCmdName := range test.routes {
-			routeIndex++
-
-			if index == routeIndex-1 { // routeIndex - 1 because we already increment it
-				s.Require().Equal(routeCmdName, cmdName, fmt.Sprintf("expected '%s' at index %d, routes: %v, instance routes: %v", routeCmdName, routeIndex, test.routes, *test.instance0.routes))
+	for routeCmdName := range test.routes {
+		found := false
+		for cmdName := range *test.instance0.routes {
+			if routeCmdName == cmdName {
+				found = true
 				break
 			}
 		}
-
-		index++
+		s.Require().True(found, fmt.Sprintf("the '%s' not found", routeCmdName))
 	}
 
 	// Make sure that route deps lint to the valid parameters.
-	index = 0
+	index := 0
 	for cmdName := range *test.instance0.routeDeps {
 		routeIndex := 0
 		for routeCmdName := range test.routeDeps {
@@ -226,7 +222,6 @@ func (test *TestInstanceSuite) Test_13_Handle() {
 
 		reply, err := handleClient.RecvMessage(0)
 		s.Require().NoError(err)
-		test.instance0.logger.Info("client received a handler result", "message", reply)
 	}
 
 	// Sending a close message
