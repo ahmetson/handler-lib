@@ -33,7 +33,7 @@ type HandlerManager struct {
 
 // New handler manager
 func New(reactor *reactor.Reactor, parent *instances.Parent, runInstanceManager func()) *HandlerManager {
-	return &HandlerManager{
+	m := &HandlerManager{
 		reactor:            reactor,
 		instanceManager:    parent,
 		runInstanceManager: runInstanceManager,
@@ -42,12 +42,18 @@ func New(reactor *reactor.Reactor, parent *instances.Parent, runInstanceManager 
 		depClients:         key_value.Empty(),
 		status:             SocketIdle,
 	}
+
+	// Add the default routes
+	m.setRoutes()
+
+	return m
 }
 
 func (m *HandlerManager) SetConfig(config *config.Handler) {
 	m.config = config
 }
 
+// setRoutes sets the default command handlers
 func (m *HandlerManager) setRoutes() {
 	// Requesting status which is calculated from statuses of the handler parts
 	onStatus := func(req message.Request) message.Reply {
@@ -163,8 +169,6 @@ func (m *HandlerManager) Run() error {
 	if err != nil {
 		return fmt.Errorf("manager.Bind('%s'): %w", url, err)
 	}
-
-	m.setRoutes()
 
 	var loopErr error
 
