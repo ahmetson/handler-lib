@@ -20,13 +20,11 @@ type Replier struct {
 }
 
 // New creates an asynchronous replying server.
-func New() base.Interface {
-	instance := &Replier{
+func New() *Replier {
+	return &Replier{
 		base:              base.New(),
 		maxInstanceAmount: runtime.NumCPU(),
 	}
-
-	return instance
 }
 
 // SetConfig adds the parameters of the server from the config.
