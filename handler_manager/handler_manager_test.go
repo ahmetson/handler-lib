@@ -617,6 +617,31 @@ func (test *TestHandlerManagerSuite) Test_18_OverwriteRoute() {
 	test.cleanOut()
 }
 
+// Test_19_AddInstance checks that instances can be added
+func (test *TestHandlerManagerSuite) Test_19_AddInstance() {
+	s := &test.Suite
+	req := message.Request{Command: "add_instance", Parameters: key_value.Empty()}
+
+	// There must not be any instances before adding
+	s.Require().Len(test.instanceManager.Instances(), 0)
+
+	// Adding an instance must be successful
+	reply := test.req(req)
+	s.Require().True(reply.IsOK())
+
+	_, err := reply.Parameters.GetString("instance_id")
+	s.Require().NoError(err)
+
+	// Wait a bit for instance initialization
+	time.Sleep(time.Millisecond * 100)
+
+	// Confirming instance exist
+	s.Require().Len(test.instanceManager.Instances(), 1)
+
+	// Clean
+	test.cleanOut()
+}
+
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestHandlerManager(t *testing.T) {

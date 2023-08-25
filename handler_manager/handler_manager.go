@@ -144,11 +144,23 @@ func (m *HandlerManager) setRoutes() {
 		return req.Ok(params)
 	}
 
+	// Add a new instance, but it doesn't check that instance was added
+	onAddInstance := func(req message.Request) message.Reply {
+		instanceId, err := m.instanceManager.AddInstance(m.config.Type, &m.routes, &m.routeDeps, &m.depClients)
+		if err != nil {
+			return req.Fail(fmt.Sprintf("instanceManager.AddInstance(%s): %v", m.config.Type, err))
+		}
+
+		params := key_value.Empty().Set("instance_id", instanceId)
+		return req.Ok(params)
+	}
+
 	m.routes.Set("status", onStatus)
 	m.routes.Set("close_part", onClosePart)
 	m.routes.Set("run_part", onRunPart)
 	m.routes.Set("instance_amount", onInstanceAmount)
 	m.routes.Set("message_amount", onMessageAmount)
+	m.routes.Set("add_instance", onAddInstance)
 }
 
 // Close the handle manager
