@@ -223,6 +223,9 @@ func (c *Handler) Close() error {
 			return fmt.Errorf("c.reactor.Close: %w", err)
 		}
 	}
+	if c.Manager.Status() == handler_manager.SocketReady {
+		c.Manager.Close()
+	}
 
 	return nil
 }
