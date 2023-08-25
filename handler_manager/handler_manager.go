@@ -49,7 +49,7 @@ func (m *HandlerManager) SetConfig(config *config.Handler) {
 }
 
 func (m *HandlerManager) setRoutes() {
-	// Requesting status
+	// Requesting status which is calculated from statuses of the handler parts
 	onStatus := func(req message.Request) message.Reply {
 		reactorStatus := m.reactor.Status()
 		instanceStatus := m.instanceManager.Status()
@@ -69,6 +69,7 @@ func (m *HandlerManager) setRoutes() {
 
 		return req.Ok(params)
 	}
+
 	// Stop one of the parts
 	// Either: reactor or instance manager
 	onClosePart := func(req message.Request) message.Reply {
