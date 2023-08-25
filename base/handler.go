@@ -9,6 +9,7 @@ import (
 	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/handler_manager"
 	"github.com/ahmetson/handler-lib/instance_manager"
 	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/handler-lib/route"
@@ -34,6 +35,8 @@ type Handler struct {
 	reactor             *reactor.Reactor
 	instanceManager     *instance_manager.Parent
 	instanceManagerRuns bool
+	manager             *handler_manager.HandlerManager
+	status              string
 }
 
 // New handler
@@ -48,6 +51,8 @@ func New() *Handler {
 		reactor:             reactor.New(),
 		instanceManager:     nil,
 		instanceManagerRuns: false,
+		manager:             nil,
+		status:              "",
 	}
 }
 
@@ -67,6 +72,9 @@ func (c *Handler) SetLogger(parent *log.Logger) error {
 
 	c.instanceManager = instance_manager.New(c.config.Id, c.logger)
 	c.reactor.SetInstanceManager(c.instanceManager)
+
+	c.manager = handler_manager.New(c.reactor, c.instanceManager, c.runInstanceManager)
+	c.manager.SetConfig(c.config)
 
 	return nil
 }
@@ -307,6 +315,10 @@ func (c *Handler) runInstanceManager() {
 	c.instanceManagerRuns = false
 }
 
+func (c *Handler) Status() string {
+	return c.status
+}
+
 // Start the handler directly, not by goroutine
 func (c *Handler) Start() error {
 	if c.config == nil {
@@ -328,6 +340,12 @@ func (c *Handler) Start() error {
 	// Adding the first instance manager
 	go c.reactor.Run()
 	go c.runInstanceManager()
+	go func() {
+		err := c.manager.Run()
+		if err != nil {
+			c.status = err.Error()
+		}
+	}()
 
 	return nil
 }

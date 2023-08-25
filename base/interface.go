@@ -53,6 +53,10 @@ type Interface interface {
 	Close() error
 
 	Start() error
+
+	// The Status is empty is the handler is running.
+	// Returns an error string if the manager is not running
+	Status() string
 }
 
 // Does nothing, simply returns the data
