@@ -290,7 +290,7 @@ func (c *Handler) runInstanceManager() {
 				if addedInstanceId != instanceId {
 					continue
 				} else {
-					c.logger.Info("instance was added", "id", c.Config.Id, "event", req.Command, "instanceId", instanceId)
+					c.logger.Info("first instance created added", "id", c.Config.Id, "event", req.Command, "instanceId", instanceId)
 					instanceId = ""
 				}
 			}
