@@ -428,6 +428,129 @@ func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
 	test.cleanOut()
 }
 
+// Test_17_MessageAmount checks that queue and processing messages amount are correct
+func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
+	s := &test.Suite
+	req := message.Request{Command: "status", Parameters: key_value.Empty()}
+
+	// Test setup runs all parts, status must be Ready
+	reply := test.req(req)
+	s.Require().True(reply.IsOK())
+
+	status, err := reply.Parameters.GetString("status")
+	s.Require().NoError(err)
+	s.Require().Equal(Ready, status)
+
+	//
+	// Turn the status to incomplete
+	//
+	partReq := message.Request{Command: "close_part", Parameters: key_value.Empty().Set("part", "reactor")}
+	reply = test.req(partReq)
+	s.Require().True(reply.IsOK())
+
+	// Wait a bit for the reactor closes itself
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(reactor.CREATED, test.reactor.Status())
+
+	// Status must be incomplete
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	status, err = reply.Parameters.GetString("status")
+	s.Require().NoError(err)
+	s.Require().Equal(Incomplete, status)
+
+	// Only reactor must be incomplete
+	parts, err := reply.Parameters.GetKeyValue("parts")
+	s.Require().NoError(err)
+	reactorStatus, err := parts.GetString("reactor")
+	s.Require().NoError(err)
+	s.Require().Equal(reactor.CREATED, reactorStatus)
+	instanceManager, err := parts.GetString("instance_manager")
+	s.Require().NoError(err)
+	s.Require().Equal(instance_manager.Running, instanceManager)
+
+	//
+	// Absolutely incomplete if instance manager stopped
+	//
+	partReq.Parameters.Set("part", "instance_manager")
+	reply = test.req(partReq)
+	s.Require().True(reply.IsOK())
+
+	// Wait a bit for the reactor closes itself
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(instance_manager.Idle, test.instanceManager.Status())
+
+	// Status must be incomplete
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	status, err = reply.Parameters.GetString("status")
+	s.Require().NoError(err)
+	s.Require().Equal(Incomplete, status)
+
+	// Reactor and instance manager are incomplete
+	parts, err = reply.Parameters.GetKeyValue("parts")
+	s.Require().NoError(err)
+	reactorStatus, err = parts.GetString("reactor")
+	s.Require().NoError(err)
+	s.Require().Equal(reactor.CREATED, reactorStatus)
+	instanceManager, err = parts.GetString("instance_manager")
+	s.Require().NoError(err)
+	s.Require().Equal(instance_manager.Idle, instanceManager)
+
+	//
+	// Incomplete turns to ready when processes are running
+	//
+
+	// Run the instance manager
+	partReq.Command = "run_part"
+	reply = test.req(partReq)
+	s.Require().True(reply.IsOK())
+
+	// Wait a bit for instance manager initialization
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(instance_manager.Running, test.instanceManager.Status())
+
+	// Status must be incomplete
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	status, err = reply.Parameters.GetString("status")
+	s.Require().NoError(err)
+	s.Require().Equal(Incomplete, status)
+
+	// Only reactor is incomplete
+	parts, err = reply.Parameters.GetKeyValue("parts")
+	s.Require().NoError(err)
+	reactorStatus, err = parts.GetString("reactor")
+	s.Require().NoError(err)
+	s.Require().Equal(reactor.CREATED, reactorStatus)
+	instanceManager, err = parts.GetString("instance_manager")
+	s.Require().NoError(err)
+	s.Require().Equal(instance_manager.Running, instanceManager)
+
+	// Run Reactor
+	partReq.Parameters.Set("part", "reactor")
+	reply = test.req(partReq)
+	s.Require().True(reply.IsOK())
+
+	// Wait a bit for reactor initialization
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(reactor.RUNNING, test.reactor.Status())
+
+	// Status must be ready
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	status, err = reply.Parameters.GetString("status")
+	s.Require().NoError(err)
+	s.Require().Equal(Ready, status)
+
+	// Clean
+	test.cleanOut()
+}
+
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestHandlerManager(t *testing.T) {
