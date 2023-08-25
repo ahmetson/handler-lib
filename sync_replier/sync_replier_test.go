@@ -1,7 +1,6 @@
 package sync_replier
 
 import (
-	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
@@ -25,8 +24,6 @@ type TestHandlerSuite struct {
 	routes        map[string]interface{}
 }
 
-// Todo test in-process and external types of controllers
-// Todo test the business of the server
 // Make sure that Account is set to five
 // before each test
 func (test *TestHandlerSuite) SetupTest() {
@@ -93,7 +90,7 @@ func (test *TestHandlerSuite) cleanOut() {
 	err := test.managerClient.Close()
 	s.Require().NoError(err)
 
-	test.syncReplier.Close()
+	s.Require().NoError(test.syncReplier.Close())
 
 	// Wait a bit for closing
 	time.Sleep(time.Millisecond * 100)
@@ -125,7 +122,6 @@ func (test *TestHandlerSuite) Test_10_Run() {
 	// Adding a new instance must fail
 	req.Command = "add_instance"
 	reply = test.req(test.managerClient, req)
-	fmt.Sprintf("reply error: %s\n", reply.Message)
 	s.Require().False(reply.IsOK())
 
 	// clean out
