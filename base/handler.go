@@ -289,9 +289,9 @@ func (c *Handler) runInstanceManager() {
 			c.logger.Warn("instance manager exited with an error", "id", c.config.Id, "error", errMsg)
 			break
 		} else if req.Command == instance_manager.EventIdle {
-			close, _ := req.Parameters.GetBoolean("close")
-			c.logger.Warn("instance manager is idle", "id", c.config.Id, "close signal received?", close)
-			if close {
+			closeSignal, _ := req.Parameters.GetBoolean("close")
+			c.logger.Warn("instance manager is idle", "id", c.config.Id, "close signal received?", closeSignal)
+			if closeSignal {
 				break
 			}
 		} else {
