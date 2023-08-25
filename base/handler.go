@@ -349,31 +349,3 @@ func (c *Handler) Start() error {
 
 	return nil
 }
-
-func bind(sock *zmq.Socket, url string, port uint64) error {
-	if err := sock.Bind(url); err != nil {
-		if port > 0 {
-			// for now, the host name is hardcoded. later we need to get it from the orchestra
-			if net.IsPortUsed("localhost", port) {
-				pid, err := process.PortToPid(port)
-				if err != nil {
-					err = fmt.Errorf("config.PortToPid(%d): %w", port, err)
-				} else {
-					currentPid := process.CurrentPid()
-					if currentPid == pid {
-						err = fmt.Errorf("another dependency is using it within this orchestra")
-					} else {
-						err = fmt.Errorf("operating system uses it for another clientConfig. pid=%d", pid)
-					}
-				}
-			} else {
-				err = fmt.Errorf(`server.socket.bind("tcp://*:%d)": %w`, port, err)
-			}
-			return err
-		} else {
-			return fmt.Errorf(`server.socket.bind("inproc://%s"): %w`, url, err)
-		}
-	}
-
-	return nil
-}
