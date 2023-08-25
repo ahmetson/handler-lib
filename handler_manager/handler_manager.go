@@ -54,6 +54,10 @@ func (m *HandlerManager) SetConfig(config *config.Handler) {
 	m.config = config
 }
 
+func (m *HandlerManager) Status() string {
+	return m.status
+}
+
 // setRoutes sets the default command handlers
 func (m *HandlerManager) setRoutes() {
 	// Requesting status which is calculated from statuses of the handler parts
