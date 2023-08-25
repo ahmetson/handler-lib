@@ -220,7 +220,7 @@ func (test *TestInstanceSuite) Test_13_Handle() {
 		_, err = handleClient.SendMessage(reqStr)
 		s.Require().NoError(err)
 
-		reply, err := handleClient.RecvMessage(0)
+		_, err = handleClient.RecvMessage(0)
 		s.Require().NoError(err)
 	}
 
