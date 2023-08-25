@@ -68,8 +68,14 @@ func New(handlerType config.HandlerType, id string, parentId string, parent *log
 // then it returns success.
 func (c *Instance) reply(socket *zmq.Socket, message message.Reply) error {
 	reply, _ := message.String()
-	if _, err := socket.SendMessage(reply); err != nil {
-		return fmt.Errorf("recv error replying error %w" + err.Error())
+	if len(message.SessionId()) == 0 {
+		if _, err := socket.SendMessage(reply); err != nil {
+			return fmt.Errorf("recv error replying error %w" + err.Error())
+		}
+	} else {
+		if _, err := socket.SendMessage(message.SessionId(), "", reply); err != nil {
+			return fmt.Errorf("recv error replying error %w" + err.Error())
+		}
 	}
 
 	return nil
