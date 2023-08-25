@@ -16,7 +16,7 @@ type SyncReplier struct {
 }
 
 // New SyncReplier returned
-func New() base.Interface {
+func New() *SyncReplier {
 	handler := base.New()
 	return &SyncReplier{
 		base:        handler,
