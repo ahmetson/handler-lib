@@ -227,7 +227,7 @@ func (parent *Parent) Run() {
 			break
 		}
 
-		sockets, err := poller.Poll(time.Millisecond * 10)
+		sockets, err := poller.Poll(time.Millisecond)
 		if err != nil {
 			parent.status = fmt.Sprintf("poller.Poll: %v", err)
 			if err := parent.pubError(); err != nil {

@@ -9,6 +9,7 @@ import (
 	"github.com/ahmetson/handler-lib/route"
 	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
+	"time"
 )
 
 const (
@@ -197,7 +198,7 @@ func (c *Instance) Run() {
 			break
 		}
 
-		sockets, err := poller.Poll(0)
+		sockets, err := poller.Poll(time.Millisecond)
 		if err != nil {
 			newErr := fmt.Errorf("poller.Poll(%s): %w", c.Type(), err)
 			c.logger.Fatal("failed", "error", newErr)

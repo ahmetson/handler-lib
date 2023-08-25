@@ -10,6 +10,7 @@ import (
 	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/handler-lib/route"
 	zmq "github.com/pebbe/zmq4"
+	"time"
 )
 
 const (
@@ -237,7 +238,7 @@ func (m *HandlerManager) Run() error {
 			break
 		}
 
-		sockets, err := poller.Poll(0)
+		sockets, err := poller.Poll(time.Millisecond)
 		if err != nil {
 			loopErr = fmt.Errorf("poller.Poll: %w", err)
 			break
