@@ -323,7 +323,10 @@ func (parent *Parent) Close() {
 	}
 
 	// removing all running instances
-	for instanceId := range parent.instances {
+	for instanceId, child := range parent.instances {
+		if child.status == instance.CLOSED {
+			continue
+		}
 		err := parent.DeleteInstance(instanceId)
 		if err != nil {
 			parent.status = fmt.Sprintf("parent.DeleteInstance(%s): %v", instanceId, err)
