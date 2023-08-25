@@ -128,8 +128,12 @@ func (m *HandlerManager) setRoutes() {
 		return req.Ok(key_value.Empty().Set("instance_amount", instanceAmount))
 	}
 
+	// Returns queue amount and currently processed images amount
 	onMessageAmount := func(req message.Request) message.Reply {
-		return req.Ok(key_value.Empty().Set("message_amount", m.reactor.QueueLen()))
+		params := key_value.Empty().
+			Set("queue_length", m.reactor.QueueLen()).
+			Set("processing_length", m.reactor.ProcessingLen())
+		return req.Ok(params)
 	}
 
 	m.routes.Set("status", onStatus)
