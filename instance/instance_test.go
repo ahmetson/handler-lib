@@ -21,6 +21,7 @@ type TestInstanceSuite struct {
 	suite.Suite
 
 	instance0 *Instance
+	instance1 *Instance
 	handle0   interface{}
 	handle1   interface{}
 	parentId  string
@@ -239,6 +240,192 @@ func (test *TestInstanceSuite) Test_13_Handle() {
 	// Then we will close it
 	time.Sleep(time.Millisecond * 100)
 	s.Require().Equal(CLOSED, test.instance0.Status())
+
+	// Clean out the things
+	err = instanceManager.Close()
+	s.Require().NoError(err)
+}
+
+// Test_14_HandleRouter tests that asynchronous instances can handle the messages
+func (test *TestInstanceSuite) Test_14_HandleRouter() {
+	s := &test.Suite
+
+	test.routes = key_value.Empty()
+	test.routes.Set("handle_0", test.handle0)
+	test.routes.Set("handle_1", test.handle1)
+
+	handlerType := config.ReplierType
+	id := "instance_1"
+	logger, _ := log.New("instance_test", true)
+
+	test.instance1 = New(handlerType, id, test.parentId, logger)
+	test.instance1.SetRoutes(&test.routes, &test.routeDeps)
+	test.instance1.SetClients(&test.clients)
+
+	// Let's run the service
+	go test.instance1.Run()
+	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
+
+	// Make sure that the service is running
+	s.Require().Equal(READY, test.instance1.Status())
+
+	// Now we will send some random requests
+	// Sending a close message
+	handleClient, err := zmq.NewSocket(zmq.REQ)
+	s.Require().NoError(err)
+	err = handleClient.Connect(config.InstanceHandleUrl(test.instance1.parentId, test.instance1.Id))
+	s.Require().NoError(err)
+	for i := 0; i < 2; i++ {
+		req := message.Request{Command: "handle_0", Parameters: key_value.Empty()}
+		reqStr, err := req.String()
+		s.Require().NoError(err)
+
+		_, err = handleClient.SendMessage(reqStr)
+		s.Require().NoError(err)
+
+		_, err = handleClient.RecvMessage(0)
+		s.Require().NoError(err)
+	}
+
+	// Sending a close message
+	instanceManager, err := zmq.NewSocket(zmq.REQ)
+	s.Require().NoError(err)
+	err = instanceManager.Connect(config.InstanceUrl(test.instance1.parentId, test.instance1.Id))
+	s.Require().NoError(err)
+	req := message.Request{Command: "close", Parameters: key_value.Empty()}
+	reqStr, err := req.String()
+	s.Require().NoError(err)
+
+	_, err = instanceManager.SendMessage(reqStr)
+	s.Require().NoError(err)
+
+	// Then we will close it
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(CLOSED, test.instance1.Status())
+
+	// Clean out the things
+	err = instanceManager.Close()
+	s.Require().NoError(err)
+}
+
+// Test_15_HandleDealer tests that asynchronous clients can send the messages
+func (test *TestInstanceSuite) Test_15_HandleDealer() {
+	s := &test.Suite
+
+	test.routes = key_value.Empty()
+	test.routes.Set("handle_0", test.handle0)
+	test.routes.Set("handle_1", test.handle1)
+
+	handlerType := config.SyncReplierType
+	id := "instance_1"
+	logger, _ := log.New("instance_test", true)
+
+	test.instance1 = New(handlerType, id, test.parentId, logger)
+	test.instance1.SetRoutes(&test.routes, &test.routeDeps)
+	test.instance1.SetClients(&test.clients)
+
+	// Let's run the service
+	go test.instance1.Run()
+	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
+
+	// Make sure that the service is running
+	s.Require().Equal(READY, test.instance1.Status())
+
+	// Now we will send some random requests
+	// Sending a close message
+	handleClient, err := zmq.NewSocket(zmq.DEALER)
+	s.Require().NoError(err)
+	err = handleClient.Connect(config.InstanceHandleUrl(test.instance1.parentId, test.instance1.Id))
+	s.Require().NoError(err)
+	for i := 0; i < 2; i++ {
+		req := message.Request{Command: "handle_0", Parameters: key_value.Empty()}
+		reqStr, err := req.String()
+		s.Require().NoError(err)
+
+		_, err = handleClient.SendMessage("", reqStr)
+		s.Require().NoError(err)
+
+		_, err = handleClient.RecvMessage(0)
+		s.Require().NoError(err)
+	}
+
+	// Sending a close message
+	instanceManager, err := zmq.NewSocket(zmq.REQ)
+	s.Require().NoError(err)
+	err = instanceManager.Connect(config.InstanceUrl(test.instance1.parentId, test.instance1.Id))
+	s.Require().NoError(err)
+	req := message.Request{Command: "close", Parameters: key_value.Empty()}
+	reqStr, err := req.String()
+	s.Require().NoError(err)
+
+	_, err = instanceManager.SendMessage(reqStr)
+	s.Require().NoError(err)
+
+	// Then we will close it
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(CLOSED, test.instance1.Status())
+
+	// Clean out the things
+	err = instanceManager.Close()
+	s.Require().NoError(err)
+}
+
+// Test_16_HandleDealerRouter tests that asynchronous clients communicate with asynchronous instances
+func (test *TestInstanceSuite) Test_15_HandleDealerRouter() {
+	s := &test.Suite
+
+	test.routes = key_value.Empty()
+	test.routes.Set("handle_0", test.handle0)
+	test.routes.Set("handle_1", test.handle1)
+
+	handlerType := config.ReplierType
+	id := "instance_1"
+	logger, _ := log.New("instance_test", true)
+
+	test.instance1 = New(handlerType, id, test.parentId, logger)
+	test.instance1.SetRoutes(&test.routes, &test.routeDeps)
+	test.instance1.SetClients(&test.clients)
+
+	// Let's run the service
+	go test.instance1.Run()
+	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
+
+	// Make sure that the service is running
+	s.Require().Equal(READY, test.instance1.Status())
+
+	// Now we will send some random requests
+	// Sending a close message
+	handleClient, err := zmq.NewSocket(zmq.DEALER)
+	s.Require().NoError(err)
+	err = handleClient.Connect(config.InstanceHandleUrl(test.instance1.parentId, test.instance1.Id))
+	s.Require().NoError(err)
+	for i := 0; i < 2; i++ {
+		req := message.Request{Command: "handle_0", Parameters: key_value.Empty()}
+		reqStr, err := req.String()
+		s.Require().NoError(err)
+
+		_, err = handleClient.SendMessage("", reqStr)
+		s.Require().NoError(err)
+
+		_, err = handleClient.RecvMessage(0)
+		s.Require().NoError(err)
+	}
+
+	// Sending a close message
+	instanceManager, err := zmq.NewSocket(zmq.REQ)
+	s.Require().NoError(err)
+	err = instanceManager.Connect(config.InstanceUrl(test.instance1.parentId, test.instance1.Id))
+	s.Require().NoError(err)
+	req := message.Request{Command: "close", Parameters: key_value.Empty()}
+	reqStr, err := req.String()
+	s.Require().NoError(err)
+
+	_, err = instanceManager.SendMessage(reqStr)
+	s.Require().NoError(err)
+
+	// Then we will close it
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(CLOSED, test.instance1.Status())
 
 	// Clean out the things
 	err = instanceManager.Close()
