@@ -277,7 +277,7 @@ func (c *Instance) processMessage(msgRaw []string, metadata map[string]string) (
 	// We first attempt to parse basic request from the raw message
 	request, err := message.NewReqWithMeta(msgRaw, metadata)
 	if err != nil {
-		newErr := fmt.Errorf("message.ParseRequest: %w", err)
+		newErr := fmt.Errorf("message.NewReqWithMeta (msg len: %d): %w", len(msgRaw), err)
 
 		return message.Reply{}, newErr
 	}
