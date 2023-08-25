@@ -147,7 +147,7 @@ func (test *TestHandlerSuite) Test_12_DepConfig() {
 	// No dependency configurations were added yet
 	s.Require().Error(test.inprocHandler.depConfigsAdded())
 
-	// No dependency config should be given
+	// No dependency Config should be given
 	depIds := test.inprocHandler.DepIds()
 	//AddDepByService
 	for _, id := range depIds {
@@ -193,39 +193,39 @@ func (test *TestHandlerSuite) Test_12_DepConfig() {
 	s.Require().Error(test.inprocHandler.AddDepByService(depConfig))
 }
 
-// Test_13_InstanceManager tests setting of the instance manager and then listening to it.
+// Test_13_InstanceManager tests setting of the instance Manager and then listening to it.
 func (test *TestHandlerSuite) Test_13_InstanceManager() {
 	s := &test.Suite
 
-	// the instance manager requires
-	s.Require().NotNil(test.inprocHandler.instanceManager)
+	// the instance Manager requires
+	s.Require().NotNil(test.inprocHandler.InstanceManager)
 
 	// It should be idle
-	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Idle)
+	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Idle)
 	s.Require().False(test.inprocHandler.instanceManagerRuns)
-	s.Require().Empty(test.inprocHandler.instanceManager.Instances())
+	s.Require().Empty(test.inprocHandler.InstanceManager.Instances())
 
-	// Running instance manager
+	// Running instance Manager
 	go test.inprocHandler.runInstanceManager()
 
-	// Waiting a bit for instance manager initialization
+	// Waiting a bit for instance Manager initialization
 	time.Sleep(time.Millisecond * 2000)
 
 	// Instance Manager should be running
-	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Running)
+	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Running)
 	s.Require().True(test.inprocHandler.instanceManagerRuns)
-	s.Require().Len(test.inprocHandler.instanceManager.Instances(), 1)
+	s.Require().Len(test.inprocHandler.InstanceManager.Instances(), 1)
 
 	// Let's send the close signal
 	s.Require().NoError(test.inprocHandler.Close())
 
-	// Waiting a bit for instance manager closing
+	// Waiting a bit for instance Manager closing
 	time.Sleep(time.Millisecond * 10)
 
 	// Check that Instance Manager is not running
-	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Idle)
+	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Idle)
 	s.Require().False(test.inprocHandler.instanceManagerRuns)
-	s.Require().Empty(test.inprocHandler.instanceManager.Instances())
+	s.Require().Empty(test.inprocHandler.InstanceManager.Instances())
 }
 
 // Test_14_Run runs the handler.
@@ -239,7 +239,7 @@ func (test *TestHandlerSuite) Test_14_Run() {
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything works
-	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Running)
+	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Running)
 	s.Require().Equal(test.inprocHandler.reactor.Status(), reactor.RUNNING)
 
 	// Now let's close it
@@ -249,7 +249,7 @@ func (test *TestHandlerSuite) Test_14_Run() {
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything is closed
-	s.Require().Equal(test.inprocHandler.instanceManager.Status(), instance_manager.Idle)
+	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Idle)
 	s.Require().Equal(test.inprocHandler.reactor.Status(), reactor.CREATED)
 }
 

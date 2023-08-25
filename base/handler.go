@@ -22,18 +22,18 @@ import (
 
 // The Handler is the socket wrapper for the clientConfig.
 type Handler struct {
-	config              *config.Handler
+	Config              *config.Handler
 	socket              *zmq.Socket
 	logger              *log.Logger
-	routes              key_value.KeyValue
-	routeDeps           key_value.KeyValue
+	Routes              key_value.KeyValue
+	RouteDeps           key_value.KeyValue
 	depIds              []string
 	depConfigs          key_value.KeyValue
-	depClients          client.Clients
+	DepClients          client.Clients
 	reactor             *reactor.Reactor
-	instanceManager     *instance_manager.Parent
+	InstanceManager     *instance_manager.Parent
 	instanceManagerRuns bool
-	manager             *handler_manager.HandlerManager
+	Manager             *handler_manager.HandlerManager
 	status              string
 }
 
@@ -41,43 +41,49 @@ type Handler struct {
 func New() *Handler {
 	return &Handler{
 		logger:              nil,
-		routes:              key_value.Empty(),
-		routeDeps:           key_value.Empty(),
+		Routes:              key_value.Empty(),
+		RouteDeps:           key_value.Empty(),
 		depIds:              make([]string, 0),
 		depConfigs:          key_value.Empty(),
-		depClients:          key_value.Empty(),
+		DepClients:          key_value.Empty(),
 		reactor:             reactor.New(),
-		instanceManager:     nil,
+		InstanceManager:     nil,
 		instanceManagerRuns: false,
-		manager:             nil,
+		Manager:             nil,
 		status:              "",
 	}
 }
 
-// SetConfig adds the parameters of the server from the config.
+// SetConfig adds the parameters of the server from the Config.
+//
+// Sets reactor's configuration as well.
 func (c *Handler) SetConfig(controller *config.Handler) {
-	c.config = controller
+	c.Config = controller
 	c.reactor.SetConfig(controller)
 }
 
-// SetLogger sets the logger.
+// SetLogger sets the logger (depends on configuration).
+//
+// Creates instance Manager.
+//
+// Creates handler Manager.
 func (c *Handler) SetLogger(parent *log.Logger) error {
-	if c.config == nil {
+	if c.Config == nil {
 		return fmt.Errorf("missing configuration")
 	}
-	logger := parent.Child(c.config.Id)
+	logger := parent.Child(c.Config.Id)
 	c.logger = logger
 
-	c.instanceManager = instance_manager.New(c.config.Id, c.logger)
-	c.reactor.SetInstanceManager(c.instanceManager)
+	c.InstanceManager = instance_manager.New(c.Config.Id, c.logger)
+	c.reactor.SetInstanceManager(c.InstanceManager)
 
-	c.manager = handler_manager.New(c.reactor, c.instanceManager, c.runInstanceManager)
-	c.manager.SetConfig(c.config)
+	c.Manager = handler_manager.New(c.reactor, c.InstanceManager, c.runInstanceManager)
+	c.Manager.SetConfig(c.Config)
 
 	return nil
 }
 
-// AddDepByService adds the config of the dependency. Intended to be called by Service not by developer
+// AddDepByService adds the Config of the dependency. Intended to be called by Service not by developer
 func (c *Handler) AddDepByService(dep *clientConfig.Client) error {
 	if c.AddedDepByService(dep.Id) {
 		return fmt.Errorf("dependency configuration already added")
@@ -96,7 +102,7 @@ func (c *Handler) AddedDepByService(id string) bool {
 	return c.depConfigs.Exist(id) == nil
 }
 
-// addDep adds the dependency id required by one of the routes.
+// addDep adds the dependency id required by one of the Routes.
 // Already added dependency id skipped.
 func (c *Handler) addDep(id string) {
 	if !slices.Contains(c.depIds, id) {
@@ -114,7 +120,7 @@ func (c *Handler) DepIds() []string {
 // If a server doesn't support replying (for example, PULL server),
 // then it returns success.
 func (c *Handler) reply(socket *zmq.Socket, message message.Reply) error {
-	if !config.CanReply(c.config.Type) {
+	if !config.CanReply(c.Config.Type) {
 		return nil
 	}
 
@@ -142,7 +148,7 @@ func (c *Handler) Route(cmd string, handle any, depIds ...string) error {
 		return fmt.Errorf("the '%s' command handler requires %d dependencies, but route has %d dependencies", cmd, depAmount, len(depIds))
 	}
 
-	if err := c.routes.Exist(cmd); err == nil {
+	if err := c.Routes.Exist(cmd); err == nil {
 		return nil
 	}
 
@@ -150,16 +156,16 @@ func (c *Handler) Route(cmd string, handle any, depIds ...string) error {
 		c.addDep(dep)
 	}
 
-	c.routes.Set(cmd, handle)
+	c.Routes.Set(cmd, handle)
 	if len(depIds) > 0 {
-		c.routeDeps.Set(cmd, depIds)
+		c.RouteDeps.Set(cmd, depIds)
 	}
 
 	return nil
 }
 
-// depConfigsAdded checks that the required depClients are added into the server.
-// If no depClients are added by calling server.addDep(), then it will return nil.
+// depConfigsAdded checks that the required DepClients are added into the server.
+// If no DepClients are added by calling server.addDep(), then it will return nil.
 func (c *Handler) depConfigsAdded() error {
 	if len(c.depIds) != len(c.depConfigs) {
 		return fmt.Errorf("required dependencies and configurations are not matching")
@@ -175,10 +181,10 @@ func (c *Handler) depConfigsAdded() error {
 
 // Type returns the handler type. If the configuration is not set, returns config.UnknownType.
 func (c *Handler) Type() config.HandlerType {
-	if c.config == nil {
+	if c.Config == nil {
 		return config.UnknownType
 	}
-	return c.config.Type
+	return c.Config.Type
 }
 
 // initDepClients will set up the extension clients for this server.
@@ -193,15 +199,15 @@ func (c *Handler) initDepClients() error {
 	for _, depInterface := range c.depConfigs {
 		depConfig := depInterface.(*clientConfig.Client)
 
-		if err := c.depClients.Exist(depConfig.Id); err == nil {
-			return fmt.Errorf("depClients.Exist('%s')", depConfig.Id)
+		if err := c.DepClients.Exist(depConfig.Id); err == nil {
+			return fmt.Errorf("DepClients.Exist('%s')", depConfig.Id)
 		}
 
 		depClient, err := client.NewReq(depConfig.Id, depConfig.Port, c.logger)
 		if err != nil {
 			return fmt.Errorf("client.NewReq('%s', '%d'): %w", depConfig.Id, depConfig.Port, err)
 		}
-		c.depClients.Set(depConfig.Id, depClient)
+		c.DepClients.Set(depConfig.Id, depClient)
 	}
 
 	return nil
@@ -209,8 +215,8 @@ func (c *Handler) initDepClients() error {
 
 // Close the handler
 func (c *Handler) Close() error {
-	if c.instanceManager.Status() == instance_manager.Running {
-		c.instanceManager.Close()
+	if c.InstanceManager.Status() == instance_manager.Running {
+		c.InstanceManager.Close()
 	}
 	if c.reactor.Status() == reactor.RUNNING {
 		if err := c.reactor.Close(); err != nil {
@@ -221,30 +227,30 @@ func (c *Handler) Close() error {
 	return nil
 }
 
-// Runs the instance manager and listen to it's events
+// Runs the instance Manager and listen to it's events
 func (c *Handler) runInstanceManager() {
 	socket, err := zmq.NewSocket(zmq.SUB)
 	if err != nil {
-		c.logger.Warn("zmq.NewSocket", "id", c.config.Id, "function", "runInstanceManager", "error", err)
+		c.logger.Warn("zmq.NewSocket", "id", c.Config.Id, "function", "runInstanceManager", "error", err)
 		return
 	}
 
 	if err := socket.SetSubscribe(""); err != nil {
-		c.logger.Warn("set subscriber", "id", c.config.Id, "function", "runInstanceManager", "error", err)
+		c.logger.Warn("set subscriber", "id", c.Config.Id, "function", "runInstanceManager", "error", err)
 		return
 	}
 
-	url := config.InstanceManagerEventUrl(c.config.Id)
+	url := config.InstanceManagerEventUrl(c.Config.Id)
 	err = socket.Connect(url)
 	if err != nil {
-		c.logger.Warn("eventSocket.Connect", "id", c.config.Id, "function", "runInstanceManager", "url", url, "error", err)
+		c.logger.Warn("eventSocket.Connect", "id", c.Config.Id, "function", "runInstanceManager", "url", url, "error", err)
 		return
 	}
 	c.instanceManagerRuns = true
 
-	go c.instanceManager.Run()
+	go c.InstanceManager.Run()
 
-	// The first Instance created by handler when the instance manager is ready.
+	// The first Instance created by handler when the instance Manager is ready.
 	firstInstance := false
 	// Verify that the first instance was added.
 	instanceId := ""
@@ -252,21 +258,21 @@ func (c *Handler) runInstanceManager() {
 	for {
 		raw, err := socket.RecvMessage(0)
 		if err != nil {
-			c.logger.Warn("eventSocket.RecvMessage", "id", c.config.Id, "error", err)
+			c.logger.Warn("eventSocket.RecvMessage", "id", c.Config.Id, "error", err)
 			break
 		}
 
 		req, err := message.NewReq(raw)
 		if err != nil {
-			c.logger.Warn("eventSocket: convert raw to message", "id", c.config.Id, "message", raw, "error", err)
+			c.logger.Warn("eventSocket: convert raw to message", "id", c.Config.Id, "message", raw, "error", err)
 			continue
 		}
 
 		if req.Command == instance_manager.EventReady {
 			if !firstInstance {
-				instanceId, err = c.instanceManager.AddInstance(c.config.Type, &c.routes, &c.routeDeps, &c.depClients)
+				instanceId, err = c.InstanceManager.AddInstance(c.Config.Type, &c.Routes, &c.RouteDeps, &c.DepClients)
 				if err != nil {
-					c.logger.Warn("instanceManager.AddInstance", "id", c.config.Id, "event", req.Command, "type", c.config.Type, "error", err)
+					c.logger.Warn("InstanceManager.AddInstance", "id", c.Config.Id, "event", req.Command, "type", c.Config.Type, "error", err)
 					continue
 				}
 				firstInstance = true
@@ -275,39 +281,39 @@ func (c *Handler) runInstanceManager() {
 			if firstInstance && len(instanceId) > 0 {
 				addedInstanceId, err := req.Parameters.GetString("id")
 				if err != nil {
-					c.logger.Warn("req.Parameters.GetString('id')", "id", c.config.Id, "event", req.Command, "instanceId", instanceId, "error", err)
+					c.logger.Warn("req.Parameters.GetString('id')", "id", c.Config.Id, "event", req.Command, "instanceId", instanceId, "error", err)
 					continue
 				}
 				if addedInstanceId != instanceId {
 					continue
 				} else {
-					c.logger.Info("instance was added", "id", c.config.Id, "event", req.Command, "instanceId", instanceId)
+					c.logger.Info("instance was added", "id", c.Config.Id, "event", req.Command, "instanceId", instanceId)
 					instanceId = ""
 				}
 			}
 		} else if req.Command == instance_manager.EventError {
 			errMsg, err := req.Parameters.GetString("message")
 			if err != nil {
-				c.logger.Warn("req.Parameters.GetString('message')", "id", c.config.Id, "event", req.Command, "error", err)
+				c.logger.Warn("req.Parameters.GetString('message')", "id", c.Config.Id, "event", req.Command, "error", err)
 				continue
 			}
 
-			c.logger.Warn("instance manager exited with an error", "id", c.config.Id, "error", errMsg)
+			c.logger.Warn("instance Manager exited with an error", "id", c.Config.Id, "error", errMsg)
 			break
 		} else if req.Command == instance_manager.EventIdle {
 			closeSignal, _ := req.Parameters.GetBoolean("close")
-			c.logger.Warn("instance manager is idle", "id", c.config.Id, "close signal received?", closeSignal)
+			c.logger.Warn("instance Manager is idle", "id", c.Config.Id, "close signal received?", closeSignal)
 			if closeSignal {
 				break
 			}
 		} else {
-			c.logger.Warn("unhandled instance manager event", "id", c.config.Id, "event", req.Command, "parameters", req.Parameters)
+			c.logger.Warn("unhandled instance Manager event", "id", c.Config.Id, "event", req.Command, "parameters", req.Parameters)
 		}
 	}
 
 	err = socket.Close()
 	if err != nil {
-		c.logger.Warn("failed to close instance manager sub", "id", c.config.Id, "error", err)
+		c.logger.Warn("failed to close instance Manager sub", "id", c.Config.Id, "error", err)
 	}
 
 	c.instanceManagerRuns = false
@@ -319,14 +325,14 @@ func (c *Handler) Status() string {
 
 // Start the handler directly, not by goroutine
 func (c *Handler) Start() error {
-	if c.config == nil {
+	if c.Config == nil {
 		return fmt.Errorf("configuration not set")
 	}
 	if err := c.depConfigsAdded(); err != nil {
 		return fmt.Errorf("depConfigsAdded: %w", err)
 	}
-	if c.instanceManager == nil {
-		return fmt.Errorf("instance manager not set")
+	if c.InstanceManager == nil {
+		return fmt.Errorf("instance Manager not set")
 	}
 	if c.reactor == nil {
 		return fmt.Errorf("reactor not set")
@@ -335,11 +341,11 @@ func (c *Handler) Start() error {
 		return fmt.Errorf("initDepClients: %w", err)
 	}
 
-	// Adding the first instance manager
+	// Adding the first instance Manager
 	go c.reactor.Run()
 	go c.runInstanceManager()
 	go func() {
-		err := c.manager.Run()
+		err := c.Manager.Run()
 		if err != nil {
 			c.status = err.Error()
 		}

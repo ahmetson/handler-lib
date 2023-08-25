@@ -17,20 +17,20 @@ import (
 // "github.com/ahmetson/client-lib" package.
 //
 // handler.New(handler.Type)
-// handler.SetConfig(config)
+// handler.SetConfig(Config)
 // handler.Route("hello", onHello)
 //
 // The service will call:
 // AddDepByService
 type Interface interface {
-	// SetConfig adds the parameters of the server from the config
+	// SetConfig adds the parameters of the server from the Config
 	SetConfig(*config.Handler)
 
 	// SetLogger adds the logger. The function accepts a parent, and function derives handler logger
 	// Requires configuration to be set first
 	SetLogger(*log.Logger) error
 
-	// AddDepByService adds the config of the extension that the handler depends on.
+	// AddDepByService adds the Config of the extension that the handler depends on.
 	// This function is intended to be called by the service.
 	//
 	// If any route does not require the dependency, it returns an error.
@@ -40,7 +40,7 @@ type Interface interface {
 	// AddedDepByService returns true if the configuration already exists
 	AddedDepByService(string) bool
 
-	// DepIds return the list of dep ids collected from all routes.
+	// DepIds return the list of dep ids collected from all Routes.
 	DepIds() []string
 
 	// Route adds a new route and it's handlers for this server
@@ -55,7 +55,7 @@ type Interface interface {
 	Start() error
 
 	// The Status is empty is the handler is running.
-	// Returns an error string if the manager is not running
+	// Returns an error string if the Manager is not running
 	Status() string
 }
 
