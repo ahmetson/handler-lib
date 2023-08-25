@@ -100,7 +100,7 @@ func (test *TestInstanceSuite) Test_10_SetRoutes() {
 		for routeCmdName := range test.routes {
 			routeIndex++
 
-			if index == routeIndex-1 {
+			if index == routeIndex-1 { // routeIndex - 1 because we already increment it
 				s.Require().Equal(routeCmdName, cmdName, fmt.Sprintf("expected '%s' at index %d, routes: %v, instance routes: %v", routeCmdName, routeIndex, test.routes, *test.instance0.routes))
 				break
 			}
