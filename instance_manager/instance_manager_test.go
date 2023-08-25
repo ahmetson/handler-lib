@@ -139,14 +139,14 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 	s.Require().Len(test.parent.instances, 0)
 	s.Require().Empty(test.parent.Ready())
 
-	// The instance should be idle before running
+	// The instance manager should be idle before running
 	s.Require().Equal(Idle, test.parent.Status())
 
 	// Running instance manager
 	go test.parent.Run()
 
 	// waiting a bit for initialization
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 100)
 	s.Require().Equal(Running, test.parent.Status())
 
 	// Now adding a new instance should work
@@ -172,7 +172,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 
 	// Waiting the instance will notify instance manager that it's busy
 	// Since, we are sending messages without waiting their update
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 50)
 	s.Require().Equal(instance.HANDLING, test.parent.instances[instanceId].status)
 
 	// Get the second ready worker
@@ -194,6 +194,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 	s.Require().NoError(err)
 	test.parent.logger.Info("handling result from the first instance", "msg", msg)
 
+	time.Sleep(time.Millisecond * 10)
 	_, handler4 := test.parent.Ready()
 	s.Require().NotNil(handler4)
 
