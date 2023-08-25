@@ -156,6 +156,22 @@ func (m *HandlerManager) Close() {
 	m.close = true
 }
 
+// Route overrides the default route with the given handle.
+// Returns an error if the command is not supported.
+// Returns an error if the handler manager is running.
+func (m *HandlerManager) Route(cmd string, handle route.HandleFunc0) error {
+	if m.status == SocketReady {
+		return fmt.Errorf("can not overwrite handler when handler manager is running")
+	}
+	err := m.routes.Exist(cmd)
+	if err != nil {
+		return fmt.Errorf("'%s' command not found: %w", cmd, err)
+	}
+	m.routes.Set(cmd, handle)
+
+	return nil
+}
+
 // Run the handler manager
 func (m *HandlerManager) Run() error {
 	if m.config == nil {
@@ -261,6 +277,7 @@ func (m *HandlerManager) Run() error {
 	}
 
 	m.status = SocketIdle
+	m.close = false
 
 	closeErr := manager.Close()
 	if closeErr != nil {

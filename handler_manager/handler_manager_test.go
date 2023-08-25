@@ -91,6 +91,18 @@ func (test *TestHandlerManagerSuite) SetupTest() {
 	test.inprocClient = inprocClient
 }
 
+// Limitation of Zeromq, the inproc client can not reconnect if the backend restarted
+func (test *TestHandlerManagerSuite) reconnectClient() {
+	s := &test.Suite
+	url := config.ManagerUrl(test.inprocConfig.Id)
+
+	err := test.inprocClient.Disconnect(url)
+	s.Require().NoError(err)
+
+	err = test.inprocClient.Connect(url)
+	s.Require().NoError(err)
+}
+
 // cleanOut everything
 func (test *TestHandlerManagerSuite) cleanOut() {
 	s := &test.Suite
@@ -546,6 +558,60 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	status, err = reply.Parameters.GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(Ready, status)
+
+	// Clean
+	test.cleanOut()
+}
+
+// Test_18_OverwriteRoute checks that queue and processing messages amount are correct
+func (test *TestHandlerManagerSuite) Test_18_OverwriteRoute() {
+	s := &test.Suite
+	req := message.Request{Command: "status", Parameters: key_value.Empty()}
+
+	// The default route must work as designed
+	reply := test.req(req)
+	s.Require().True(reply.IsOK())
+
+	status, err := reply.Parameters.GetString("status")
+	s.Require().NoError(err)
+	s.Require().Equal(Ready, status)
+
+	// Overriding must fail when handler manager is running
+	overwritten := "overwritten"
+	onStatus := func(req message.Request) message.Reply {
+		params := key_value.Empty().Set("status", overwritten)
+		return req.Ok(params)
+	}
+	err = test.handlerManager.Route("status", onStatus)
+	s.Require().Error(err)
+
+	// Close the handler manager
+	test.handlerManager.Close()
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(SocketIdle, test.handlerManager.status)
+
+	// Overwriting must work when the handler manager is not running
+	err = test.handlerManager.Route("status", onStatus)
+	s.Require().NoError(err)
+
+	// Run handler manager to apply route effects
+	go func() {
+		err = test.handlerManager.Run()
+		s.Require().NoError(err)
+	}()
+	time.Sleep(time.Millisecond * 100)
+	s.Require().Equal(SocketReady, test.handlerManager.status)
+
+	// reconnect the client
+	test.reconnectClient()
+
+	// Requesting status must return result from overwritten handler
+	reply = test.req(req)
+	s.Require().True(reply.IsOK())
+
+	status, err = reply.Parameters.GetString("status")
+	s.Require().NoError(err)
+	s.Require().Equal(overwritten, status)
 
 	// Clean
 	test.cleanOut()
