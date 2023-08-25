@@ -186,7 +186,6 @@ func (c *Instance) Run() {
 			if err != nil {
 				c.logger.Fatal("remove manager", "error", err)
 			}
-			c.status = CLOSED
 
 			req.Parameters.Set("status", CLOSED)
 			reqStr, _ = req.String()
@@ -248,6 +247,7 @@ func (c *Instance) Run() {
 				}
 				// close it
 				c.close = true
+				c.status = CLOSED
 				reply := message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
 				if err := c.reply(manage, reply); err != nil {
 					c.logger.Fatal("failed to reply back to manager", "request string", data, "error", err)
