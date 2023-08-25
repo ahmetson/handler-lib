@@ -440,7 +440,7 @@ func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
 	test.cleanOut()
 }
 
-// Test_17_MessageAmount checks that queue and processing messages amount are correct
+// Test_17_MessageAmount checks that message amounts are correct
 func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	s := &test.Suite
 	req := message.Request{Command: "status", Parameters: key_value.Empty()}
@@ -563,7 +563,7 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	test.cleanOut()
 }
 
-// Test_18_OverwriteRoute checks that queue and processing messages amount are correct
+// Test_18_OverwriteRoute checks that routes can be overwritten
 func (test *TestHandlerManagerSuite) Test_18_OverwriteRoute() {
 	s := &test.Suite
 	req := message.Request{Command: "status", Parameters: key_value.Empty()}
