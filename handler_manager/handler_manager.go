@@ -49,6 +49,7 @@ func New(reactor *reactor.Reactor, parent *instances.Parent, runInstanceManager 
 	return m
 }
 
+// SetConfig sets the link to the configuration of the handler
 func (m *HandlerManager) SetConfig(config *config.Handler) {
 	m.config = config
 }
@@ -150,10 +151,12 @@ func (m *HandlerManager) setRoutes() {
 	m.routes.Set("message_amount", onMessageAmount)
 }
 
+// Close the handle manager
 func (m *HandlerManager) Close() {
 	m.close = true
 }
 
+// Run the handler manager
 func (m *HandlerManager) Run() error {
 	if m.config == nil {
 		return fmt.Errorf("no config")
