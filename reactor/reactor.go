@@ -332,10 +332,15 @@ func (reactor *Reactor) handleConsume() error {
 		return fmt.Errorf("processing.Add: %w", err)
 	}
 
-	if _, err := sock.SendMessageDontwait(messages[2:]); err != nil {
-		return fmt.Errorf("instance.SendMessageDontWait: %w", err)
+	if reactor.externalConfig.Type == config.ReplierType {
+		if _, err := sock.SendMessageDontwait("", messages[2:]); err != nil {
+			return fmt.Errorf("instance.SendMessageDontWait: %w", err)
+		}
+	} else {
+		if _, err := sock.SendMessageDontwait(messages[2:]); err != nil {
+			return fmt.Errorf("instance.SendMessageDontWait: %w", err)
+		}
 	}
-
 	reactor.receiveInstanceMessage(id, sock)
 
 	return nil
