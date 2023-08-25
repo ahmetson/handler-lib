@@ -286,7 +286,7 @@ func (c *Instance) processMessage(msgRaw []string, metadata map[string]string) (
 
 	handleInterface, depNames, err := route.Route(request.Command, *c.routes, *c.routeDeps)
 	if err != nil {
-		return request.Fail(fmt.Sprintf("route.Route(%s)", request.Command)), nil
+		return request.Fail(fmt.Sprintf("route.Route(%s): %v", request.Command, err)), nil
 	}
 
 	depClients := route.FilterExtensionClients(depNames, *c.depClients)
