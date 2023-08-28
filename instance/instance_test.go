@@ -38,7 +38,7 @@ func (test *TestInstanceSuite) SetupTest() {
 		time.Sleep(time.Millisecond * 200)
 		return request.Ok(key_value.Empty())
 	}
-	handle1 := func(request message.Request, _ *client.ClientSocket) message.Reply {
+	handle1 := func(request message.Request, _ *client.Socket) message.Reply {
 		return request.Ok(key_value.Empty())
 	}
 
@@ -141,7 +141,7 @@ func (test *TestInstanceSuite) Test_11_SetClients() {
 	s.Require().Len(*test.instance0.depClients, 0)
 
 	// Let's imitate the handler updated the clients
-	test.clients.Set("handle_0", &client.ClientSocket{})
+	test.clients.Set("handle_0", &client.Socket{})
 	s.Require().Len(*test.instance0.depClients, 1)
 
 	// Make sure that instance's clients lint to the valid parameters.

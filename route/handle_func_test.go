@@ -33,16 +33,16 @@ func (test *TestHandleFuncSuite) SetupTest() {
 	handle0 := func(request message.Request) message.Reply {
 		return request.Ok(key_value.Empty())
 	}
-	handle1 := func(request message.Request, _ *client.ClientSocket) message.Reply {
+	handle1 := func(request message.Request, _ *client.Socket) message.Reply {
 		return request.Ok(key_value.Empty())
 	}
-	handle2 := func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
+	handle2 := func(request message.Request, _ *client.Socket, _ *client.Socket) message.Reply {
 		return request.Ok(key_value.Empty())
 	}
-	handle3 := func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
+	handle3 := func(request message.Request, _ *client.Socket, _ *client.Socket, _ *client.Socket) message.Reply {
 		return request.Ok(key_value.Empty())
 	}
-	handleN := func(request message.Request, _ ...*client.ClientSocket) message.Reply {
+	handleN := func(request message.Request, _ ...*client.Socket) message.Reply {
 		return request.Ok(key_value.Empty())
 	}
 
@@ -71,11 +71,11 @@ func (test *TestHandleFuncSuite) Test_1_Handle() {
 		Parameters: key_value.Empty(),
 	}
 
-	deps4 := []*client.ClientSocket{nil, nil, nil, nil}
-	deps3 := []*client.ClientSocket{nil, nil, nil}
-	deps2 := []*client.ClientSocket{nil, nil}
-	deps1 := []*client.ClientSocket{nil}
-	var deps0 []*client.ClientSocket
+	deps4 := []*client.Socket{nil, nil, nil, nil}
+	deps3 := []*client.Socket{nil, nil, nil}
+	deps2 := []*client.Socket{nil, nil}
+	deps1 := []*client.Socket{nil}
+	var deps0 []*client.Socket
 
 	// Trying to pass invalid HandleFunc should fail
 	reply := Handle(req, test.handleX, deps4)

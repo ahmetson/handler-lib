@@ -68,8 +68,6 @@ var anyHandler = func(request message.Request) message.Reply {
 	return reply
 }
 
-// AnyRoute makes the given server as the source of the proxy.
-// It means it will add route.Any to call the proxy.
 func AnyRoute(sourceController Interface) error {
 	if err := sourceController.Route(route.Any, anyHandler); err != nil {
 		return fmt.Errorf("failed to add any route into the server: %w", err)

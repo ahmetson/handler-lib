@@ -2,7 +2,6 @@ package instance
 
 import (
 	"fmt"
-	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
@@ -40,7 +39,7 @@ type Instance struct {
 	controllerType config.HandlerType
 	routes         *key_value.KeyValue // handler routing
 	routeDeps      *key_value.KeyValue // handler deps
-	depClients     *client.Clients
+	depClients     *key_value.KeyValue
 	logger         *log.Logger
 	close          bool
 	status         string // Instance status
@@ -95,7 +94,7 @@ func (c *Instance) SetRoutes(routes *key_value.KeyValue, routeDeps *key_value.Ke
 }
 
 // SetClients set the reference to the socket clients
-func (c *Instance) SetClients(clients *client.Clients) {
+func (c *Instance) SetClients(clients *key_value.KeyValue) {
 	c.depClients = clients
 }
 

@@ -23,8 +23,8 @@ type TestHandlerSuite struct {
 	inprocHandler *Handler
 	tcpConfig     *config.Handler
 	inprocConfig  *config.Handler
-	tcpClient     *client.ClientSocket
-	inprocClient  *client.ClientSocket
+	tcpClient     *client.Socket
+	inprocClient  *client.Socket
 	logger        *log.Logger
 	routes        map[string]interface{}
 }
@@ -82,7 +82,7 @@ func (test *TestHandlerSuite) Test_11_Deps() {
 	s.Require().Empty(test.inprocHandler.DepIds())
 	s.Require().Empty(test.tcpHandler.DepIds())
 
-	test.routes["command_3"] = func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
+	test.routes["command_3"] = func(request message.Request, _ *client.Socket, _ *client.Socket) message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
 
@@ -103,7 +103,7 @@ func (test *TestHandlerSuite) Test_11_Deps() {
 	s.Require().Error(err)
 
 	// Adding a new command with already added dependency should be fine
-	test.routes["command_4"] = func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
+	test.routes["command_4"] = func(request message.Request, _ *client.Socket, _ *client.Socket) message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
 	err = test.inprocHandler.Route("command_4", test.routes["command_4"], "dep_1", "dep_3") // command_3 handler requires two dependencies
@@ -128,10 +128,10 @@ func (test *TestHandlerSuite) Test_12_DepConfig() {
 	test.routes["command_2"] = func(request message.Request) message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
-	test.routes["command_3"] = func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
+	test.routes["command_3"] = func(request message.Request, _ *client.Socket, _ *client.Socket) message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
-	test.routes["command_4"] = func(request message.Request, _ *client.ClientSocket, _ *client.ClientSocket) message.Reply {
+	test.routes["command_4"] = func(request message.Request, _ *client.Socket, _ *client.Socket) message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
 
@@ -157,9 +157,9 @@ func (test *TestHandlerSuite) Test_12_DepConfig() {
 	// Adding the dependencies
 	for _, id := range depIds {
 		depConfig := &clientConfig.Client{
-			Id:   id,
-			Url:  "github.com/ahmetson/" + id,
-			Port: 0,
+			Id:         id,
+			ServiceUrl: "github.com/ahmetson/" + id,
+			Port:       0,
 		}
 
 		s.Require().NoError(test.inprocHandler.AddDepByService(depConfig))
@@ -177,18 +177,18 @@ func (test *TestHandlerSuite) Test_12_DepConfig() {
 	depId := "not_exist"
 	s.Require().False(slices.Contains(depIds, depId))
 	depConfig := &clientConfig.Client{
-		Id:   depId,
-		Url:  "github.com/ahmetson/" + depId,
-		Port: 0,
+		Id:         depId,
+		ServiceUrl: "github.com/ahmetson/" + depId,
+		Port:       0,
 	}
 	s.Require().Error(test.inprocHandler.AddDepByService(depConfig))
 
 	// Trying to add the configuration that was already added should fail
 	depId = depIds[0]
 	depConfig = &clientConfig.Client{
-		Id:   depId,
-		Url:  "github.com/ahmetson/" + depId,
-		Port: 0,
+		Id:         depId,
+		ServiceUrl: "github.com/ahmetson/" + depId,
+		Port:       0,
 	}
 	s.Require().Error(test.inprocHandler.AddDepByService(depConfig))
 }

@@ -6,7 +6,7 @@ import (
 	"github.com/ahmetson/common-lib/message"
 )
 
-type depSock = *client.ClientSocket
+type depSock = *client.Socket
 
 // HandleFunc0 is the function type that manipulates the commands.
 // It accepts at least message.Request and log.Logger then returns a message.Reply.
@@ -49,7 +49,7 @@ func DepAmount(handleInterface interface{}) int {
 
 // Handle calls the handle func for the req.
 // Optionally, if the handler requires the extensions, it will pass the socket clients to the handle func.
-func Handle(req *message.Request, handleInterface interface{}, depClients []*client.ClientSocket) *message.Reply {
+func Handle(req *message.Request, handleInterface interface{}, depClients []*client.Socket) *message.Reply {
 	var reply message.Reply
 
 	depAmount := DepAmount(handleInterface)

@@ -10,15 +10,15 @@ import (
 const Any string = "*"
 
 // FilterExtensionClients returns the list of the clients specific for this route
-func FilterExtensionClients(deps []string, clients client.Clients) []*client.ClientSocket {
-	routeClients := make([]*client.ClientSocket, len(deps))
+func FilterExtensionClients(deps []string, clients key_value.KeyValue) []*client.Socket {
+	routeClients := make([]*client.Socket, len(deps))
 
 	for i := 0; i < len(deps); i++ {
 		found := false
 
 		for extensionName := range clients {
 			if deps[i] == extensionName {
-				routeClients[i] = clients[extensionName].(*client.ClientSocket)
+				routeClients[i] = clients[extensionName].(*client.Socket)
 				found = true
 				break
 			}

@@ -1,7 +1,6 @@
 package reactor
 
 import (
-	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
@@ -59,7 +58,7 @@ func (test *TestReactorSuite) Test_11_External() {
 	s.Require().NoError(err)
 
 	// user that will send the messages
-	clientUrl := client.ClientUrl(test.reactor.externalConfig.Id, test.reactor.externalConfig.Port)
+	clientUrl := config.ExternalUrl(test.reactor.externalConfig.Id, test.reactor.externalConfig.Port)
 	user, err := zmq.NewSocket(zmq.DEALER)
 	s.Require().NoError(err)
 	err = user.Connect(clientUrl)
@@ -250,7 +249,7 @@ func (test *TestReactorSuite) Test_13_Run() {
 	// (before 1 second of instance handling expires).
 	// The third request should not be added to the queue, since the queue is full.
 	// User will be idle
-	clientUrl := client.ClientUrl(test.reactor.externalConfig.Id, test.reactor.externalConfig.Port)
+	clientUrl := config.ExternalUrl(test.reactor.externalConfig.Id, test.reactor.externalConfig.Port)
 	user, err := zmq.NewSocket(zmq.DEALER)
 	s.Require().NoError(err)
 	err = user.Connect(clientUrl)

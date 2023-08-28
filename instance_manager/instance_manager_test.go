@@ -37,7 +37,7 @@ func (test *TestInstanceSuite) SetupTest() {
 		return request.Ok(key_value.Empty())
 	}
 	// delays 1 second for testing ready instances
-	handle1 := func(request message.Request, _ *client.ClientSocket) message.Reply {
+	handle1 := func(request message.Request, _ *client.Socket) message.Reply {
 		time.Sleep(time.Second)
 		return request.Ok(key_value.Empty())
 	}
@@ -91,7 +91,7 @@ func (test *TestInstanceSuite) Test_11_AddInstance() {
 	test.routeDeps = key_value.Empty().
 		Set("handle_1", []string{"dep_1"})
 	test.clients = key_value.Empty().
-		Set("handle_1", &client.ClientSocket{})
+		Set("handle_1", &client.Socket{})
 
 	// Make sure that there are no instances
 	s.Require().Len(test.parent.instances, 0)
@@ -200,7 +200,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 
 	// Clean out after adding a new instance
 	test.parent.Close()
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 200)
 	s.Equal(Idle, test.parent.Status())
 	s.Require().Len(test.parent.instances, 0)
 }

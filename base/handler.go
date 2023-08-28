@@ -29,7 +29,7 @@ type Handler struct {
 	RouteDeps           key_value.KeyValue
 	depIds              []string
 	depConfigs          key_value.KeyValue
-	DepClients          client.Clients
+	DepClients          key_value.KeyValue
 	reactor             *reactor.Reactor
 	InstanceManager     *instance_manager.Parent
 	instanceManagerRuns bool
@@ -203,7 +203,7 @@ func (c *Handler) initDepClients() error {
 			return fmt.Errorf("DepClients.Exist('%s')", depConfig.Id)
 		}
 
-		depClient, err := client.NewReq(depConfig.Id, depConfig.Port, c.logger)
+		depClient, err := client.New(depConfig)
 		if err != nil {
 			return fmt.Errorf("client.NewReq('%s', '%d'): %w", depConfig.Id, depConfig.Port, err)
 		}

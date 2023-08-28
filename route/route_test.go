@@ -16,7 +16,7 @@ import (
 type TestRouteSuite struct {
 	suite.Suite
 	controller *zmq.Socket
-	client     *client.ClientSocket
+	client     *client.Socket
 }
 
 // Make sure that Account is set to five
@@ -36,10 +36,10 @@ func (test *TestRouteSuite) Test_0_FilterClients() {
 	s.Require().Nil(filtered[2])
 
 	// Returning the clients, the missing clients should be marked as nil
-	dep1 := &client.ClientSocket{}
-	dep2 := &client.ClientSocket{}
-	dep3 := &client.ClientSocket{}
-	dep4 := &client.ClientSocket{}
+	dep1 := &client.Socket{}
+	dep2 := &client.Socket{}
+	dep3 := &client.Socket{}
+	dep4 := &client.Socket{}
 	clients := key_value.Empty().Set("dep_1", dep1).Set("dep_3", dep3)
 
 	filtered = FilterExtensionClients(deps, clients)
@@ -61,7 +61,7 @@ func (test *TestRouteSuite) Test_1_Route() {
 	s := &test.Suite
 	handlers := key_value.Empty()
 	deps := key_value.Empty()
-	var anyHandle = func(request message.Request, _ *client.ClientSocket) message.Reply {
+	var anyHandle = func(request message.Request, _ *client.Socket) message.Reply {
 		return request.Ok(key_value.Empty())
 	}
 	var emptyHandle = func(request message.Request) message.Reply {
