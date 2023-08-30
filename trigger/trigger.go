@@ -132,7 +132,9 @@ func (handler *Trigger) onTrigger(req message.Request) message.Reply {
 	return req.Ok(key_value.Empty())
 }
 
-// Start the trigger directly, not by goroutine
+// Start the trigger directly, not by goroutine.
+//
+// The Trigger-able handlers can have only one instance
 func (handler *Trigger) Start() error {
 	m := handler.Handler
 
