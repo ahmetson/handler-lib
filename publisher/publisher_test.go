@@ -35,20 +35,6 @@ func (test *TestHandlerSuite) SetupTest() {
 
 	test.syncReplier = New()
 
-	// Socket to talk to clients
-	test.routes = make(map[string]interface{}, 2)
-	test.routes["command_1"] = func(request message.Request) message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
-	}
-	test.routes["command_2"] = func(request message.Request) message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
-	}
-
-	err = test.syncReplier.Route("command_1", test.routes["command_1"])
-	s.Require().NoError(err)
-	err = test.syncReplier.Route("command_2", test.routes["command_2"])
-	s.Require().NoError(err)
-
 	handlerConfig := config.NewInternalHandler(config.SyncReplierType, "test")
 	triggerConfig, err := config.InternalTriggerAble(handlerConfig, config.PublisherType)
 	s.Require().NoError(err)
