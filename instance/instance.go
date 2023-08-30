@@ -67,6 +67,10 @@ func New(handlerType config.HandlerType, id string, parentId string, parent *log
 // If a server doesn't support replying (for example, PULL server),
 // then it returns success.
 func (c *Instance) reply(socket *zmq.Socket, message message.Reply) error {
+	if !config.CanReply(c.Type()) {
+		return nil
+	}
+
 	reply, _ := message.String()
 	if len(message.SessionId()) == 0 {
 		if _, err := socket.SendMessage(reply); err != nil {
