@@ -2,10 +2,13 @@ package trigger
 
 import (
 	"github.com/ahmetson/client-lib"
+	"github.com/ahmetson/common-lib/data_type/key_value"
+	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/instance_manager"
 	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/log-lib"
+	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
@@ -16,10 +19,14 @@ import (
 // returns the current testing orchestra
 type TestTriggerSuite struct {
 	suite.Suite
-	inprocHandler *Trigger
-	inprocConfig  *config.Trigger
-	inprocClient  *client.Socket
-	logger        *log.Logger
+	handler     *Trigger
+	config      *config.Trigger
+	client      *zmq.Socket
+	closeClient bool
+	trigger     *client.Socket
+	poller      *zmq.Poller
+	logger      *log.Logger
+	subscribed  chan []string
 }
 
 // Todo test in-process and external types of controllers
@@ -33,18 +40,79 @@ func (test *TestTriggerSuite) SetupTest() {
 	test.Suite.Require().NoError(err, "failed to create logger")
 	test.logger = logger
 
-	test.inprocHandler = New()
+	test.handler = New()
 
 	// Socket to talk to clients
 	handlerConfig := config.NewInternalHandler(config.SyncReplierType, "test")
 	triggerConfig, err := config.InternalTriggerAble(handlerConfig, config.PublisherType)
 	s.Require().NoError(err)
-	test.inprocConfig = triggerConfig
+	test.config = triggerConfig
 
 	// Setting the configuration
 	// Setting the logger should be successful
-	test.inprocHandler.SetConfig(test.inprocConfig)
-	s.Require().NoError(test.inprocHandler.SetLogger(test.logger))
+	test.handler.SetConfig(test.config)
+	s.Require().NoError(test.handler.SetLogger(test.logger))
+
+	// Initiate the trigger
+	socket, err := client.New(test.handler.TriggerClient())
+	s.Require().NoError(err)
+	test.trigger = socket
+
+	// Initiate the subscriber
+	go test.subscribe()
+	time.Sleep(time.Millisecond * 50)
+}
+
+// subscribe to the handler.
+func (test *TestTriggerSuite) subscribe() {
+	s := &test.Suite
+
+	sub, err := zmq.NewSocket(zmq.SUB)
+	s.Require().NoError(err)
+	s.Require().NoError(sub.SetSubscribe(""))
+	// It won't work if the trigger is using a tcp protocol.
+	// For tcp protocol, use clientConfig.Url()
+	url := config.ExternalUrl(test.config.BroadcastId, test.config.BroadcastPort)
+	err = sub.Connect(url)
+
+	s.Require().NoError(err)
+	test.client = sub
+	test.subscribed = make(chan []string)
+	test.closeClient = false
+
+	test.poller = zmq.NewPoller()
+	test.poller.Add(test.client, zmq.POLLIN)
+
+	for {
+		if test.closeClient {
+			break
+		}
+
+		polled, err := test.poller.Poll(time.Millisecond)
+		s.Require().NoError(err)
+		if len(polled) == 0 {
+			continue
+		}
+
+		reply, err := test.client.RecvMessage(0)
+		s.Require().NoError(err)
+
+		test.subscribed <- reply
+	}
+}
+
+// TearDownTest cleans out the client sockets.
+// The subscriber client socket must be closed after
+func (test *TestTriggerSuite) TearDownTest() {
+	s := &test.Suite
+
+	// unsubscribe
+	test.closeClient = true
+	// wait a bit for unsubscribing
+	time.Sleep(time.Millisecond * 50)
+
+	s.Require().NoError(test.client.Close())
+	s.Require().NoError(test.trigger.Close())
 }
 
 // Test_10_Config makes sure that configuration methods are running without any error.
@@ -67,25 +135,41 @@ func (test *TestTriggerSuite) Test_10_Config() {
 func (test *TestTriggerSuite) Test_14_Run() {
 	s := &test.Suite
 
-	err := test.inprocHandler.Start()
+	err := test.handler.Start()
 	s.Require().NoError(err)
 
 	// Wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
 
+	// make sure that instance is created
+	s.Require().Len(test.handler.Handler.InstanceManager.Instances(), 1)
+
+	// trigger a message
+	req := message.Request{Command: "hello", Parameters: key_value.Empty().Set("number", 1)}
+	err = test.trigger.Submit(&req)
+	s.Require().NoError(err)
+
+	test.logger.Info("waiting for the subscription...")
+	received := <-test.subscribed
+	test.logger.Info("received a message from the external url", "message", received)
+
 	// Make sure that everything works
-	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Running)
-	s.Require().Equal(test.inprocHandler.Reactor.Status(), reactor.RUNNING)
+	s.Require().Equal(test.handler.InstanceManager.Status(), instance_manager.Running)
+	s.Require().Equal(test.handler.Reactor.Status(), reactor.RUNNING)
+	s.Require().NotNil(test.handler.socket)
+	s.Require().Empty(test.handler.status) // created without any error
 
 	// Now let's close it
-	err = test.inprocHandler.Close()
+	err = test.handler.Close()
 
 	// Wait a bit for closing
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything is closed
-	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Idle)
-	s.Require().Equal(test.inprocHandler.Reactor.Status(), reactor.CREATED)
+	s.Require().Equal(test.handler.InstanceManager.Status(), instance_manager.Idle)
+	s.Require().Equal(test.handler.Reactor.Status(), reactor.CREATED)
+	s.Require().Nil(test.handler.socket)
+	s.Require().Empty(test.handler.status) // exited without any error
 }
 
 // In order for 'go test' to run this suite, we need to create
