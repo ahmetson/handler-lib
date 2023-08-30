@@ -57,3 +57,19 @@ func NewInternalHandler(as HandlerType, cat string) *Handler {
 		Port:           0,
 	}
 }
+
+// InternalTriggerAble Converts the Handler to Trigger of the given type for internal use
+func InternalTriggerAble(handler *Handler, as HandlerType) (*Trigger, error) {
+	if !CanTrigger(as) {
+		return nil, fmt.Errorf("the '%s' handler type is not trigger-able", as)
+	}
+
+	trigger := &Trigger{
+		Handler:       handler,
+		BroadcastPort: 0,
+		BroadcastType: as,
+		BroadcastId:   "broadcast_" + handler.Id,
+	}
+
+	return trigger, nil
+}

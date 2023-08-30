@@ -43,6 +43,27 @@ func NewHandler(as HandlerType, cat string) (*Handler, error) {
 	return control, nil
 }
 
+// TriggerAble Converts the Handler to Trigger of the given type
+func TriggerAble(handler *Handler, as HandlerType) (*Trigger, error) {
+	if !CanTrigger(as) {
+		return nil, fmt.Errorf("the '%s' handler type is not trigger-able", as)
+	}
+
+	port := net.GetFreePort()
+	if port == 0 {
+		return nil, fmt.Errorf("net.GetFreePort: no free port")
+	}
+
+	trigger := &Trigger{
+		Handler:       handler,
+		BroadcastPort: uint64(port),
+		BroadcastType: as,
+		BroadcastId:   "broadcast_" + handler.Id,
+	}
+
+	return trigger, nil
+}
+
 // SocketType gets the ZMQ analog of the handler type
 func SocketType(handlerType HandlerType) zmq.Type {
 	if handlerType == SyncReplierType {
