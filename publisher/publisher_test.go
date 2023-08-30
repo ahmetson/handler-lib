@@ -1,10 +1,10 @@
 package sync_replier
 
 import (
+	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
-	"github.com/ahmetson/handler-lib/handler_manager"
 	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
@@ -17,11 +17,16 @@ import (
 // returns the current testing orchestra
 type TestHandlerSuite struct {
 	suite.Suite
-	syncReplier   *Publisher
-	handlerConfig *config.Trigger
+	pub           *Publisher
+	config        *config.Trigger
 	managerClient *zmq.Socket
+	sub           *zmq.Socket
+	trigger       *client.Socket
 	logger        *log.Logger
-	routes        map[string]interface{}
+
+	subscribed  chan []string
+	closeClient bool
+	poller      *zmq.Poller
 }
 
 // Make sure that Account is set to five
@@ -29,59 +34,88 @@ type TestHandlerSuite struct {
 func (test *TestHandlerSuite) SetupTest() {
 	s := &test.Suite
 
-	logger, err := log.New("sync-replier", false)
+	logger, err := log.New("publisher", false)
 	test.Suite.Require().NoError(err, "failed to create logger")
 	test.logger = logger
 
-	test.syncReplier = New()
+	test.pub = New()
 
 	handlerConfig := config.NewInternalHandler(config.SyncReplierType, "test")
 	triggerConfig, err := config.InternalTriggerAble(handlerConfig, config.PublisherType)
 	s.Require().NoError(err)
-	test.handlerConfig = triggerConfig
+	test.config = triggerConfig
 
 	// Setting a logger should fail since we don't have a configuration set
-	s.Require().Error(test.syncReplier.SetLogger(test.logger))
+	s.Require().Error(test.pub.SetLogger(test.logger))
 
 	// Setting the configuration
 	// Setting the logger should be successful
-	test.syncReplier.SetConfig(test.handlerConfig)
-	s.Require().NoError(test.syncReplier.SetLogger(test.logger))
+	test.pub.SetConfig(test.config)
+	s.Require().Equal(config.ReplierType, test.pub.base.Config.Type) // the trigger is rewritten
+	s.Require().NoError(test.pub.SetLogger(test.logger))
 
-	test.managerClient, err = zmq.NewSocket(zmq.REQ)
+	// running the trigger
+	triggerClientConfig := test.pub.TriggerClient()
+	triggerClient, err := client.New(triggerClientConfig)
 	s.Require().NoError(err)
-	managerUrl := config.ManagerUrl(test.handlerConfig.Id)
-	err = test.managerClient.Connect(managerUrl)
-	s.Require().NoError(err)
+	test.trigger = triggerClient
+
+	go test.subscribe()
+	// wait a bit for initialization
+	time.Sleep(time.Millisecond * 50)
 }
 
-func (test *TestHandlerSuite) req(client *zmq.Socket, request message.Request) message.Reply {
+// subscribe to the handler.
+func (test *TestHandlerSuite) subscribe() {
 	s := &test.Suite
 
-	reqStr, err := request.String()
+	sub, err := zmq.NewSocket(zmq.SUB)
 	s.Require().NoError(err)
+	s.Require().NoError(sub.SetSubscribe(""))
+	// It won't work if the trigger is using a tcp protocol.
+	// For tcp protocol, use clientConfig.Url()
+	url := config.ExternalUrl(test.config.BroadcastId, test.config.BroadcastPort)
+	err = sub.Connect(url)
 
-	_, err = client.SendMessage(reqStr)
 	s.Require().NoError(err)
+	test.sub = sub
+	test.subscribed = make(chan []string)
+	test.closeClient = false
 
-	raw, err := client.RecvMessage(0)
-	s.Require().NoError(err)
+	test.poller = zmq.NewPoller()
+	test.poller.Add(test.sub, zmq.POLLIN)
 
-	reply, err := message.ParseReply(raw)
-	s.Require().NoError(err)
+	for {
+		if test.closeClient {
+			break
+		}
 
-	return reply
+		polled, err := test.poller.Poll(time.Millisecond)
+		s.Require().NoError(err)
+		if len(polled) == 0 {
+			continue
+		}
+
+		reply, err := test.sub.RecvMessage(0)
+		s.Require().NoError(err)
+
+		test.subscribed <- reply
+	}
 }
 
-func (test *TestHandlerSuite) cleanOut() {
+func (test *TestHandlerSuite) TearDownTest() {
 	s := &test.Suite
 
-	err := test.managerClient.Close()
+	test.closeClient = true
+	// wait a bit for closing a subscriber
+	time.Sleep(time.Millisecond * 20)
+
+	err := test.trigger.Close()
 	s.Require().NoError(err)
 
-	s.Require().NoError(test.syncReplier.Close())
+	s.Require().NoError(test.pub.Close())
 
-	// Wait a bit for closing
+	// Wait a bit for the closing of publisher and trigger
 	time.Sleep(time.Millisecond * 100)
 }
 
@@ -89,7 +123,7 @@ func (test *TestHandlerSuite) cleanOut() {
 func (test *TestHandlerSuite) Test_10_Run() {
 	s := &test.Suite
 
-	err := test.syncReplier.Start()
+	err := test.pub.Start()
 	s.Require().NoError(err)
 
 	// Wait a bit for initialization
@@ -97,24 +131,12 @@ func (test *TestHandlerSuite) Test_10_Run() {
 
 	// Make sure that everything works
 	req := message.Request{Command: "status", Parameters: key_value.Empty()}
-	reply := test.req(test.managerClient, req)
-	s.Require().True(reply.IsOK())
-
-	status, err := reply.Parameters.GetString("status")
+	err = test.trigger.Submit(&req)
 	s.Require().NoError(err)
-	s.Require().Equal(handler_manager.Ready, status)
 
-	// By default, the handler creates a socket.
-	// Trying to add a new socket, it will throw an error
-	s.Require().Len(test.syncReplier.base.InstanceManager.Instances(), 1)
-
-	// Adding a new instance must fail
-	req.Command = "add_instance"
-	reply = test.req(test.managerClient, req)
-	s.Require().False(reply.IsOK())
-
-	// clean out
-	test.cleanOut()
+	test.logger.Info("waiting for a message in the subscriber")
+	subscribed := <-test.subscribed
+	test.logger.Info("subscriber received a message", "message", subscribed)
 }
 
 // In order for 'go test' to run this suite, we need to create
