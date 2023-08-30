@@ -30,7 +30,7 @@ type Handler struct {
 	depIds              []string
 	depConfigs          key_value.KeyValue
 	DepClients          key_value.KeyValue
-	reactor             *reactor.Reactor
+	Reactor             *reactor.Reactor
 	InstanceManager     *instance_manager.Parent
 	instanceManagerRuns bool
 	Manager             *handler_manager.HandlerManager
@@ -46,7 +46,7 @@ func New() *Handler {
 		depIds:              make([]string, 0),
 		depConfigs:          key_value.Empty(),
 		DepClients:          key_value.Empty(),
-		reactor:             reactor.New(),
+		Reactor:             reactor.New(),
 		InstanceManager:     nil,
 		instanceManagerRuns: false,
 		Manager:             nil,
@@ -56,10 +56,10 @@ func New() *Handler {
 
 // SetConfig adds the parameters of the server from the Config.
 //
-// Sets reactor's configuration as well.
+// Sets Reactor's configuration as well.
 func (c *Handler) SetConfig(controller *config.Handler) {
 	c.Config = controller
-	c.reactor.SetConfig(controller)
+	c.Reactor.SetConfig(controller)
 }
 
 // SetLogger sets the logger (depends on configuration).
@@ -75,9 +75,9 @@ func (c *Handler) SetLogger(parent *log.Logger) error {
 	c.logger = logger
 
 	c.InstanceManager = instance_manager.New(c.Config.Id, c.logger)
-	c.reactor.SetInstanceManager(c.InstanceManager)
+	c.Reactor.SetInstanceManager(c.InstanceManager)
 
-	c.Manager = handler_manager.New(c.reactor, c.InstanceManager, c.runInstanceManager)
+	c.Manager = handler_manager.New(c.Reactor, c.InstanceManager, c.RunInstanceManager)
 	c.Manager.SetConfig(c.Config)
 
 	return nil
@@ -218,9 +218,9 @@ func (c *Handler) Close() error {
 	if c.InstanceManager.Status() == instance_manager.Running {
 		c.InstanceManager.Close()
 	}
-	if c.reactor.Status() == reactor.RUNNING {
-		if err := c.reactor.Close(); err != nil {
-			return fmt.Errorf("c.reactor.Close: %w", err)
+	if c.Reactor.Status() == reactor.RUNNING {
+		if err := c.Reactor.Close(); err != nil {
+			return fmt.Errorf("c.Reactor.Close: %w", err)
 		}
 	}
 	if c.Manager.Status() == handler_manager.SocketReady {
@@ -231,22 +231,22 @@ func (c *Handler) Close() error {
 }
 
 // Runs the instance Manager and listen to it's events
-func (c *Handler) runInstanceManager() {
+func (c *Handler) RunInstanceManager() {
 	socket, err := zmq.NewSocket(zmq.SUB)
 	if err != nil {
-		c.logger.Warn("zmq.NewSocket", "id", c.Config.Id, "function", "runInstanceManager", "error", err)
+		c.logger.Warn("zmq.NewSocket", "id", c.Config.Id, "function", "RunInstanceManager", "error", err)
 		return
 	}
 
 	if err := socket.SetSubscribe(""); err != nil {
-		c.logger.Warn("set subscriber", "id", c.Config.Id, "function", "runInstanceManager", "error", err)
+		c.logger.Warn("set subscriber", "id", c.Config.Id, "function", "RunInstanceManager", "error", err)
 		return
 	}
 
 	url := config.InstanceManagerEventUrl(c.Config.Id)
 	err = socket.Connect(url)
 	if err != nil {
-		c.logger.Warn("eventSocket.Connect", "id", c.Config.Id, "function", "runInstanceManager", "url", url, "error", err)
+		c.logger.Warn("eventSocket.Connect", "id", c.Config.Id, "function", "RunInstanceManager", "url", url, "error", err)
 		return
 	}
 	c.instanceManagerRuns = true
@@ -337,16 +337,16 @@ func (c *Handler) Start() error {
 	if c.InstanceManager == nil {
 		return fmt.Errorf("instance Manager not set")
 	}
-	if c.reactor == nil {
-		return fmt.Errorf("reactor not set")
+	if c.Reactor == nil {
+		return fmt.Errorf("Reactor not set")
 	}
 	if err := c.initDepClients(); err != nil {
 		return fmt.Errorf("initDepClients: %w", err)
 	}
 
 	// Adding the first instance Manager
-	go c.reactor.Run()
-	go c.runInstanceManager()
+	go c.Reactor.Run()
+	go c.RunInstanceManager()
 	go func() {
 		err := c.Manager.Run()
 		if err != nil {

@@ -74,7 +74,6 @@ func (c *SyncReplier) Start() error {
 	onAddInstance := func(req message.Request) message.Reply {
 		m := c.base
 
-
 		if len(m.InstanceManager.Instances()) != 0 {
 			return req.Fail(fmt.Sprintf("only one instance allowed in sync replier"))
 		}

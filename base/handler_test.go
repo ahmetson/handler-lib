@@ -206,7 +206,7 @@ func (test *TestHandlerSuite) Test_13_InstanceManager() {
 	s.Require().Empty(test.inprocHandler.InstanceManager.Instances())
 
 	// Running instance Manager
-	go test.inprocHandler.runInstanceManager()
+	go test.inprocHandler.RunInstanceManager()
 
 	// Waiting a bit for instance Manager initialization
 	time.Sleep(time.Millisecond * 2000)
@@ -240,7 +240,7 @@ func (test *TestHandlerSuite) Test_14_Run() {
 
 	// Make sure that everything works
 	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Running)
-	s.Require().Equal(test.inprocHandler.reactor.Status(), reactor.RUNNING)
+	s.Require().Equal(test.inprocHandler.Reactor.Status(), reactor.RUNNING)
 
 	// Now let's close it
 	err = test.inprocHandler.Close()
@@ -250,7 +250,7 @@ func (test *TestHandlerSuite) Test_14_Run() {
 
 	// Make sure that everything is closed
 	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Idle)
-	s.Require().Equal(test.inprocHandler.reactor.Status(), reactor.CREATED)
+	s.Require().Equal(test.inprocHandler.Reactor.Status(), reactor.CREATED)
 }
 
 // In order for 'go test' to run this suite, we need to create
