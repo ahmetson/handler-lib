@@ -18,11 +18,9 @@ import (
 // returns the current testing orchestra
 type TestTriggerSuite struct {
 	suite.Suite
-	tcpHandler    *Trigger
 	inprocHandler *Trigger
 	tcpConfig     *config.Trigger
 	inprocConfig  *config.Trigger
-	tcpClient     *client.Socket
 	inprocClient  *client.Socket
 	logger        *log.Logger
 }
@@ -38,7 +36,6 @@ func (test *TestTriggerSuite) SetupTest() {
 	test.Suite.Require().NoError(err, "failed to create logger")
 	test.logger = logger
 
-	test.tcpHandler = New()
 	test.inprocHandler = New()
 
 	// Socket to talk to clients
@@ -60,10 +57,6 @@ func (test *TestTriggerSuite) SetupTest() {
 	// Setting the logger should be successful
 	test.inprocHandler.SetConfig(test.inprocConfig)
 	s.Require().NoError(test.inprocHandler.SetLogger(test.logger))
-
-	// Setting the parameters of the Tcp Handler
-	test.tcpHandler.SetConfig(test.tcpConfig)
-	s.Require().NoError(test.tcpHandler.SetLogger(test.logger))
 }
 
 // Test_11_Deps tests setting of the route dependencies
@@ -72,7 +65,6 @@ func (test *TestTriggerSuite) Test_11_Deps() {
 
 	// Handler must not have dependencies yet
 	s.Require().Empty(test.inprocHandler.DepIds())
-	s.Require().Empty(test.tcpHandler.DepIds())
 
 	depIds := test.inprocHandler.DepIds()
 	s.Require().Len(depIds, 3)
