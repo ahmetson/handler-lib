@@ -67,13 +67,10 @@ func (handler *Trigger) Route(string, any, ...string) error {
 // Sets reactor's configuration as well.
 func (handler *Trigger) SetConfig(controller *config.Trigger) {
 	// The broadcaster
-	handler.port = controller.Handler.Port
-	handler.id = controller.Handler.Id
+	handler.port = controller.BroadcastPort
+	handler.id = controller.BroadcastId
 	handler.handlerType = controller.BroadcastType
 
-	// The trigger
-	controller.Handler.Port = controller.BroadcastPort
-	controller.Handler.Id = controller.BroadcastId
 	// Todo change to the puller
 	controller.Handler.Type = triggerType
 
