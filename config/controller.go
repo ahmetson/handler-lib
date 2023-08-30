@@ -15,6 +15,13 @@ type Handler struct {
 	Id             string
 }
 
+type Trigger struct {
+	*Handler
+	BroadcastPort uint64
+	BroadcastId   string
+	BroadcastType HandlerType
+}
+
 // NewHandler configuration of the HandlerType and category.
 // It generates the ID of the handler, as well as gets the free port.
 //
@@ -84,4 +91,10 @@ func ExternalUrlByClient(client *clientConfig.Client) string {
 // It's the opposite of CanTrigger.
 func CanReply(handlerType HandlerType) bool {
 	return handlerType == ReplierType || handlerType == SyncReplierType
+}
+
+// CanTrigger returns true if the given Handler must not reply back to the user.
+// It's the opposite of CanReply.
+func CanTrigger(handlerType HandlerType) bool {
+	return handlerType == PublisherType || handlerType == PusherType
 }
