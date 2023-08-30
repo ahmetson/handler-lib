@@ -14,6 +14,8 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+const triggerType = config.ReplierType
+
 type Trigger struct {
 	*base.Handler
 	closePub     bool
@@ -41,7 +43,7 @@ func (handler *Trigger) TriggerClient() *clientConfig.Client {
 		ServiceUrl: "",
 		Id:         handlerConfig.Id,
 		Port:       handlerConfig.Port,
-		TargetType: config.SocketType(handler.handlerType),
+		TargetType: config.SocketType(triggerType),
 	}
 	return client.UrlFunc(config.ExternalUrlByClient)
 }
@@ -73,7 +75,7 @@ func (handler *Trigger) SetConfig(controller *config.Trigger) {
 	controller.Handler.Port = controller.BroadcastPort
 	controller.Handler.Id = controller.BroadcastId
 	// Todo change to the puller
-	controller.Handler.Type = config.ReplierType
+	controller.Handler.Type = triggerType
 
 	handler.Handler.SetConfig(controller.Handler)
 }
