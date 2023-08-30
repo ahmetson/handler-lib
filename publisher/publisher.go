@@ -8,17 +8,20 @@ import (
 )
 
 type Publisher struct {
-	base        *trigger.Trigger
-	handlerType config.HandlerType
+	base *trigger.Trigger
 }
 
 // New Publisher returned
 func New() *Publisher {
 	handler := trigger.New()
 	return &Publisher{
-		base:        handler,
-		handlerType: config.PublisherType,
+		base: handler,
 	}
+}
+
+// TriggerClient is the client parameters to trigger this handler
+func (c *Publisher) TriggerClient() *clientConfig.Client {
+	return c.base.TriggerClient()
 }
 
 // SetConfig adds the parameters of the server from the config.
