@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/os-lib/net"
 	zmq "github.com/pebbe/zmq4"
 )
@@ -75,7 +76,12 @@ func ExternalUrl(id string, port uint64) string {
 	return url
 }
 
-// CanReply returns true if the given Handler has to reply back to the user
+func ExternalUrlByClient(client *clientConfig.Client) string {
+	return ExternalUrl(client.Id, client.Port)
+}
+
+// CanReply returns true if the given Handler has to reply back to the user.
+// It's the opposite of CanTrigger.
 func CanReply(handlerType HandlerType) bool {
 	return handlerType == ReplierType || handlerType == SyncReplierType
 }
