@@ -99,8 +99,13 @@ func (handler *Trigger) runBroadcaster() {
 			continue
 		}
 
-		messages := handler.broadcasting.Pop().([]string)
-		_, err := socket.SendMessageDontwait(messages)
+		req := handler.broadcasting.Pop().(message.Request)
+		reqStr, err := req.String()
+		if err != nil {
+			handler.status = fmt.Sprintf("socket.SendMessageDontWait: %v", err)
+			break
+		}
+		_, err = socket.SendMessageDontwait(reqStr)
 		if err != nil {
 			handler.status = fmt.Sprintf("socket.SendMessageDontWait: %v", err)
 			break
@@ -122,11 +127,7 @@ func (handler *Trigger) onTrigger(req message.Request) message.Reply {
 		return req.Fail("broadcasting queue full")
 	}
 
-	reqStr, err := req.String()
-	if err != nil {
-		return req.Fail(fmt.Sprintf("request.String: %v", err))
-	}
-	handler.broadcasting.Push(reqStr)
+	handler.broadcasting.Push(req)
 
 	return req.Ok(key_value.Empty())
 }
