@@ -18,6 +18,7 @@ const triggerType = config.ReplierType
 
 type Trigger struct {
 	*base.Handler
+	socket       *zmq.Socket
 	closePub     bool
 	port         uint64
 	id           string
@@ -31,6 +32,7 @@ func New() *Trigger {
 	handler := &Trigger{
 		Handler:      base.New(),
 		closePub:     false,
+		socket:       nil,
 		broadcasting: data_type.NewQueue(),
 	}
 	return handler
@@ -91,6 +93,8 @@ func (handler *Trigger) runBroadcaster() {
 		handler.status = fmt.Sprintf("socket.Bind('%s'): %v", pubUrl, err)
 	}
 
+	handler.socket = socket
+
 	for {
 		if handler.closePub {
 			break
@@ -120,6 +124,7 @@ func (handler *Trigger) runBroadcaster() {
 	}
 
 	handler.status = ""
+	handler.socket = nil
 }
 
 func (handler *Trigger) onTrigger(req message.Request) message.Reply {
