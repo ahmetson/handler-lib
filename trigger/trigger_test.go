@@ -2,13 +2,11 @@ package trigger
 
 import (
 	"github.com/ahmetson/client-lib"
-	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/instance_manager"
 	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/log-lib"
 	"github.com/stretchr/testify/suite"
-	"slices"
 	"testing"
 	"time"
 )
@@ -19,7 +17,6 @@ import (
 type TestTriggerSuite struct {
 	suite.Suite
 	inprocHandler *Trigger
-	tcpConfig     *config.Trigger
 	inprocConfig  *config.Trigger
 	inprocClient  *client.Socket
 	logger        *log.Logger
@@ -32,7 +29,7 @@ type TestTriggerSuite struct {
 func (test *TestTriggerSuite) SetupTest() {
 	s := &test.Suite
 
-	logger, err := log.New("handler", false)
+	logger, err := log.New("trigger", false)
 	test.Suite.Require().NoError(err, "failed to create logger")
 	test.logger = logger
 
@@ -44,114 +41,29 @@ func (test *TestTriggerSuite) SetupTest() {
 	s.Require().NoError(err)
 	test.inprocConfig = triggerConfig
 
-	handlerConfig, err = config.NewHandler(config.SyncReplierType, "test")
-	s.Require().NoError(err)
-	triggerConfig, err = config.TriggerAble(handlerConfig, config.PublisherType)
-	s.Require().NoError(err)
-	test.tcpConfig = triggerConfig
-
-	// Setting a logger should fail since we don't have a configuration set
-	s.Require().Error(test.inprocHandler.SetLogger(test.logger))
-
 	// Setting the configuration
 	// Setting the logger should be successful
 	test.inprocHandler.SetConfig(test.inprocConfig)
 	s.Require().NoError(test.inprocHandler.SetLogger(test.logger))
 }
 
-// Test_11_Deps tests setting of the route dependencies
-func (test *TestTriggerSuite) Test_11_Deps() {
+// Test_10_Config makes sure that configuration methods are running without any error.
+//
+// It doesn't validate the internal parameters.
+// So it must validate them.
+func (test *TestTriggerSuite) Test_10_Config() {
 	s := &test.Suite
 
-	// Handler must not have dependencies yet
-	s.Require().Empty(test.inprocHandler.DepIds())
-
-	depIds := test.inprocHandler.DepIds()
-	s.Require().Len(depIds, 3)
-	s.Require().EqualValues([]string{"dep_1", "dep_2", "dep_3"}, depIds)
-
+	// Testing config trigger-able
+	handlerConfig, err := config.NewHandler(config.SyncReplierType, "test")
+	s.Require().NoError(err)
+	_, err = config.TriggerAble(handlerConfig, config.PublisherType)
+	s.Require().NoError(err)
 }
 
-// Test_12_DepConfig tests setting of the dependency configurations
-func (test *TestTriggerSuite) Test_12_DepConfig() {
-	s := &test.Suite
-
-	// No dependency Config should be given
-	depIds := test.inprocHandler.DepIds()
-	//AddDepByService
-	for _, id := range depIds {
-		s.Require().False(test.inprocHandler.AddedDepByService(id))
-	}
-
-	// Adding the dependencies
-	for _, id := range depIds {
-		depConfig := &clientConfig.Client{
-			Id:         id,
-			ServiceUrl: "github.com/ahmetson/" + id,
-			Port:       0,
-		}
-
-		s.Require().NoError(test.inprocHandler.AddDepByService(depConfig))
-	}
-
-	// There should be dependency configurations now
-	for _, id := range depIds {
-		s.Require().True(test.inprocHandler.AddedDepByService(id))
-	}
-
-	// trying to add the configuration for the dependency that doesn't exist should fail
-	depId := "not_exist"
-	s.Require().False(slices.Contains(depIds, depId))
-	depConfig := &clientConfig.Client{
-		Id:         depId,
-		ServiceUrl: "github.com/ahmetson/" + depId,
-		Port:       0,
-	}
-	s.Require().Error(test.inprocHandler.AddDepByService(depConfig))
-
-	// Trying to add the configuration that was already added should fail
-	depId = depIds[0]
-	depConfig = &clientConfig.Client{
-		Id:         depId,
-		ServiceUrl: "github.com/ahmetson/" + depId,
-		Port:       0,
-	}
-	s.Require().Error(test.inprocHandler.AddDepByService(depConfig))
-}
-
-// Test_13_InstanceManager tests setting of the instance Manager and then listening to it.
-func (test *TestTriggerSuite) Test_13_InstanceManager() {
-	s := &test.Suite
-
-	// the instance Manager requires
-	s.Require().NotNil(test.inprocHandler.InstanceManager)
-
-	// It should be idle
-	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Idle)
-	s.Require().Empty(test.inprocHandler.InstanceManager.Instances())
-
-	// Running instance Manager
-	go test.inprocHandler.RunInstanceManager()
-
-	// Waiting a bit for instance Manager initialization
-	time.Sleep(time.Millisecond * 2000)
-
-	// Instance Manager should be running
-	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Running)
-	s.Require().Len(test.inprocHandler.InstanceManager.Instances(), 1)
-
-	// Let's send the close signal
-	s.Require().NoError(test.inprocHandler.Close())
-
-	// Waiting a bit for instance Manager closing
-	time.Sleep(time.Millisecond * 10)
-
-	// Check that Instance Manager is not running
-	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Idle)
-	s.Require().Empty(test.inprocHandler.InstanceManager.Instances())
-}
-
-// Test_14_Run runs the handler.
+// Test_14_Run runs the trigger.
+//
+// The trigger creates a client that will subscribe for the messages to subscribe.
 func (test *TestTriggerSuite) Test_14_Run() {
 	s := &test.Suite
 
