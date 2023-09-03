@@ -215,15 +215,15 @@ func (c *Handler) initDepClients() error {
 
 // Close the handler
 func (c *Handler) Close() error {
-	if c.InstanceManager.Status() == instance_manager.Running {
+	if c.InstanceManager != nil && c.InstanceManager.Status() == instance_manager.Running {
 		c.InstanceManager.Close()
 	}
-	if c.Reactor.Status() == reactor.RUNNING {
+	if c.Reactor != nil && c.Reactor.Status() == reactor.RUNNING {
 		if err := c.Reactor.Close(); err != nil {
 			return fmt.Errorf("c.Reactor.Close: %w", err)
 		}
 	}
-	if c.Manager.Status() == handler_manager.SocketReady {
+	if c.Manager != nil && c.Manager.Status() == handler_manager.SocketReady {
 		c.Manager.Close()
 	}
 
