@@ -175,13 +175,13 @@ func (m *HandlerManager) setRoutes() {
 		return req.Ok(key_value.Empty())
 	}
 
-	m.routes.Set("status", onStatus)
-	m.routes.Set("close_part", onClosePart)
-	m.routes.Set("run_part", onRunPart)
-	m.routes.Set("instance_amount", onInstanceAmount)
-	m.routes.Set("message_amount", onMessageAmount)
-	m.routes.Set("add_instance", onAddInstance)
-	m.routes.Set("delete_instance", onDeleteInstance)
+	m.routes.Set(config.HandlerStatus, onStatus)
+	m.routes.Set(config.ClosePart, onClosePart)
+	m.routes.Set(config.RunPart, onRunPart)
+	m.routes.Set(config.InstanceAmount, onInstanceAmount)
+	m.routes.Set(config.MessageAmount, onMessageAmount)
+	m.routes.Set(config.AddInstance, onAddInstance)
+	m.routes.Set(config.DeleteInstance, onDeleteInstance)
 }
 
 // Close the handle manager

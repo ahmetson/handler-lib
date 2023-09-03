@@ -7,6 +7,16 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
+const (
+	HandlerStatus  = "status"
+	ClosePart      = "close_part"
+	RunPart        = "run-part"
+	InstanceAmount = "instance-amount"
+	MessageAmount  = "message-amount"
+	AddInstance    = "add-instance"
+	DeleteInstance = "delete-instance"
+)
+
 type Handler struct {
 	Type           HandlerType
 	Category       string

@@ -10,8 +10,8 @@ import (
 	"github.com/ahmetson/log-lib"
 )
 
-// Interface of the server.
-// All controllers have
+// Interface of the handler. Any handlers must be based on this.
+// All handlers have
 //
 // The interface that it accepts is the *client.ClientSocket from the
 // "github.com/ahmetson/client-lib" package.

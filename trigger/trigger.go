@@ -235,16 +235,16 @@ func (handler *Trigger) Start() error {
 		return req.Ok(params)
 	}
 
-	if err := m.Manager.Route("add_instance", onAddInstance); err != nil {
+	if err := m.Manager.Route(config.AddInstance, onAddInstance); err != nil {
 		return fmt.Errorf("overwriting handler manager 'add_instance' failed: %w", err)
 	}
-	if err := m.Manager.Route("close_part", onClose); err != nil {
+	if err := m.Manager.Route(config.ClosePart, onClose); err != nil {
 		return fmt.Errorf("overwriting handler manager 'close' failed: %w", err)
 	}
-	if err := m.Manager.Route("run_part", onRunPart); err != nil {
+	if err := m.Manager.Route(config.RunPart, onRunPart); err != nil {
 		return fmt.Errorf("overwriting handler manager 'run' failed: %w", err)
 	}
-	if err := m.Manager.Route("message_amount", onMessageAmount); err != nil {
+	if err := m.Manager.Route(config.MessageAmount, onMessageAmount); err != nil {
 		return fmt.Errorf("overwriting handler manager 'message_amount' failed: %w", err)
 	}
 
