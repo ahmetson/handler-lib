@@ -47,7 +47,7 @@ func (handler *Trigger) TriggerClient() *clientConfig.Client {
 		Port:       handlerConfig.Port,
 		TargetType: config.SocketType(triggerType),
 	}
-	return client.UrlFunc(config.ExternalUrlByClient)
+	return client.UrlFunc(clientConfig.Url)
 }
 
 func (handler *Trigger) Close() error {
