@@ -149,6 +149,9 @@ func (handler *Trigger) Start() error {
 	if !config.CanTrigger(handler.handlerType) {
 		return fmt.Errorf("the '%s' handler type in configuration is not triggerable", handler.handlerType)
 	}
+	if m.Manager == nil {
+		return fmt.Errorf("handler manager not set. call SetConfig and SetLogger first")
+	}
 
 	if err := m.Route(route.Any, handler.onTrigger); err != nil {
 		return fmt.Errorf("handler.Route: %w", err)
@@ -168,7 +171,6 @@ func (handler *Trigger) Start() error {
 		params := key_value.Empty().Set("instance_id", instanceId)
 		return req.Ok(params)
 	}
-
 	onClose := func(req message.Request) message.Reply {
 		part, err := req.Parameters.GetString("part")
 		if err != nil {
@@ -198,7 +200,6 @@ func (handler *Trigger) Start() error {
 			return req.Fail(fmt.Sprintf("unknown part '%s' to stop", part))
 		}
 	}
-
 	onRunPart := func(req message.Request) message.Reply {
 		part, err := req.Parameters.GetString("part")
 		if err != nil {

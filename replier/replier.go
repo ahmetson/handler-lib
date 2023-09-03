@@ -90,6 +90,10 @@ func (c *Replier) Start() error {
 		return req.Ok(params)
 	}
 
+	if c.base.Manager == nil {
+		return fmt.Errorf("handler manager not initiated. call SetConfig and SetLogger")
+	}
+
 	if err := c.base.Manager.Route("add_instance", onAddInstance); err != nil {
 		return fmt.Errorf("overwriting handler manager 'add_instance' failed: %w", err)
 	}
