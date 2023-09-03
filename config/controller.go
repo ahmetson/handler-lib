@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/os-lib/net"
 	zmq "github.com/pebbe/zmq4"
 )
@@ -112,10 +111,6 @@ func ExternalUrl(id string, port uint64) string {
 	}
 	url := fmt.Sprintf("tcp://*:%d", port)
 	return url
-}
-
-func ExternalUrlByClient(client *clientConfig.Client) string {
-	return ExternalUrl(client.Id, client.Port)
 }
 
 // CanReply returns true if the given Handler has to reply back to the user.
