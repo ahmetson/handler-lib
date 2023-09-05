@@ -175,6 +175,23 @@ func (m *HandlerManager) setRoutes() {
 		return req.Ok(key_value.Empty())
 	}
 
+	onParts := func(req message.Request) message.Reply {
+		parts := []string{
+			"reactor",
+			"instance_manager",
+		}
+		messageTypes := []string{
+			"queue_length",
+			"processing_length",
+		}
+
+		params := key_value.Empty().
+			Set("parts", parts).
+			Set("message_types", messageTypes)
+
+		return req.Ok(params)
+	}
+
 	m.routes.Set(config.HandlerStatus, onStatus)
 	m.routes.Set(config.ClosePart, onClosePart)
 	m.routes.Set(config.RunPart, onRunPart)
@@ -182,6 +199,7 @@ func (m *HandlerManager) setRoutes() {
 	m.routes.Set(config.MessageAmount, onMessageAmount)
 	m.routes.Set(config.AddInstance, onAddInstance)
 	m.routes.Set(config.DeleteInstance, onDeleteInstance)
+	m.routes.Set(config.Parts, onParts)
 }
 
 // Close the handle manager

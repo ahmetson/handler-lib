@@ -14,6 +14,7 @@ const (
 	MessageAmount  = "message-amount"
 	AddInstance    = "add-instance"
 	DeleteInstance = "delete-instance"
+	Parts          = "parts"
 )
 
 type Handler struct {

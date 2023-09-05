@@ -46,6 +46,9 @@ type Interface interface {
 
 	// DeleteInstance removes the running instance by its id.
 	DeleteInstance(instanceId string) error
+
+	// Parts returns the available parts and message types
+	Parts() ([]string, []string, error)
 }
 
 // New client that's connected to the handler
@@ -103,6 +106,32 @@ func (c *Client) HandlerStatus() (string, key_value.KeyValue, error) {
 	}
 
 	return status, parts, nil
+}
+
+func (c *Client) Parts() ([]string, []string, error) {
+	req := message.Request{
+		Command:    handlerConfig.Parts,
+		Parameters: key_value.Empty(),
+	}
+
+	reply, err := c.socket.Request(&req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("socket.Request('%s'): %w", handlerConfig.HandlerStatus, err)
+	}
+	if !reply.IsOK() {
+		return nil, nil, fmt.Errorf("reply.Message: %s", reply.Message)
+	}
+
+	parts, err := reply.Parameters.GetStringList("parts")
+	if err != nil {
+		return nil, nil, fmt.Errorf("reply.Parameters.GetString('parts'): %w", err)
+	}
+	messageTypes, err := reply.Parameters.GetStringList("message_types")
+	if err != nil {
+		return nil, nil, fmt.Errorf("reply.Parameters.GetString('message_types'): %w", err)
+	}
+
+	return parts, messageTypes, nil
 }
 
 // ClosePart closes the part of the handler.

@@ -235,6 +235,25 @@ func (handler *Trigger) Start() error {
 		return req.Ok(params)
 	}
 
+	onParts := func(req message.Request) message.Reply {
+		parts := []string{
+			"reactor",
+			"instance_manager",
+			"broadcaster",
+		}
+		messageTypes := []string{
+			"queue_length",
+			"processing_length",
+			"broadcasting_length",
+		}
+
+		params := key_value.Empty().
+			Set("parts", parts).
+			Set("message_types", messageTypes)
+
+		return req.Ok(params)
+	}
+
 	if err := m.Manager.Route(config.AddInstance, onAddInstance); err != nil {
 		return fmt.Errorf("overwriting handler manager 'add_instance' failed: %w", err)
 	}
@@ -246,6 +265,9 @@ func (handler *Trigger) Start() error {
 	}
 	if err := m.Manager.Route(config.MessageAmount, onMessageAmount); err != nil {
 		return fmt.Errorf("overwriting handler manager 'message_amount' failed: %w", err)
+	}
+	if err := m.Manager.Route(config.Parts, onParts); err != nil {
+		return fmt.Errorf("overwriting handler manager 'parts' failed: %w", err)
 	}
 
 	go handler.runBroadcaster()
