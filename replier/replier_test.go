@@ -106,7 +106,7 @@ func (test *TestHandlerSuite) Test_10_Run() {
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything works
-	req := message.Request{Command: "status", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
 	reply := test.req(test.managingClient, req)
 	s.Require().True(reply.IsOK())
 
@@ -122,7 +122,7 @@ func (test *TestHandlerSuite) Test_10_Run() {
 
 	// Adding a new instance to make reach the cap
 	for i := 1; i < int(instanceAmount); i++ {
-		req.Command = "add_instance"
+		req.Command = config.AddInstance
 		reply = test.req(test.managingClient, req)
 		s.Require().True(reply.IsOK())
 	}
@@ -130,7 +130,7 @@ func (test *TestHandlerSuite) Test_10_Run() {
 	time.Sleep(time.Millisecond * 200)
 
 	// Trying to add more instance must fail
-	req.Command = "add_instance"
+	req.Command = config.AddInstance
 	reply = test.req(test.managingClient, req)
 	s.Require().False(reply.IsOK())
 }
@@ -146,7 +146,7 @@ func (test *TestHandlerSuite) Test_11_Request() {
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything works
-	req := message.Request{Command: "status", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
 	reply := test.req(test.managingClient, req)
 	s.Require().True(reply.IsOK())
 
