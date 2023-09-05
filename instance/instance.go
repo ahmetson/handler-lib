@@ -249,13 +249,18 @@ func (c *Instance) Run() {
 				if err != nil {
 					c.logger.Fatal("failed to receive manager message", "error", err)
 				}
-				// close it
-				c.close = true
-				c.status = CLOSED
+
+				// the close parameter is set to true after reply the message back.
+				// otherwise, the socket may be closed while the requester is waiting for a reply message.
+				// it could leave to the hang up.
 				reply := message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
 				if err := c.reply(manage, reply); err != nil {
 					c.logger.Fatal("failed to reply back to manager", "request string", data, "error", err)
 				}
+
+				// close it
+				c.close = true
+				c.status = CLOSED
 			}
 		}
 	}
