@@ -52,7 +52,7 @@ type Interface interface {
 }
 
 // New client that's connected to the handler
-func New(configHandler *handlerConfig.Handler) (*Client, error) {
+func New(configHandler *handlerConfig.Handler) (Interface, error) {
 	socketType := handlerConfig.SocketType(configHandler.Type)
 	url := handlerConfig.ManagerUrl(configHandler.Id)
 	socket, err := client.NewRaw(socketType, url)
