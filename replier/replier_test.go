@@ -163,7 +163,7 @@ func (test *TestHandlerSuite) Test_11_Request() {
 
 	// Adding a new instance to make reach the cap
 	for i := 1; i < 3; i++ {
-		req.Command = "add_instance"
+		req.Command = config.AddInstance
 		reply = test.req(test.managingClient, req)
 		s.Require().True(reply.IsOK())
 	}
