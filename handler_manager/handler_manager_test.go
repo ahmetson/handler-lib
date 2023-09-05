@@ -1,6 +1,7 @@
 package handler_manager
 
 import (
+	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
@@ -166,7 +167,7 @@ func (test *TestHandlerManagerSuite) Test_10_InvalidCommand() {
 func (test *TestHandlerManagerSuite) Test_12_ClosePart() {
 	s := &test.Suite
 	params := key_value.Empty()
-	req := message.Request{Command: "close_part", Parameters: params}
+	req := message.Request{Command: config.ClosePart, Parameters: params}
 
 	// Trying to stop without a part must fail
 	reply := test.req(req)
@@ -207,7 +208,7 @@ func (test *TestHandlerManagerSuite) Test_12_ClosePart() {
 func (test *TestHandlerManagerSuite) Test_13_RunPart() {
 	s := &test.Suite
 	params := key_value.Empty()
-	req := message.Request{Command: "close_part", Parameters: params}
+	req := message.Request{Command: config.ClosePart, Parameters: params}
 
 	// Stopping the reactor that was run during test setup
 	params.Set("part", "reactor")
@@ -220,8 +221,9 @@ func (test *TestHandlerManagerSuite) Test_13_RunPart() {
 	s.Require().Equal(reactor.CREATED, test.reactor.Status())
 
 	// Let's test running it
-	req.Command = "run_part"
+	req.Command = config.RunPart
 	reply = test.req(req)
+	fmt.Printf("reply: %v\n", reply)
 	s.Require().True(reply.IsOK())
 
 	// Make sure it's running
@@ -233,7 +235,7 @@ func (test *TestHandlerManagerSuite) Test_13_RunPart() {
 	//
 
 	// stop the instance manager that was run during test setup
-	req.Command = "close_part"
+	req.Command = config.ClosePart
 	params.Set("part", "instance_manager")
 	req.Parameters = params
 
@@ -245,7 +247,7 @@ func (test *TestHandlerManagerSuite) Test_13_RunPart() {
 	s.Require().Equal(instance_manager.Idle, test.instanceManager.Status())
 
 	// Run the instance manager
-	req.Command = "run_part"
+	req.Command = config.RunPart
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
@@ -265,7 +267,7 @@ func (test *TestHandlerManagerSuite) Test_13_RunPart() {
 // Test_14_InstanceAmount trying check that instance amount is correct
 func (test *TestHandlerManagerSuite) Test_14_InstanceAmount() {
 	s := &test.Suite
-	req := message.Request{Command: "instance_amount", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.InstanceAmount, Parameters: key_value.Empty()}
 
 	// No instances were added, so it must return 0
 	reply := test.req(req)
@@ -312,7 +314,7 @@ func (test *TestHandlerManagerSuite) Test_14_InstanceAmount() {
 // Test_15_InstanceAmount checks that instance amount is correct when instances come and go
 func (test *TestHandlerManagerSuite) Test_15_InstanceAmount() {
 	s := &test.Suite
-	req := message.Request{Command: "instance_amount", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.InstanceAmount, Parameters: key_value.Empty()}
 
 	// No instances were added, so it must return 0
 	reply := test.req(req)
@@ -359,7 +361,7 @@ func (test *TestHandlerManagerSuite) Test_15_InstanceAmount() {
 // Test_16_MessageAmount checks that queue and processing messages amount are correct
 func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
 	s := &test.Suite
-	req := message.Request{Command: "message_amount", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.MessageAmount, Parameters: key_value.Empty()}
 
 	// Imitating the user that sends the message
 	clientType := config.ClientSocketType(test.inprocConfig.Type)
@@ -443,7 +445,7 @@ func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
 // Test_17_MessageAmount checks that message amounts are correct
 func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	s := &test.Suite
-	req := message.Request{Command: "status", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
 
 	// Test setup runs all parts, status must be Ready
 	reply := test.req(req)
@@ -456,7 +458,7 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	//
 	// Turn the status to incomplete
 	//
-	partReq := message.Request{Command: "close_part", Parameters: key_value.Empty().Set("part", "reactor")}
+	partReq := message.Request{Command: config.ClosePart, Parameters: key_value.Empty().Set("part", "reactor")}
 	reply = test.req(partReq)
 	s.Require().True(reply.IsOK())
 
@@ -516,7 +518,7 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	//
 
 	// Run the instance manager
-	partReq.Command = "run_part"
+	partReq.Command = config.RunPart
 	reply = test.req(partReq)
 	s.Require().True(reply.IsOK())
 
@@ -566,7 +568,7 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 // Test_18_OverwriteRoute checks that routes can be overwritten
 func (test *TestHandlerManagerSuite) Test_18_OverwriteRoute() {
 	s := &test.Suite
-	req := message.Request{Command: "status", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
 
 	// The default route must work as designed
 	reply := test.req(req)
@@ -620,7 +622,7 @@ func (test *TestHandlerManagerSuite) Test_18_OverwriteRoute() {
 // Test_19_AddInstance checks that instances can be added
 func (test *TestHandlerManagerSuite) Test_19_AddInstance() {
 	s := &test.Suite
-	req := message.Request{Command: "add_instance", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.AddInstance, Parameters: key_value.Empty()}
 
 	// There must not be any instances before adding
 	s.Require().Len(test.instanceManager.Instances(), 0)
@@ -645,7 +647,7 @@ func (test *TestHandlerManagerSuite) Test_19_AddInstance() {
 // Test_20_DeleteInstance deletes the instance
 func (test *TestHandlerManagerSuite) Test_20_DeleteInstance() {
 	s := &test.Suite
-	req := message.Request{Command: "delete_instance", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.DeleteInstance, Parameters: key_value.Empty()}
 
 	// There must not be any instances before adding
 	s.Require().Len(test.instanceManager.Instances(), 0)
@@ -660,7 +662,7 @@ func (test *TestHandlerManagerSuite) Test_20_DeleteInstance() {
 	s.Require().False(reply.IsOK())
 
 	// Let's add a new instance for deleting
-	req.Command = "add_instance"
+	req.Command = config.AddInstance
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
@@ -672,7 +674,7 @@ func (test *TestHandlerManagerSuite) Test_20_DeleteInstance() {
 	s.Require().Len(test.instanceManager.Instances(), 1)
 
 	// Delete the instance
-	req.Command = "delete_instance"
+	req.Command = config.DeleteInstance
 	req.Parameters.Set("instance_id", instanceId)
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())

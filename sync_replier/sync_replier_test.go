@@ -107,7 +107,7 @@ func (test *TestHandlerSuite) Test_10_Run() {
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything works
-	req := message.Request{Command: "status", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
 	reply := test.req(test.managerClient, req)
 	s.Require().True(reply.IsOK())
 
@@ -120,7 +120,7 @@ func (test *TestHandlerSuite) Test_10_Run() {
 	s.Require().Len(test.syncReplier.base.InstanceManager.Instances(), 1)
 
 	// Adding a new instance must fail
-	req.Command = "add_instance"
+	req.Command = config.AddInstance
 	reply = test.req(test.managerClient, req)
 	s.Require().False(reply.IsOK())
 

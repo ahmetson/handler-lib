@@ -130,7 +130,7 @@ func (test *TestHandlerSuite) Test_10_Run() {
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything works
-	req := message.Request{Command: "status", Parameters: key_value.Empty()}
+	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
 	err = test.trigger.Submit(&req)
 	s.Require().NoError(err)
 
