@@ -40,7 +40,7 @@ func New() *Trigger {
 
 // TriggerClient is the client parameters to trigger this handler
 func (handler *Trigger) TriggerClient() *clientConfig.Client {
-	handlerConfig := handler.Handler.Config
+	handlerConfig := handler.Handler.Config()
 	client := &clientConfig.Client{
 		ServiceUrl: "",
 		Id:         handlerConfig.Id,
@@ -64,7 +64,18 @@ func (handler *Trigger) Route(string, any, ...string) error {
 	return fmt.Errorf("trigger doesn't support routing")
 }
 
-// SetConfig adds the parameters of the handler from the Config.
+func (handler *Trigger) Config() *config.Trigger {
+	baseConfig := handler.Handler.Config()
+	trigger := config.Trigger{
+		Handler:       baseConfig,
+		BroadcastId:   handler.id,
+		BroadcastPort: handler.port,
+		BroadcastType: handler.handlerType,
+	}
+	return &trigger
+}
+
+// SetConfig adds the parameters of the handler from the config.
 //
 // Sets reactor's configuration as well.
 func (handler *Trigger) SetConfig(trigger *config.Trigger) {
@@ -143,7 +154,7 @@ func (handler *Trigger) onTrigger(req message.Request) message.Reply {
 func (handler *Trigger) Start() error {
 	m := handler.Handler
 
-	if m.Config == nil {
+	if m.Config() == nil {
 		return fmt.Errorf("configuration not set")
 	}
 	if !config.CanTrigger(handler.handlerType) {
@@ -163,9 +174,9 @@ func (handler *Trigger) Start() error {
 			return req.Fail(fmt.Sprintf("only one instance allowed in sync replier"))
 		}
 
-		instanceId, err := m.InstanceManager.AddInstance(m.Config.Type, &m.Routes, &m.RouteDeps, &m.DepClients)
+		instanceId, err := m.InstanceManager.AddInstance(m.Config().Type, &m.Routes, &m.RouteDeps, &m.DepClients)
 		if err != nil {
-			return req.Fail(fmt.Sprintf("instanceManager.AddInstance(%s): %v", m.Config.Type, err))
+			return req.Fail(fmt.Sprintf("instanceManager.AddInstance(%s): %v", m.Config().Type, err))
 		}
 
 		params := key_value.Empty().Set("instance_id", instanceId)

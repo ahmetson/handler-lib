@@ -51,7 +51,7 @@ func (test *TestHandlerSuite) SetupTest() {
 	// Setting the configuration
 	// Setting the logger should be successful
 	test.pub.SetConfig(test.config)
-	s.Require().Equal(config.ReplierType, test.pub.base.Config.Type) // the trigger is rewritten
+	s.Require().Equal(config.ReplierType, test.pub.base.Config().Type) // the trigger is rewritten
 	s.Require().NoError(test.pub.SetLogger(test.logger))
 
 	// running the trigger

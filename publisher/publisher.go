@@ -24,6 +24,11 @@ func (c *Publisher) TriggerClient() *clientConfig.Client {
 	return c.base.TriggerClient()
 }
 
+// Config adds the parameters of the handler from the config.
+func (c *Publisher) Config(*config.Trigger) *config.Trigger {
+	return c.base.Config()
+}
+
 // SetConfig adds the parameters of the handler from the config.
 func (c *Publisher) SetConfig(trigger *config.Trigger) {
 	trigger.Type = config.PublisherType

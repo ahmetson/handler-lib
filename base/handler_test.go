@@ -147,7 +147,7 @@ func (test *TestHandlerSuite) Test_12_DepConfig() {
 	// No dependency configurations were added yet
 	s.Require().Error(test.inprocHandler.depConfigsAdded())
 
-	// No dependency Config should be given
+	// No dependency config should be given
 	depIds := test.inprocHandler.DepIds()
 	//AddDepByService
 	for _, id := range depIds {

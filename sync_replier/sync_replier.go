@@ -24,6 +24,10 @@ func New() *SyncReplier {
 	}
 }
 
+func (c *SyncReplier) Config() *config.Handler {
+	return c.base.Config()
+}
+
 // SetConfig adds the parameters of the handler from the config.
 func (c *SyncReplier) SetConfig(handler *config.Handler) {
 	handler.Type = config.SyncReplierType
@@ -78,9 +82,9 @@ func (c *SyncReplier) Start() error {
 			return req.Fail(fmt.Sprintf("only one instance allowed in sync replier"))
 		}
 
-		instanceId, err := m.InstanceManager.AddInstance(m.Config.Type, &m.Routes, &m.RouteDeps, &m.DepClients)
+		instanceId, err := m.InstanceManager.AddInstance(m.Config().Type, &m.Routes, &m.RouteDeps, &m.DepClients)
 		if err != nil {
-			return req.Fail(fmt.Sprintf("instanceManager.AddInstance(%s): %v", m.Config.Type, err))
+			return req.Fail(fmt.Sprintf("instanceManager.AddInstance(%s): %v", m.Config().Type, err))
 		}
 
 		params := key_value.Empty().Set("instance_id", instanceId)
