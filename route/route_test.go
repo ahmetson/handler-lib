@@ -15,8 +15,8 @@ import (
 // returns the current testing orchestra
 type TestRouteSuite struct {
 	suite.Suite
-	controller *zmq.Socket
-	client     *client.Socket
+	handler *zmq.Socket
+	client  *client.Socket
 }
 
 // Make sure that Account is set to five

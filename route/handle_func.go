@@ -11,7 +11,7 @@ type depSock = *client.Socket
 // HandleFunc0 is the function type that manipulates the commands.
 // It accepts at least message.Request and log.Logger then returns a message.Reply.
 //
-// Optionally, the server can pass the shared states in the additional parameters.
+// Optionally, the handler can pass the shared states in the additional parameters.
 // The most use case for optional request is to pass the link to the Database.
 type HandleFunc0 = func(message.Request) message.Reply
 type HandleFunc1 = func(message.Request, depSock) message.Reply

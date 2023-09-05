@@ -54,12 +54,12 @@ func New() *Handler {
 	}
 }
 
-// SetConfig adds the parameters of the server from the Config.
+// SetConfig adds the parameters of the handler from the Config.
 //
 // Sets Reactor's configuration as well.
-func (c *Handler) SetConfig(controller *config.Handler) {
-	c.Config = controller
-	c.Reactor.SetConfig(controller)
+func (c *Handler) SetConfig(handler *config.Handler) {
+	c.Config = handler
+	c.Reactor.SetConfig(handler)
 }
 
 // SetLogger sets the logger (depends on configuration).
@@ -110,14 +110,14 @@ func (c *Handler) addDep(id string) {
 	}
 }
 
-// DepIds return the list of extension names required by this server.
+// DepIds return the list of extension names required by this handler.
 func (c *Handler) DepIds() []string {
 	return c.depIds
 }
 
 // A reply sends to the caller the message.
 //
-// If a server doesn't support replying (for example, PULL server),
+// If a handler doesn't support replying (for example, PULL handler),
 // then it returns success.
 func (c *Handler) reply(socket *zmq.Socket, message message.Reply) error {
 	if !config.CanReply(c.Config.Type) {
@@ -132,13 +132,13 @@ func (c *Handler) reply(socket *zmq.Socket, message message.Reply) error {
 	return nil
 }
 
-// Calls server.reply() with the error message.
+// Calls handler.reply() with the error message.
 func (c *Handler) replyError(socket *zmq.Socket, err error) error {
 	request := message.Request{}
 	return c.reply(socket, request.Fail(err.Error()))
 }
 
-// Route adds a route along with its handler to this server
+// Route adds a route along with its handler to this handler
 func (c *Handler) Route(cmd string, handle any, depIds ...string) error {
 	if !route.IsHandleFunc(handle) {
 		return fmt.Errorf("handle is not a valid handle function")
@@ -164,8 +164,8 @@ func (c *Handler) Route(cmd string, handle any, depIds ...string) error {
 	return nil
 }
 
-// depConfigsAdded checks that the required DepClients are added into the server.
-// If no DepClients are added by calling server.addDep(), then it will return nil.
+// depConfigsAdded checks that the required DepClients are added into the handler.
+// If no DepClients are added by calling handler.addDep(), then it will return nil.
 func (c *Handler) depConfigsAdded() error {
 	if len(c.depIds) != len(c.depConfigs) {
 		return fmt.Errorf("required dependencies and configurations are not matching")
@@ -187,14 +187,14 @@ func (c *Handler) Type() config.HandlerType {
 	return c.Config.Type
 }
 
-// initDepClients will set up the extension clients for this server.
+// initDepClients will set up the extension clients for this handler.
 // It will be called by c.Run(), automatically.
 //
 // The reason for why we call it by c.Run() is due to the thread-safety.
 //
-// The server is intended to be called as the goroutine. And if the sockets
-// are not initiated within the same goroutine, then zeromq doesn't guarantee the socket work
-// as it's intended.
+// The handler is intended to be called as the goroutine.
+// And if the sockets are not initiated within the same goroutine,
+// then zeromq doesn't guarantee the socket work as it's intended.
 func (c *Handler) initDepClients() error {
 	for _, depInterface := range c.depConfigs {
 		depConfig := depInterface.(*clientConfig.Client)
@@ -230,7 +230,7 @@ func (c *Handler) Close() error {
 	return nil
 }
 
-// Runs the instance Manager and listen to it's events
+// RunInstanceManager runs the instance Manager and listens to its events
 func (c *Handler) RunInstanceManager() {
 	socket, err := zmq.NewSocket(zmq.SUB)
 	if err != nil {
@@ -338,7 +338,7 @@ func (c *Handler) Start() error {
 		return fmt.Errorf("instance Manager not set")
 	}
 	if c.Reactor == nil {
-		return fmt.Errorf("Reactor not set")
+		return fmt.Errorf("reactor not set")
 	}
 	if err := c.initDepClients(); err != nil {
 		return fmt.Errorf("initDepClients: %w", err)

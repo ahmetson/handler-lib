@@ -104,7 +104,7 @@ func ClientSocketType(handlerType HandlerType) zmq.Type {
 	return zmq.Type(-1)
 }
 
-// ExternalUrl creates url of the server url for binding.
+// ExternalUrl creates url of the handler url for binding.
 // For clients to connect to this url, call client.ClientUrl()
 func ExternalUrl(id string, port uint64) string {
 	if port == 0 {

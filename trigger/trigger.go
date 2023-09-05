@@ -59,24 +59,24 @@ func (handler *Trigger) Close() error {
 	return handler.Handler.Close()
 }
 
-// Route adds a route along with its handler to this server
+// Route adds a route along with its handler to this handler
 func (handler *Trigger) Route(string, any, ...string) error {
 	return fmt.Errorf("trigger doesn't support routing")
 }
 
-// SetConfig adds the parameters of the server from the Config.
+// SetConfig adds the parameters of the handler from the Config.
 //
 // Sets reactor's configuration as well.
-func (handler *Trigger) SetConfig(controller *config.Trigger) {
+func (handler *Trigger) SetConfig(trigger *config.Trigger) {
 	// The broadcaster
-	handler.port = controller.BroadcastPort
-	handler.id = controller.BroadcastId
-	handler.handlerType = controller.BroadcastType
+	handler.port = trigger.BroadcastPort
+	handler.id = trigger.BroadcastId
+	handler.handlerType = trigger.BroadcastType
 
 	// Todo change to the puller
-	controller.Handler.Type = triggerType
+	trigger.Handler.Type = triggerType
 
-	handler.Handler.SetConfig(controller.Handler)
+	handler.Handler.SetConfig(trigger.Handler)
 }
 
 // runBroadcaster creates a socket that will be linked by the user

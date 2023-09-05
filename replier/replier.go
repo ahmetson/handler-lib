@@ -19,7 +19,7 @@ type Replier struct {
 	maxInstanceAmount int
 }
 
-// New creates an asynchronous replying server.
+// New asynchronous replying handler.
 func New() *Replier {
 	return &Replier{
 		base:              base.New(),
@@ -27,10 +27,10 @@ func New() *Replier {
 	}
 }
 
-// SetConfig adds the parameters of the server from the config.
-func (c *Replier) SetConfig(controller *config.Handler) {
-	controller.Type = config.ReplierType
-	c.base.SetConfig(controller)
+// SetConfig adds the parameters of the handler from the config.
+func (c *Replier) SetConfig(handler *config.Handler) {
+	handler.Type = config.ReplierType
+	c.base.SetConfig(handler)
 }
 
 // SetLogger sets the logger.
@@ -48,12 +48,12 @@ func (c *Replier) AddedDepByService(id string) bool {
 	return c.base.AddedDepByService(id)
 }
 
-// DepIds return the list of extension names required by this server.
+// DepIds return the list of extension names required by this handler.
 func (c *Replier) DepIds() []string {
 	return c.base.DepIds()
 }
 
-// Route adds a route along with its handler to this server
+// Route adds a route along with its handler to this handler
 func (c *Replier) Route(cmd string, handle any, depIds ...string) error {
 	return c.base.Route(cmd, handle, depIds...)
 }

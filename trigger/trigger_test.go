@@ -29,8 +29,8 @@ type TestTriggerSuite struct {
 	subscribed  chan []string
 }
 
-// Todo test in-process and external types of controllers
-// Todo test the business of the server
+// todo test in-process and external types of handlers
+// todo test the business of the handler.
 // Make sure that Account is set to five
 // before each test
 func (test *TestTriggerSuite) SetupTest() {

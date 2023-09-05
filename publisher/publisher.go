@@ -24,10 +24,10 @@ func (c *Publisher) TriggerClient() *clientConfig.Client {
 	return c.base.TriggerClient()
 }
 
-// SetConfig adds the parameters of the server from the config.
-func (c *Publisher) SetConfig(controller *config.Trigger) {
-	controller.Type = config.PublisherType
-	c.base.SetConfig(controller)
+// SetConfig adds the parameters of the handler from the config.
+func (c *Publisher) SetConfig(trigger *config.Trigger) {
+	trigger.Type = config.PublisherType
+	c.base.SetConfig(trigger)
 }
 
 // SetLogger sets the logger.
@@ -45,12 +45,12 @@ func (c *Publisher) AddedDepByService(id string) bool {
 	return c.base.AddedDepByService(id)
 }
 
-// DepIds return the list of extension names required by this server.
+// DepIds return the list of extension names required by this handler.
 func (c *Publisher) DepIds() []string {
 	return c.base.DepIds()
 }
 
-// Route adds a route along with its handler to this server
+// Route adds a route along with its handler to this handler
 func (c *Publisher) Route(cmd string, handle any, depIds ...string) error {
 	return c.base.Route(cmd, handle, depIds...)
 }

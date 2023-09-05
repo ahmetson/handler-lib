@@ -34,15 +34,15 @@ const (
 //
 // The publisher returns two clients.
 type Instance struct {
-	Id             string
-	parentId       string
-	controllerType config.HandlerType
-	routes         *key_value.KeyValue // handler routing
-	routeDeps      *key_value.KeyValue // handler deps
-	depClients     *key_value.KeyValue
-	logger         *log.Logger
-	close          bool
-	status         string // Instance status
+	Id          string
+	parentId    string
+	handlerType config.HandlerType
+	routes      *key_value.KeyValue // handler routing
+	routeDeps   *key_value.KeyValue // handler deps
+	depClients  *key_value.KeyValue
+	logger      *log.Logger
+	close       bool
+	status      string // Instance status
 }
 
 // New handler of the handlerType
@@ -50,21 +50,21 @@ func New(handlerType config.HandlerType, id string, parentId string, parent *log
 	logger := parent.Child(id)
 
 	return &Instance{
-		Id:             id,
-		parentId:       parentId,
-		controllerType: handlerType,
-		routes:         nil,
-		routeDeps:      nil,
-		depClients:     nil,
-		logger:         logger,
-		close:          false,
-		status:         PREPARE,
+		Id:          id,
+		parentId:    parentId,
+		handlerType: handlerType,
+		routes:      nil,
+		routeDeps:   nil,
+		depClients:  nil,
+		logger:      logger,
+		close:       false,
+		status:      PREPARE,
 	}
 }
 
 // A reply sends to the caller the message.
 //
-// If a server doesn't support replying (for example, PULL server),
+// If a handler doesn't support replying (for example, PULL handler),
 // then it returns success.
 func (c *Instance) reply(socket *zmq.Socket, message message.Reply) error {
 	if !config.CanReply(c.Type()) {
@@ -85,7 +85,7 @@ func (c *Instance) reply(socket *zmq.Socket, message message.Reply) error {
 	return nil
 }
 
-// Calls server.reply() with the error message.
+// Calls handler.reply() with the error message.
 func (c *Instance) replyError(socket *zmq.Socket, err error) error {
 	request := message.Request{}
 	return c.reply(socket, request.Fail(err.Error()))
@@ -104,7 +104,7 @@ func (c *Instance) SetClients(clients *key_value.KeyValue) {
 
 // Type returns the type of the instances
 func (c *Instance) Type() config.HandlerType {
-	return c.controllerType
+	return c.handlerType
 }
 
 // Status of the instance

@@ -32,9 +32,9 @@ Just like anything in the SDS, the handlers are prepared
 based on the configuration. The handler configuration
 is stored in the *config* directory.
 
-The `controller` file describes the handler's configuration.
+The `handler` file describes the handler's configuration.
 
-The `controller_type` file describes the type of the handlers.
+The `handler_type` file describes the type of the handlers.
 
 The `internal` file keeps the socket addresses of the various handler parts.
 

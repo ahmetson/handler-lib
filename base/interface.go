@@ -23,7 +23,7 @@ import (
 // The service will call:
 // AddDepByService
 type Interface interface {
-	// SetConfig adds the parameters of the server from the Config
+	// SetConfig adds the parameters of the handler from the Config
 	SetConfig(*config.Handler)
 
 	// SetLogger adds the logger. The function accepts a parent, and function derives handler logger
@@ -43,13 +43,13 @@ type Interface interface {
 	// DepIds return the list of dep ids collected from all Routes.
 	DepIds() []string
 
-	// Route adds a new route and it's handlers for this server
+	// Route adds a new route and it's handlers for this handler
 	Route(string, any, ...string) error
 
-	// Type returns the type of the server
+	// Type returns the type of the handler
 	Type() config.HandlerType
 
-	// Close the server if it's running. If it's not running, then do nothing
+	// Close the handler if it's running. If it's not running, then do nothing
 	Close() error
 
 	Start() error
@@ -68,9 +68,9 @@ var anyHandler = func(request message.Request) message.Reply {
 	return reply
 }
 
-func AnyRoute(sourceController Interface) error {
-	if err := sourceController.Route(route.Any, anyHandler); err != nil {
-		return fmt.Errorf("failed to add any route into the server: %w", err)
+func AnyRoute(handler Interface) error {
+	if err := handler.Route(route.Any, anyHandler); err != nil {
+		return fmt.Errorf("failed to '%s' route into the handler: %w", route.Any, err)
 	}
 	return nil
 }
