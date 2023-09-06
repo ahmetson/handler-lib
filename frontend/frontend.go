@@ -108,14 +108,14 @@ func (f *Frontend) prepareSockets() {
 	f.sockets = zmq.NewReactor()
 }
 
-// receiveExternalMessages adds the external socket to zeromq frontend to invoke handleExternal when it receives a message.
-func (f *Frontend) receiveExternalMessages() {
+// startExternalSocket adds the external socket to zeromq frontend to invoke handleExternal when it receives a message.
+func (f *Frontend) startExternalSocket() {
 	f.sockets.AddSocket(f.external, zmq.POLLIN, func(e zmq.State) error { return f.handleExternal() })
 }
 
-// runConsumer adds the consumer to the zeromq frontend to check for queue and send the messages to instances.
+// startConsuming adds the consumer to the zeromq frontend to check for queue and send the messages to instances.
 // It runs every millisecond, or 1000 times in a second.
-func (f *Frontend) runConsumer() {
+func (f *Frontend) startConsuming() {
 	f.consumerId = f.sockets.AddChannelTime(time.Tick(time.Millisecond), 0,
 		func(_ interface{}) error { return f.handleConsume() })
 }
@@ -125,53 +125,53 @@ func (f *Frontend) receiveInstanceMessage(id string, socket *zmq.Socket) {
 	f.sockets.AddSocket(socket, zmq.POLLIN, func(e zmq.State) error { return f.handleInstance(id, socket) })
 }
 
-// Run the frontend
-func (f *Frontend) Run() {
+// Start the frontend
+func (f *Frontend) Start() error {
 	if f.externalConfig == nil {
-		f.status = fmt.Sprintf("missing externalConfig")
-		return
+		return fmt.Errorf("no externalConfig. call frontend.SetConfig()")
 	}
 
 	// Instance Manager maybe not running. We won't block the frontend from it.
 	if f.instanceManager == nil {
-		f.status = fmt.Sprintf("missing instanceManager")
-		return
+		return fmt.Errorf("no instanceManager. call frontend.SetInstanceManager")
 	}
 
 	if err := f.prepareExternalSocket(); err != nil {
-		f.status = fmt.Sprintf("prepareExternalSocket: %v", err)
-		return
+		return fmt.Errorf("prepareExternalSocket: %w", err)
 	}
 
 	f.prepareSockets()
-	f.receiveExternalMessages()
-	f.runConsumer()
+	f.startExternalSocket()
+	f.startConsuming()
 
 	f.status = RUNNING
-	for {
-		if f.close {
-			break
-		}
-
-		// Zeromq's frontend (sockets) sets the poll timeout not as infinite, for two reasons.
-		// First, zeromq's frontend requires a timeout if we add a channel.
-		// The Frontend's consumer is channel-based.
-		// The second reason is due to external socket.
-		// If the external socket receives a message, but the queue is full, then the message will be returned back
-		if err := f.sockets.Run(time.Millisecond); err != nil {
-			if !f.close {
-				f.status = fmt.Sprintf("sockets.Run (mark as closed? %v): %v", f.close, err)
-				return
+	go func() {
+		for {
+			// Received a direct close channel
+			if f.close {
+				break
 			}
-			break // break if marked as close
-		}
-	}
 
-	// exited due to closing? reset it
-	if f.close {
-		f.close = false
-		f.status = CREATED
-	}
+			// Zeromq's frontend (sockets) sets the poll timeout not as infinite, for two reasons.
+			// First, zeromq's frontend requires a timeout if we add a channel into the zeromq.Reactor.
+			// The Frontend consumer is channel-based.
+			// The second reason is due to external socket.
+			// If the external socket receives a message, but the queue is full, then the message will be returned back
+			if err := f.sockets.Run(time.Millisecond); err != nil {
+				if !f.close {
+					f.status = fmt.Sprintf("sockets.Start (mark as closed? %v): %v", f.close, err)
+				}
+				break // break if marked as close
+			}
+		}
+
+		// exited due to closing? reset it
+		if f.close {
+			f.close = false
+			f.status = CREATED
+		}
+	}()
+	return nil
 }
 
 // handleExternal is an event invoked by the zmq4.Reactor whenever a new client request happens.

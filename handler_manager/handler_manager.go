@@ -121,7 +121,10 @@ func (m *HandlerManager) setRoutes() {
 			if m.frontend.Status() == frontend.RUNNING {
 				return req.Fail("frontend running")
 			} else {
-				go m.frontend.Run()
+				err := m.frontend.Start()
+				if err != nil {
+					return req.Fail(fmt.Sprintf("frontend.Start: %v", err))
+				}
 				return req.Ok(key_value.Empty())
 			}
 		} else if part == "instance_manager" {

@@ -60,7 +60,7 @@ func (c *Handler) Config() *config.Handler {
 
 // SetConfig adds the parameters of the handler from the config.
 //
-// Sets Frontend's configuration as well.
+// Sets Frontend configuration as well.
 func (c *Handler) SetConfig(handler *config.Handler) {
 	c.config = handler
 	c.Frontend.SetConfig(handler)
@@ -192,9 +192,9 @@ func (c *Handler) Type() config.HandlerType {
 }
 
 // initDepClients will set up the extension clients for this handler.
-// It will be called by c.Run(), automatically.
+// It will be called by c.Start(), automatically.
 //
-// The reason for why we call it by c.Run() is due to the thread-safety.
+// The reason for why we call it by c.Start() is due to the thread-safety.
 //
 // The handler is intended to be called as the goroutine.
 // And if the sockets are not initiated within the same goroutine,
@@ -349,7 +349,10 @@ func (c *Handler) Start() error {
 	}
 
 	// Adding the first instance Manager
-	go c.Frontend.Run()
+	if err := c.Frontend.Start(); err != nil {
+		return fmt.Errorf("c.Frontend.Start: %w", err)
+	}
+
 	go c.RunInstanceManager()
 	go func() {
 		err := c.Manager.Run()

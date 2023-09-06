@@ -229,8 +229,8 @@ func (test *TestFrontendSuite) Test_13_Run() {
 	cmd, _, instanceManager := test.instanceManager()
 	test.frontend.SetInstanceManager(instanceManager)
 
-	// Run
-	go test.frontend.Run()
+	// Start
+	s.Require().NoError(test.frontend.Start())
 
 	// Wait a bit for initialization
 	time.Sleep(time.Millisecond * 10)
