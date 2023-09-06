@@ -176,16 +176,18 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 	return req.Ok(key_value.Empty())
 }
 
+// newEventSocket returns an instance manager status broadcaster.
+// It's used by the handler_manager and frontend to detect the instance amount.
 func (parent *Parent) newEventSocket() (*zmq.Socket, error) {
 	eventSock, err := zmq.NewSocket(zmq.PUB)
 	if err != nil {
-		return nil, fmt.Errorf("new_socket: %w", err)
+		return nil, fmt.Errorf("zmq.NewSocket(zmq.PUB): %w", err)
 	}
 
 	eventUrl := config.InstanceManagerEventUrl(parent.id)
 	err = eventSock.Bind(eventUrl)
 	if err != nil {
-		return nil, fmt.Errorf("instanceManager(%s).eventSock.Bind('%s'): %w", parent.id, eventUrl, err)
+		return nil, fmt.Errorf("eventSock.Bind('%s'): %w", eventUrl, err)
 	}
 
 	return eventSock, nil
