@@ -43,7 +43,6 @@ type Instance struct {
 	logger      *log.Logger
 	close       bool
 	status      string // Instance status
-	errors      []error
 }
 
 // New handler of the handlerType
@@ -60,7 +59,6 @@ func New(handlerType config.HandlerType, id string, parentId string, parent *log
 		logger:      logger,
 		close:       false,
 		status:      PREPARE,
-		errors:      make([]error, 0),
 	}
 }
 
@@ -154,23 +152,15 @@ func (c *Instance) pubFail(parent *zmq.Socket, instanceErr error) error {
 	return nil
 }
 
-// Errors that occurred in the instance during data transfer between instance manager and this service.
-// So, instance couldn't send it to the instance.
-func (c *Instance) Errors() []error {
-	return c.errors
-}
-
 // Start the instance manager and handler in the internal goroutine.
 // It waits until the sockets are bound to the endpoints.
 // If until the binding occurs an error, then it will return it back.
 //
 // After binding, the occurred errors are sent back to the instance manager by the pub socket.
 //
-// If pub socket had an error then, the errors are added to the Errors() stack.
+// If pub socket had an error then, the errors are printed to stderr
 func (c *Instance) Start() error {
 	ready := make(chan error)
-
-	c.errors = make([]error, 0)
 
 	go func(ready chan error) {
 		parent, err := zmq.NewSocket(zmq.PUSH)
@@ -249,7 +239,7 @@ func (c *Instance) Start() error {
 		}
 
 		// exit from instance.Starts
-		// the pusher notifies the errors occured later
+		// the pusher notifies the errors occurred later
 		ready <- nil
 
 		for {
@@ -262,7 +252,7 @@ func (c *Instance) Start() error {
 				newErr := fmt.Errorf("poller.Poll(%s): %w", c.Type(), err)
 				pubErr := c.pubFail(parent, newErr)
 				if pubErr != nil {
-					c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", newErr, pubErr))
+					c.logger.Error("c.pubFail", "argument", newErr, "error", pubErr)
 				}
 				break
 			}
@@ -282,7 +272,7 @@ func (c *Instance) Start() error {
 						}
 						pubErr := c.pubFail(parent, newErr)
 						if pubErr != nil {
-							c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", newErr, pubErr))
+							c.logger.Error("c.pubFail", "argument", newErr, "error", pubErr)
 						}
 						break
 					}
@@ -291,7 +281,7 @@ func (c *Instance) Start() error {
 					if pubErr != nil {
 						// no need to call for c.pubFail, since that could also lead to the same error as pubStatus.
 						// they use the same socket.
-						c.errors = append(c.errors, fmt.Errorf("c.pubStatus('HANDLING'): %w", pubErr))
+						c.logger.Error("c.pubStatus", "argument", HANDLING, "error", pubErr)
 						break
 					}
 
@@ -299,7 +289,7 @@ func (c *Instance) Start() error {
 					if err != nil {
 						pubErr := c.pubFail(parent, fmt.Errorf("c.processData: %w", err))
 						if pubErr != nil {
-							c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", err, pubErr))
+							c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
 						}
 						break
 					}
@@ -308,7 +298,7 @@ func (c *Instance) Start() error {
 					if pubErr != nil {
 						// no need to call for c.pubFail, since that could also lead to the same error as pubStatus.
 						// they use the same socket.
-						c.errors = append(c.errors, fmt.Errorf("c.pubStatus('READY'): %w", pubErr))
+						c.logger.Error("c.pubStatus", "argument", READY, "error", pubErr)
 						break
 					}
 
@@ -316,7 +306,7 @@ func (c *Instance) Start() error {
 						failErr := fmt.Errorf("c.reply('handler'): %w", err)
 						pubErr := c.pubFail(parent, failErr)
 						if pubErr != nil {
-							c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", failErr, pubErr))
+							c.logger.Error("c.pubFail", "argument", failErr, "error", pubErr)
 						}
 						break
 					}
@@ -327,7 +317,7 @@ func (c *Instance) Start() error {
 					if err != nil {
 						pubErr := c.pubFail(parent, fmt.Errorf("manager.RecvMessage: %w", err))
 						if pubErr != nil {
-							c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", err, pubErr))
+							c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
 						}
 						break
 					}
@@ -340,11 +330,9 @@ func (c *Instance) Start() error {
 						failErr := fmt.Errorf("c.reply('manager'): %w", err)
 						pubErr := c.pubFail(parent, failErr)
 						if pubErr != nil {
-							c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", failErr, pubErr))
+							c.logger.Error("c.pubFail", "argument", failErr, "error", pubErr)
 						}
 					}
-
-					fmt.Printf("exiting from the instance\n")
 
 					// mark as close, we don't exit straight from the loop,
 					// because poller may be processing another signal.
@@ -357,21 +345,23 @@ func (c *Instance) Start() error {
 
 		err = poller.RemoveBySocket(handler)
 		if err != nil {
-			pubErr := c.pubFail(parent, fmt.Errorf("poller.RemoveBySocket('handler'): %w", err))
+			err = fmt.Errorf("poller.RemoveBySocket('handler'): %w", err)
+			pubErr := c.pubFail(parent, err)
 			if pubErr != nil {
 				// we add it to the error stack, but continue to clean out the rest
 				// since removing from the poller won't affect the other socket operations.
-				c.errors = append(c.errors, pubErr)
+				c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
 			}
 		}
 
 		err = poller.RemoveBySocket(manager)
 		if err != nil {
-			pubErr := c.pubFail(parent, fmt.Errorf("poller.RemoveBySocket('manager'): %w", err))
+			err = fmt.Errorf("poller.RemoveBySocket('manager'): %w", err)
+			pubErr := c.pubFail(parent, err)
 			if pubErr != nil {
 				// we add it to the error stack, but continue to clean out the rest
 				// since removing from the poller won't affect the other socket operations.
-				c.errors = append(c.errors, pubErr)
+				c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
 			}
 		}
 
@@ -381,26 +371,38 @@ func (c *Instance) Start() error {
 		// one option is to remove the thread, and create a new instance with another id.
 		err = manager.Close()
 		if err != nil {
-			c.errors = append(c.errors, fmt.Errorf("manager.Close: %w", err))
+			err = fmt.Errorf("manager.Close: %w", err)
+			pubErr := c.pubFail(parent, err)
+			if pubErr != nil {
+				// we add it to the error stack, but continue to clean out the rest
+				// since removing from the poller won't affect the other socket operations.
+				c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+			}
 		}
 
 		// if manager closing fails, then restart of this instance will throw an error.
 		// see above manager.Close comment.
 		err = handler.Close()
 		if err != nil {
-			c.errors = append(c.errors, fmt.Errorf("handler.Close: %w", err))
+			err = fmt.Errorf("handler.Close: %w", err)
+			pubErr := c.pubFail(parent, err)
+			if pubErr != nil {
+				// we add it to the error stack, but continue to clean out the rest
+				// since removing from the poller won't affect the other socket operations.
+				c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+			}
 		}
 
 		pubErr := c.pubStatus(parent, CLOSED)
 		if pubErr != nil {
+			c.logger.Error("c.pubStatus", "argument", CLOSED, "error", pubErr)
 			// we add it to the error stack, but continue to clean out the rest
 			// since removing from the poller won't affect the other socket operations.
-			c.errors = append(c.errors, fmt.Errorf("c.pubStatis('CLOSED'): %w", pubErr))
 		}
 
 		err = parent.Close()
 		if err != nil {
-			c.errors = append(c.errors, fmt.Errorf("parent.Close: %w", err))
+			c.logger.Error("parent.Close", "error", pubErr)
 		}
 	}(ready)
 
