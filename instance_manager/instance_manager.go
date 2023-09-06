@@ -87,6 +87,11 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 		return req.Fail(fmt.Sprintf("req.Parameters.GetString('id'): %v", err))
 	}
 
+	_, ok := parent.instances[instanceId]
+	if !ok {
+		return req.Fail(fmt.Sprintf("instances[%s] not found", instanceId))
+	}
+
 	status, err := req.Parameters.GetString("status")
 	if err != nil {
 		return req.Fail(fmt.Sprintf("req.Parameters.GetString('status'): %v", err))
@@ -102,16 +107,16 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 		}
 
 	} else if status == instance.READY {
-		_, ok := parent.instances[instanceId]
-		if !ok {
-			return req.Fail(fmt.Sprintf("instances[%s] not found", instanceId))
-		}
-
 		if err := parent.pubInstanceAdded(instanceId); err != nil {
 			parent.logger.Error("parent.pubInstanceAdded", "instanceId", instanceId, "error", err)
 		}
 	}
-	parent.instances[instanceId].status = status
+
+	// Might be deleted when received CLOSE signal
+	_, ok = parent.instances[instanceId]
+	if ok {
+		parent.instances[instanceId].status = status
+	}
 
 	return req.Ok(key_value.Empty())
 }
