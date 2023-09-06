@@ -70,7 +70,7 @@ func (test *TestHandlerManagerSuite) SetupTest() {
 	test.handlerManager.SetConfig(test.inprocConfig)
 
 	go test.instanceManager.Run()
-	go test.frontend.Run()
+	go test.frontend.Start()
 	go func() {
 		err = test.handlerManager.Run()
 		s.Require().NoError(err)
@@ -246,7 +246,7 @@ func (test *TestHandlerManagerSuite) Test_13_RunPart() {
 	time.Sleep(time.Millisecond * 100)
 	s.Require().Equal(instance_manager.Idle, test.instanceManager.Status())
 
-	// Run the instance manager
+	// Start the instance manager
 	req.Command = config.RunPart
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
@@ -517,7 +517,7 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	// Incomplete turns to ready when processes are running
 	//
 
-	// Run the instance manager
+	// Start the instance manager
 	partReq.Command = config.RunPart
 	reply = test.req(partReq)
 	s.Require().True(reply.IsOK())
@@ -544,7 +544,7 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	s.Require().NoError(err)
 	s.Require().Equal(instance_manager.Running, instanceManager)
 
-	// Run Frontend
+	// Start Frontend
 	partReq.Parameters.Set("part", "frontend")
 	reply = test.req(partReq)
 	s.Require().True(reply.IsOK())
@@ -596,7 +596,7 @@ func (test *TestHandlerManagerSuite) Test_18_OverwriteRoute() {
 	err = test.handlerManager.Route("status", onStatus)
 	s.Require().NoError(err)
 
-	// Run handler manager to apply route effects
+	// Start handler manager to apply route effects
 	go func() {
 		err = test.handlerManager.Run()
 		s.Require().NoError(err)

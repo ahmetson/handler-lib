@@ -77,7 +77,7 @@ func (handler *Trigger) Config() *config.Trigger {
 
 // SetConfig adds the parameters of the handler from the config.
 //
-// Sets frontend's configuration as well.
+// Sets Frontend configuration as well.
 func (handler *Trigger) SetConfig(trigger *config.Trigger) {
 	// The broadcaster
 	handler.port = trigger.BroadcastPort
@@ -221,7 +221,10 @@ func (handler *Trigger) Start() error {
 			if m.Frontend.Status() == frontend.RUNNING {
 				return req.Fail("frontend running")
 			} else {
-				go m.Frontend.Run()
+				err := m.Frontend.Start()
+				if err != nil {
+					return req.Fail(fmt.Sprintf("m.Frontend.Start: %v", err))
+				}
 				return req.Ok(key_value.Empty())
 			}
 		} else if part == "instance_manager" {

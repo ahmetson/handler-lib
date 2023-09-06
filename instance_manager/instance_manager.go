@@ -310,7 +310,6 @@ func (parent *Parent) Run() {
 		}
 		return
 	}
-
 }
 
 // Close the instance manager. It deletes all instances
