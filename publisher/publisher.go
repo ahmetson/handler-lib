@@ -74,7 +74,7 @@ func (c *Publisher) Status() string {
 	return c.base.Status()
 }
 
-// Start the handler directly, not by goroutine
-func (c *Publisher) Start() error {
-	return c.base.Start()
+// Run the handler directly, not by goroutine
+func (c *Publisher) Run() error {
+	return c.base.Run()
 }

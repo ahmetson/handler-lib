@@ -330,8 +330,15 @@ func (c *Handler) Status() string {
 	return c.status
 }
 
-// Start the handler directly, not by goroutine
-func (c *Handler) Start() error {
+// Run the handler as a goroutine:
+//
+//	 go func() {
+//			err := handler.Run()
+//			if err != nil {
+//				// handle the error
+//			}
+//	 }()
+func (c *Handler) Run() error {
 	if c.config == nil {
 		return fmt.Errorf("configuration not set")
 	}
@@ -351,12 +358,11 @@ func (c *Handler) Start() error {
 	// Adding the first instance Manager
 	go c.Frontend.Run()
 	go c.RunInstanceManager()
-	go func() {
-		err := c.Manager.Run()
-		if err != nil {
-			c.status = err.Error()
-		}
-	}()
+
+	err := c.Manager.Run()
+	if err != nil {
+		return fmt.Errorf("c.Manager.Run: %w", err)
+	}
 
 	return nil
 }

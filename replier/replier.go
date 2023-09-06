@@ -76,8 +76,8 @@ func (c *Replier) Status() string {
 	return c.base.Status()
 }
 
-// Start the handler directly, not by goroutine
-func (c *Replier) Start() error {
+// Run the handler directly, not by goroutine
+func (c *Replier) Run() error {
 	onAddInstance := func(req message.Request) message.Reply {
 		m := c.base
 
@@ -102,7 +102,7 @@ func (c *Replier) Start() error {
 		return fmt.Errorf("overwriting handler manager 'add_instance' failed: %w", err)
 	}
 
-	return c.base.Start()
+	return c.base.Run()
 }
 
 // MaxInstanceAmount is specific to Replier.
@@ -111,14 +111,3 @@ func (c *Replier) Start() error {
 func (c *Replier) MaxInstanceAmount() uint {
 	return uint(c.maxInstanceAmount)
 }
-
-//func unwrap(msg []string) (head string, tail []string) {
-//	head = msg[0]
-//	if len(msg) > 1 && msg[1] == "" {
-//		tail = msg[2:]
-//	} else {
-//		tail = msg[1:]
-//	}
-//
-//	return
-//}

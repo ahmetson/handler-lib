@@ -232,8 +232,10 @@ func (test *TestHandlerSuite) Test_13_InstanceManager() {
 func (test *TestHandlerSuite) Test_14_Run() {
 	s := &test.Suite
 
-	err := test.inprocHandler.Start()
-	s.Require().NoError(err)
+	go func() {
+		err := test.inprocHandler.Run()
+		s.Require().NoError(err)
+	}()
 
 	// Wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
@@ -243,7 +245,8 @@ func (test *TestHandlerSuite) Test_14_Run() {
 	s.Require().Equal(test.inprocHandler.Frontend.Status(), frontend.RUNNING)
 
 	// Now let's close it
-	err = test.inprocHandler.Close()
+	err := test.inprocHandler.Close()
+	s.Require().NoError(err)
 
 	// Wait a bit for closing
 	time.Sleep(time.Millisecond * 100)

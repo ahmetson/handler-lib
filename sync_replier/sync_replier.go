@@ -73,8 +73,8 @@ func (c *SyncReplier) Status() string {
 	return c.base.Status()
 }
 
-// Start the handler directly, not by goroutine
-func (c *SyncReplier) Start() error {
+// Run the handler directly, not by goroutine
+func (c *SyncReplier) Run() error {
 	onAddInstance := func(req message.Request) message.Reply {
 		m := c.base
 
@@ -99,5 +99,5 @@ func (c *SyncReplier) Start() error {
 		return fmt.Errorf("overwriting handler manager 'add_instance' failed: %w", err)
 	}
 
-	return c.base.Start()
+	return c.base.Run()
 }

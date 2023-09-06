@@ -135,8 +135,10 @@ func (test *TestTriggerSuite) Test_10_Config() {
 func (test *TestTriggerSuite) Test_14_Run() {
 	s := &test.Suite
 
-	err := test.handler.Start()
-	s.Require().NoError(err)
+	go func() {
+		err := test.handler.Run()
+		s.Require().NoError(err)
+	}()
 
 	// Wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
@@ -146,7 +148,7 @@ func (test *TestTriggerSuite) Test_14_Run() {
 
 	// trigger a message
 	req := message.Request{Command: "hello", Parameters: key_value.Empty().Set("number", 1)}
-	err = test.trigger.Submit(&req)
+	err := test.trigger.Submit(&req)
 	s.Require().NoError(err)
 
 	test.logger.Info("waiting for the subscription...")
