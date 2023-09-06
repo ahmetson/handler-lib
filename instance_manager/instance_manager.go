@@ -89,12 +89,12 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 			return req.Fail(fmt.Sprintf("child(%s).handleSocket.Close: %v", instanceId, err))
 		}
 		if err := parent.pubInstanceDeleted(instanceId); err != nil {
-			parent.status = fmt.Sprintf("parent.pubInstanceDeleted(%s): %v", instanceId, err)
+			parent.logger.Error("parent.pubInstanceDeleted", "instanceId", instanceId, "error", err)
 		}
 	} else {
 		if status == instance.READY {
 			if err := parent.pubInstanceAdded(instanceId); err != nil {
-				parent.status = fmt.Sprintf("parent.pubInstanceAdded(%s): %v", instanceId, err)
+				parent.logger.Error("parent.pubInstanceAdded", "instanceId", instanceId, "error", err)
 			}
 		}
 		parent.instances[instanceId].status = status
@@ -129,8 +129,14 @@ func (parent *Parent) newPullSocket() (*zmq.Socket, error) {
 
 // Start the instance manager to receive the data from the instances
 // Use the goroutine.
+// The operations of the instance manager are not done via socket.
 func (parent *Parent) Start() error {
 	ready := make(chan error)
+
+	parent.close = false
+	if parent.status == Running {
+		return fmt.Errorf("instance manager already running")
+	}
 
 	go func(ready chan error) {
 		eventSock, err := parent.newEventSocket()
@@ -151,8 +157,6 @@ func (parent *Parent) Start() error {
 			ready <- fmt.Errorf("parent.newPullSocket: %w", err)
 			return
 		}
-
-		parent.close = false
 
 		if err := parent.pubReady(); err != nil {
 			closeErr := eventSock.Close()
@@ -182,9 +186,9 @@ func (parent *Parent) Start() error {
 
 			sockets, err := poller.Poll(time.Millisecond)
 			if err != nil {
-				parent.status = fmt.Sprintf("poller.Poll: %v", err)
-				if err := parent.pubError(); err != nil {
-					parent.status = fmt.Sprintf("parent.pubError: %v", err)
+				err = fmt.Errorf("poller.Poll: %v", err)
+				if pubErr := parent.pubError(); pubErr != nil {
+					parent.logger.Error("parent.pubErr", "argument", err, "error", pubErr)
 				}
 				break
 			}
@@ -195,36 +199,36 @@ func (parent *Parent) Start() error {
 
 			raw, err := sock.RecvMessage(0)
 			if err != nil {
-				parent.status = fmt.Sprintf("managerSocket.RecvMessage: %v", err)
-				if err := parent.pubError(); err != nil {
-					parent.status = fmt.Sprintf("parent.pubError: %v", err)
+				err = fmt.Errorf("managerSocket.RecvMessage: %v", err)
+				if pubErr := parent.pubError(); pubErr != nil {
+					parent.logger.Error("parent.pubErr", "argument", err, "error", pubErr)
 				}
 				break
 			}
 
 			req, err := message.NewReq(raw)
 			if err != nil {
-				parent.status = fmt.Sprintf("message.NewRaw(%s): %v", raw, req)
-				if err := parent.pubError(); err != nil {
-					parent.status = fmt.Sprintf("parent.pubError: %v", err)
+				err = fmt.Errorf("message.NewRaw(%s): %v", raw, req)
+				if pubErr := parent.pubError(); pubErr != nil {
+					parent.logger.Error("parent.pubErr", "argument", err, "error", pubErr)
 				}
 				break
 			}
 
 			// Only set_status is supported. If it's not set_status, throw an error.
 			if req.Command != "set_status" {
-				parent.status = fmt.Sprintf("command '%s' not supported", req.Command)
-				if err := parent.pubError(); err != nil {
-					parent.status = fmt.Sprintf("parent.pubError: %v", err)
+				err = fmt.Errorf("command '%s' not supported", req.Command)
+				if pubErr := parent.pubError(); pubErr != nil {
+					parent.logger.Error("parent.pubErr", "argument", err, "error", pubErr)
 				}
 				break
 			}
 
 			reply := parent.onInstanceStatus(*req)
 			if !reply.IsOK() {
-				parent.status = fmt.Sprintf("onInstanceStatus: %s [%v]", reply.Message, req.Parameters)
-				if err := parent.pubError(); err != nil {
-					parent.status = fmt.Sprintf("parent.pubError: %v", err)
+				err = fmt.Errorf("onInstanceStatus: %s [%v]", reply.Message, req.Parameters)
+				if pubErr := parent.pubError(); pubErr != nil {
+					parent.logger.Error("parent.pubErr", "argument", err, "error", pubErr)
 				}
 				break
 			}
@@ -234,32 +238,32 @@ func (parent *Parent) Start() error {
 
 		err = poller.RemoveBySocket(sock)
 		if err != nil {
-			parent.status = fmt.Sprintf("poller.RemoveBySocket: %v", err)
-			if err := parent.pubError(); err != nil {
-				parent.status = fmt.Sprintf("parent.pubError: %v", err)
+			err = fmt.Errorf("poller.RemoveBySocket: %v", err)
+			if pubErr := parent.pubError(); pubErr != nil {
+				parent.logger.Error("parent.pubErr", "argument", err, "error", pubErr)
 			}
 			return
 		}
 
 		err = sock.Close()
 		if err != nil {
-			parent.status = fmt.Sprintf("managerSocket.Close: %v", err)
-			if err := parent.pubError(); err != nil {
-				parent.status = fmt.Sprintf("parent.pubError: %v", err)
+			err = fmt.Errorf("managerSocket.Close: %v", err)
+			if pubErr := parent.pubError(); pubErr != nil {
+				parent.logger.Error("parent.pubErr", "argument", err, "error", pubErr)
 			}
 			return
 		}
 
 		parent.status = Idle
 		if err := parent.pubIdle(true); err != nil {
-			parent.status = fmt.Sprintf("parent.pubClosed: %v", err)
+			parent.logger.Error("parent.pubIdle", "closeSignal", true, "error", err)
 		}
 
 		err = eventSock.Close()
 		if err != nil {
-			parent.status = fmt.Sprintf("eventSock.Close: %v", err)
-			if err := parent.pubError(); err != nil {
-				parent.status = fmt.Sprintf("parent.pubError: %v", err)
+			err = fmt.Errorf("eventSock.Close: %v", err)
+			if pubErr := parent.pubError(); pubErr != nil {
+				parent.logger.Error("parent.pubErr", "argument", err, "error", pubErr)
 			}
 			return
 		}
@@ -268,15 +272,12 @@ func (parent *Parent) Start() error {
 	return <-ready
 }
 
-// Close the instance manager. It deletes all instances
+// Close the instance manager.
+// It deletes all instances.
+// The reason why it doesn't return an error is because
+// it broadcasts them through pub socket.
+// Also, it needs a time for closing the instance manager sockets.
 func (parent *Parent) Close() {
-	parent.close = true
-
-	err := parent.pubClose()
-	if err != nil {
-		parent.status = fmt.Sprintf("parent.pubClose: %v", err)
-	}
-
 	// removing all running instances
 	for instanceId, child := range parent.instances {
 		if child.status == instance.CLOSED {
@@ -284,9 +285,16 @@ func (parent *Parent) Close() {
 		}
 		err := parent.DeleteInstance(instanceId)
 		if err != nil {
-			parent.status = fmt.Sprintf("parent.DeleteInstance(%s): %v", instanceId, err)
-			break
+			err = fmt.Errorf("parent.DeleteInstance(%s): %v", instanceId, err)
+			parent.logger.Error("parent.DeleteInstance", "instanceId", instanceId, "error", err)
 		}
+	}
+
+	parent.close = true
+
+	err := parent.pubClose()
+	if err != nil {
+		parent.logger.Error("parent.pubClose", "error", err)
 	}
 }
 
