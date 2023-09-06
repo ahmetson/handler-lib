@@ -9,6 +9,7 @@ import (
 	"github.com/ahmetson/handler-lib/frontend"
 	instances "github.com/ahmetson/handler-lib/instance_manager"
 	"github.com/ahmetson/handler-lib/route"
+	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"time"
 )
@@ -21,27 +22,31 @@ const (
 )
 
 type HandlerManager struct {
-	frontend           *frontend.Frontend
-	instanceManager    *instances.Parent
-	runInstanceManager func()
-	config             *config.Handler
-	routes             key_value.KeyValue
-	routeDeps          key_value.KeyValue
-	depClients         key_value.KeyValue
-	status             string // It's the socket status, not the handler status
-	close              bool
+	logger               *log.Logger
+	frontend             *frontend.Frontend
+	instanceManager      *instances.Parent
+	startInstanceManager func() error
+	config               *config.Handler
+	routes               key_value.KeyValue
+	routeDeps            key_value.KeyValue
+	depClients           key_value.KeyValue
+	status               string // It's the socket status, not the handler status
+	close                bool
 }
 
 // New handler manager
-func New(frontend *frontend.Frontend, parent *instances.Parent, runInstanceManager func()) *HandlerManager {
+func New(parent *log.Logger, frontend *frontend.Frontend, instanceManager *instances.Parent, startInstanceManager func() error) *HandlerManager {
+	logger := parent.Child("manager")
+
 	m := &HandlerManager{
-		frontend:           frontend,
-		instanceManager:    parent,
-		runInstanceManager: runInstanceManager,
-		routes:             key_value.Empty(),
-		routeDeps:          key_value.Empty(),
-		depClients:         key_value.Empty(),
-		status:             SocketIdle,
+		frontend:             frontend,
+		instanceManager:      instanceManager,
+		startInstanceManager: startInstanceManager,
+		routes:               key_value.Empty(),
+		routeDeps:            key_value.Empty(),
+		depClients:           key_value.Empty(),
+		status:               SocketIdle,
+		logger:               logger,
 	}
 
 	// Add the default routes
@@ -131,7 +136,10 @@ func (m *HandlerManager) setRoutes() {
 			if m.instanceManager.Status() == instances.Running {
 				return req.Fail("instance manager running")
 			} else {
-				go m.runInstanceManager()
+				err := m.startInstanceManager()
+				if err != nil {
+					return req.Fail(fmt.Sprintf("m.startInstanceManager: %v", err))
+				}
 				return req.Ok(key_value.Empty())
 			}
 		} else {
@@ -226,117 +234,124 @@ func (m *HandlerManager) Route(cmd string, handle route.HandleFunc0) error {
 	return nil
 }
 
-// Run the handler manager
-func (m *HandlerManager) Run() error {
+// Start the handler manager
+func (m *HandlerManager) Start() error {
 	if m.config == nil {
 		return fmt.Errorf("no config")
 	}
 
-	manager, err := zmq.NewSocket(zmq.ROUTER)
-	if err != nil {
-		return fmt.Errorf("zmq.NewSocket: %w", err)
-	}
+	ready := make(chan error)
 
-	url := config.ManagerUrl(m.config.Id)
-	err = manager.Bind(url)
-	if err != nil {
-		return fmt.Errorf("manager.Bind('%s'): %w", url, err)
-	}
+	go func(ready chan error) {
+		manager, err := zmq.NewSocket(zmq.ROUTER)
+		if err != nil {
+			ready <- fmt.Errorf("zmq.NewSocket: %w", err)
+			return
+		}
 
-	var loopErr error
+		url := config.ManagerUrl(m.config.Id)
+		err = manager.Bind(url)
+		if err != nil {
+			ready <- fmt.Errorf("manager.Bind('%s'): %w", url, err)
+			return
+		}
 
-	poller := zmq.NewPoller()
-	poller.Add(manager, zmq.POLLIN)
+		poller := zmq.NewPoller()
+		poller.Add(manager, zmq.POLLIN)
 
-	m.status = SocketReady
+		m.status = SocketReady
 
-	for {
-		if m.close {
-			err = poller.RemoveBySocket(manager)
-			if err != nil {
-				loopErr = fmt.Errorf("remove manager: %w", err)
+		// Exit from Start function
+		ready <- nil
+
+		for {
+			if m.close {
+				err = poller.RemoveBySocket(manager)
+				if err != nil {
+					m.logger.Error("poller.RemoveBySocket", "socket", "manager", "error", err)
+				}
+				break
 			}
-			break
-		}
 
-		sockets, err := poller.Poll(time.Millisecond)
-		if err != nil {
-			loopErr = fmt.Errorf("poller.Poll: %w", err)
-			break
-		}
-
-		if len(sockets) == 0 {
-			continue
-		}
-
-		raw, err := manager.RecvMessage(0)
-		if err != nil {
-			loopErr = fmt.Errorf("manager.RecvMessage")
-			break
-		}
-
-		req, err := message.NewReq(raw)
-		if err != nil {
-			fmt.Printf("failed to parse request: %v\n", err)
-			continue
-		}
-
-		handleInterface, depNames, err := route.Route(req.Command, m.routes, m.routeDeps)
-		if err != nil {
-			reply := req.Fail(fmt.Sprintf("route.Route(%s): %v", req.Command, err))
-			replyStr, err := reply.String()
+			sockets, err := poller.Poll(time.Millisecond)
 			if err != nil {
-				reply := req.Fail(fmt.Sprintf("failed to convert reply [%v] to string", reply))
+				m.logger.Error("poller.Poll", "error", err)
+				break
+			}
+
+			if len(sockets) == 0 {
+				continue
+			}
+
+			raw, err := manager.RecvMessage(0)
+			if err != nil {
+				m.logger.Error("manager.RecvMessage", "error", err)
+				break
+			}
+
+			req, err := message.NewReq(raw)
+			if err != nil {
+				m.logger.Error("message.NewReq", "messages", raw, "error", err)
+				continue
+			}
+
+			handleInterface, depNames, err := route.Route(req.Command, m.routes, m.routeDeps)
+			if err != nil {
+				reply := req.Fail(fmt.Sprintf("route.Route(%s): %v", req.Command, err))
 				replyStr, err := reply.String()
 				if err != nil {
-					fmt.Printf("failed to convert request '%v' to reply '%v' to string: %v\n", req, reply, err)
+					reply := req.Fail(fmt.Sprintf("failed to convert reply [%v] to string", reply))
+					replyStr, err := reply.String()
+					if err != nil {
+						m.logger.Error("req.Fail.String", "request", req, "reply", reply, "error", err)
+						continue
+					}
+					_, err = manager.SendMessage(raw[0], raw[1], replyStr)
+					if err != nil {
+						m.logger.Error("manager.SendMessage", "reply", reply, "error", err)
+					}
+				} else {
+					_, err = manager.SendMessage(raw[0], raw[1], replyStr)
+					if err != nil {
+						m.logger.Error("manager.SendMessage", "reply", reply, "error", err)
+					}
+				}
+				continue
+			}
+
+			depClients := route.FilterExtensionClients(depNames, m.depClients)
+
+			reply := route.Handle(req, handleInterface, depClients)
+			replyStr, err := reply.String()
+			if err != nil {
+				reply := req.Fail(fmt.Sprintf("failed to convert handle reply [%v] to string", reply))
+				replyStr, err := reply.String()
+				if err != nil {
+					m.logger.Error("req.Fail.String", "request", req, "reply", reply, "error", err)
 					continue
 				}
 				_, err = manager.SendMessage(raw[0], raw[1], replyStr)
 				if err != nil {
-					fmt.Printf("failed to reply back for request '%v' the '%v' string: %v\n", req, replyStr, err)
+					m.logger.Error("manager.SendMessage", "reply", reply, "error", err)
+					continue
 				}
 			} else {
 				_, err = manager.SendMessage(raw[0], raw[1], replyStr)
 				if err != nil {
-					fmt.Printf("failed to reply back for request '%v' the '%v' string: %v\n", req, replyStr, err)
+					m.logger.Error("manager.SendMessage", "reply", reply, "error", err)
+					continue
 				}
 			}
-			continue
 		}
 
-		depClients := route.FilterExtensionClients(depNames, m.depClients)
+		m.status = SocketIdle
+		m.close = false
 
-		reply := route.Handle(req, handleInterface, depClients)
-		replyStr, err := reply.String()
-		if err != nil {
-			reply := req.Fail(fmt.Sprintf("failed to convert handle reply [%v] to string", reply))
-			replyStr, err := reply.String()
-			if err != nil {
-				fmt.Printf("failed to convert request '%v' to reply '%v' to string: %v\n", req, reply, err)
-				continue
-			}
-			_, err = manager.SendMessage(raw[0], raw[1], replyStr)
-			if err != nil {
-				fmt.Printf("failed to reply back for request '%v' the '%v' string: %v\n", req, replyStr, err)
-				continue
-			}
-		} else {
-			_, err = manager.SendMessage(raw[0], raw[1], replyStr)
-			if err != nil {
-				fmt.Printf("failed to reply back for request '%v' the '%v' string: %v\n", req, replyStr, err)
-				continue
-			}
+		closeErr := manager.Close()
+		if closeErr != nil {
+			m.logger.Error("manager.Close", "error", err)
 		}
-	}
+	}(ready)
 
-	m.status = SocketIdle
-	m.close = false
-
-	closeErr := manager.Close()
-	if closeErr != nil {
-		return fmt.Errorf("manager.Close: %w", err)
-	}
-
-	return loopErr
+	return <-ready
 }

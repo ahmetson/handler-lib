@@ -1,7 +1,6 @@
 package handler_manager
 
 import (
-	"fmt"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
@@ -21,7 +20,7 @@ type TestHandlerManagerSuite struct {
 	suite.Suite
 
 	instanceManager *instance_manager.Parent
-	instanceRunner  func()
+	instanceRunner  func() error
 	frontend        *frontend.Frontend
 
 	handlerManager *HandlerManager
@@ -45,8 +44,8 @@ func (test *TestHandlerManagerSuite) SetupTest() {
 
 	test.instanceManager = instance_manager.New(test.inprocConfig.Id, test.logger)
 
-	test.instanceRunner = func() {
-		go test.instanceManager.Run()
+	test.instanceRunner = func() error {
+		return test.instanceManager.Start()
 	}
 
 	// Socket to talk to clients
@@ -66,15 +65,12 @@ func (test *TestHandlerManagerSuite) SetupTest() {
 	test.frontend.SetConfig(test.inprocConfig)
 	test.frontend.SetInstanceManager(test.instanceManager)
 
-	test.handlerManager = New(test.frontend, test.instanceManager, test.instanceRunner)
+	test.handlerManager = New(test.logger, test.frontend, test.instanceManager, test.instanceRunner)
 	test.handlerManager.SetConfig(test.inprocConfig)
 
-	go test.instanceManager.Run()
-	go test.frontend.Start()
-	go func() {
-		err = test.handlerManager.Run()
-		s.Require().NoError(err)
-	}()
+	s.Require().NoError(test.instanceManager.Start())
+	s.Require().NoError(test.frontend.Start())
+	s.Require().NoError(test.handlerManager.Start())
 
 	// Wait a bit before parts are initialized
 	time.Sleep(time.Millisecond * 100)
@@ -223,7 +219,6 @@ func (test *TestHandlerManagerSuite) Test_13_RunPart() {
 	// Let's test running it
 	req.Command = config.RunPart
 	reply = test.req(req)
-	fmt.Printf("reply: %v\n", reply)
 	s.Require().True(reply.IsOK())
 
 	// Make sure it's running
@@ -295,7 +290,7 @@ func (test *TestHandlerManagerSuite) Test_14_InstanceAmount() {
 	//
 	// After instance deletion, the instance_amount should return a correct result
 	//
-	err = test.instanceManager.DeleteInstance(instanceId)
+	err = test.instanceManager.DeleteInstance(instanceId, false)
 	s.Require().NoError(err)
 
 	// Wait a bit for the closing of the instance thread
@@ -342,7 +337,7 @@ func (test *TestHandlerManagerSuite) Test_15_InstanceAmount() {
 	//
 	// After instance deletion, the instance_amount should return a correct result
 	//
-	err = test.instanceManager.DeleteInstance(instanceId)
+	err = test.instanceManager.DeleteInstance(instanceId, false)
 	s.Require().NoError(err)
 
 	// Wait a bit for the closing of the instance thread
@@ -597,10 +592,7 @@ func (test *TestHandlerManagerSuite) Test_18_OverwriteRoute() {
 	s.Require().NoError(err)
 
 	// Start handler manager to apply route effects
-	go func() {
-		err = test.handlerManager.Run()
-		s.Require().NoError(err)
-	}()
+	s.Require().NoError(test.handlerManager.Start())
 	time.Sleep(time.Millisecond * 100)
 	s.Require().Equal(SocketReady, test.handlerManager.status)
 

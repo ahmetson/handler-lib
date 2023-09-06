@@ -81,7 +81,7 @@ func (c *Handler) SetLogger(parent *log.Logger) error {
 	c.InstanceManager = instance_manager.New(c.config.Id, c.logger)
 	c.Frontend.SetInstanceManager(c.InstanceManager)
 
-	c.Manager = handler_manager.New(c.Frontend, c.InstanceManager, c.RunInstanceManager)
+	c.Manager = handler_manager.New(c.Frontend, c.InstanceManager, c.StartInstanceManager)
 	c.Manager.SetConfig(c.config)
 
 	return nil
@@ -234,96 +234,110 @@ func (c *Handler) Close() error {
 	return nil
 }
 
-// RunInstanceManager runs the instance Manager and listens to its events
-func (c *Handler) RunInstanceManager() {
-	socket, err := zmq.NewSocket(zmq.SUB)
-	if err != nil {
-		c.logger.Warn("zmq.NewSocket", "id", c.config.Id, "function", "RunInstanceManager", "error", err)
-		return
-	}
+// StartInstanceManager runs the instance Manager and listens to its events
+func (c *Handler) StartInstanceManager() error {
+	ready := make(chan error)
 
-	if err := socket.SetSubscribe(""); err != nil {
-		c.logger.Warn("set subscriber", "id", c.config.Id, "function", "RunInstanceManager", "error", err)
-		return
-	}
-
-	url := config.InstanceManagerEventUrl(c.config.Id)
-	err = socket.Connect(url)
-	if err != nil {
-		c.logger.Warn("eventSocket.Connect", "id", c.config.Id, "function", "RunInstanceManager", "url", url, "error", err)
-		return
-	}
-	c.instanceManagerRuns = true
-
-	go c.InstanceManager.Run()
-
-	// The first Instance created by handler when the instance Manager is ready.
-	firstInstance := false
-	// Verify that the first instance was added.
-	instanceId := ""
-
-	for {
-		raw, err := socket.RecvMessage(0)
+	go func(ready chan error) {
+		socket, err := zmq.NewSocket(zmq.SUB)
 		if err != nil {
-			c.logger.Warn("eventSocket.RecvMessage", "id", c.config.Id, "error", err)
-			break
+			ready <- fmt.Errorf("zmq.NewSocket('sub'): %w", err)
+			return
 		}
 
-		req, err := message.NewReq(raw)
-		if err != nil {
-			c.logger.Warn("eventSocket: convert raw to message", "id", c.config.Id, "message", raw, "error", err)
-			continue
+		if err := socket.SetSubscribe(""); err != nil {
+			ready <- fmt.Errorf("socket.SetSubscriber(''): %w", err)
+			return
 		}
 
-		if req.Command == instance_manager.EventReady {
-			if !firstInstance {
-				instanceId, err = c.InstanceManager.AddInstance(c.config.Type, &c.Routes, &c.RouteDeps, &c.DepClients)
-				if err != nil {
-					c.logger.Warn("InstanceManager.AddInstance", "id", c.config.Id, "event", req.Command, "type", c.config.Type, "error", err)
-					continue
-				}
-				firstInstance = true
-			}
-		} else if req.Command == instance_manager.EventInstanceAdded {
-			if firstInstance && len(instanceId) > 0 {
-				addedInstanceId, err := req.Parameters.GetString("id")
-				if err != nil {
-					c.logger.Warn("req.Parameters.GetString('id')", "id", c.config.Id, "event", req.Command, "instanceId", instanceId, "error", err)
-					continue
-				}
-				if addedInstanceId != instanceId {
-					continue
-				} else {
-					c.logger.Info("first instance created added", "id", c.config.Id, "event", req.Command, "instanceId", instanceId)
-					instanceId = ""
-				}
-			}
-		} else if req.Command == instance_manager.EventError {
-			errMsg, err := req.Parameters.GetString("message")
+		url := config.InstanceManagerEventUrl(c.config.Id)
+		err = socket.Connect(url)
+		if err != nil {
+			ready <- fmt.Errorf("socket.Connect('%s'): %w", url, err)
+			return
+		}
+		c.instanceManagerRuns = true
+
+		err = c.InstanceManager.Start()
+		if err != nil {
+			ready <- fmt.Errorf("c.InstanceManager.Start: %w", err)
+			return
+		}
+
+		// The first Instance created by handler when the instance Manager is ready.
+		firstInstance := false
+		// Verify that the first instance was added.
+		instanceId := ""
+
+		// Notify that instance manager, and it's subscriber are ready.
+		// StartInstanceManager will return back to the caller.
+		//
+		// The errors thereafter are logged on std error.
+		ready <- nil
+
+		for {
+			raw, err := socket.RecvMessage(0)
 			if err != nil {
-				c.logger.Warn("req.Parameters.GetString('message')", "id", c.config.Id, "event", req.Command, "error", err)
+				c.logger.Error("eventSocket.RecvMessage", "id", c.config.Id, "error", err)
+				break
+			}
+
+			req, err := message.NewReq(raw)
+			if err != nil {
+				c.logger.Error("eventSocket: convert raw to message", "id", c.config.Id, "message", raw, "error", err)
 				continue
 			}
 
-			c.logger.Warn("instance Manager exited with an error", "id", c.config.Id, "error", errMsg)
-			break
-		} else if req.Command == instance_manager.EventIdle {
-			closeSignal, _ := req.Parameters.GetBoolean("close")
-			c.logger.Warn("instance Manager is idle", "id", c.config.Id, "close signal received?", closeSignal)
-			if closeSignal {
+			if req.Command == instance_manager.EventReady {
+				if !firstInstance {
+					instanceId, err = c.InstanceManager.AddInstance(c.config.Type, &c.Routes, &c.RouteDeps, &c.DepClients)
+					if err != nil {
+						c.logger.Error("InstanceManager.AddInstance", "id", c.config.Id, "event", req.Command, "type", c.config.Type, "error", err)
+						continue
+					}
+					firstInstance = true
+				}
+			} else if req.Command == instance_manager.EventInstanceAdded {
+				if firstInstance && len(instanceId) > 0 {
+					addedInstanceId, err := req.Parameters.GetString("id")
+					if err != nil {
+						c.logger.Error("req.Parameters.GetString('id')", "id", c.config.Id, "event", req.Command, "instanceId", instanceId, "error", err)
+						continue
+					}
+					if addedInstanceId != instanceId {
+						continue
+					} else {
+						c.logger.Error("first instance created added", "id", c.config.Id, "event", req.Command, "instanceId", instanceId)
+						instanceId = ""
+					}
+				}
+			} else if req.Command == instance_manager.EventError {
+				_, err := req.Parameters.GetString("message")
+				if err != nil {
+					c.logger.Error("req.Parameters.GetString('message')", "id", c.config.Id, "event", req.Command, "error", err)
+					continue
+				}
+
 				break
+			} else if req.Command == instance_manager.EventIdle {
+				closeSignal, _ := req.Parameters.GetBoolean("close")
+				if closeSignal {
+					break
+				}
+			} else {
+				c.logger.Warn("unhandled instance Manager event", "id", c.config.Id, "event", req.Command, "parameters", req.Parameters)
 			}
-		} else {
-			c.logger.Warn("unhandled instance Manager event", "id", c.config.Id, "event", req.Command, "parameters", req.Parameters)
 		}
-	}
 
-	err = socket.Close()
-	if err != nil {
-		c.logger.Warn("failed to close instance Manager sub", "id", c.config.Id, "error", err)
-	}
+		err = socket.Close()
+		if err != nil {
+			c.logger.Error("failed to close instance Manager sub", "id", c.config.Id, "error", err)
+		}
 
-	c.instanceManagerRuns = false
+		c.instanceManagerRuns = false
+	}(ready)
+
+	return <-ready
 }
 
 func (c *Handler) Status() string {
