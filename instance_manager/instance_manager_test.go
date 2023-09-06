@@ -189,9 +189,8 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 	s.Require().Nil(handler3)
 
 	// After handling, the first worker should be READY again
-	msg, err := handler.RecvMessage(0)
+	_, err = handler.RecvMessage(0)
 	s.Require().NoError(err)
-	test.parent.logger.Info("handling result from the first instance", "msg", msg)
 
 	time.Sleep(time.Millisecond * 10)
 	_, handler4 := test.parent.Ready()
