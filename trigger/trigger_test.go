@@ -29,7 +29,7 @@ type TestTriggerSuite struct {
 	subscribed  chan []string
 }
 
-// todo test in-process and external types of handlers
+// Todo test in-process and external types of handlers
 // todo test the business of the handler.
 // Make sure that Account is set to five
 // before each test

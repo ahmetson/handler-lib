@@ -252,7 +252,7 @@ func (c *Instance) Run() {
 
 				// the close parameter is set to true after reply the message back.
 				// otherwise, the socket may be closed while the requester is waiting for a reply message.
-				// it could leave to the hang up.
+				// it could leave to the app froze-up.
 				reply := message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
 				if err := c.reply(manage, reply); err != nil {
 					c.logger.Fatal("failed to reply back to manager", "request string", data, "error", err)
