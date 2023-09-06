@@ -56,6 +56,29 @@ func (parent *Parent) Status() string {
 	return parent.status
 }
 
+func (parent *Parent) cleanDeletedInstance(instanceId string) error {
+	child, ok := parent.instances[instanceId]
+	if !ok {
+		return fmt.Errorf("instances[%s] not found", instanceId)
+	}
+
+	if child == nil {
+		return fmt.Errorf("instances[%s] is null", instanceId)
+	}
+
+	err := child.managerSocket.Close()
+	delete(parent.instances, instanceId)
+	if err != nil {
+		return fmt.Errorf("child(%s).managerSocket.Close: %w", instanceId, err)
+	}
+	err = child.handleSocket.Close()
+	if err != nil {
+		return fmt.Errorf("child(%s).handleSocket.Close: %w", instanceId, err)
+	}
+
+	return nil
+}
+
 // onInstanceStatus updates the instance status.
 // since our socket is one directional, there is no point to reply.
 func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
@@ -69,36 +92,26 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 		return req.Fail(fmt.Sprintf("req.Parameters.GetString('status'): %v", err))
 	}
 
-	child, ok := parent.instances[instanceId]
-	if !ok {
-		return req.Fail(fmt.Sprintf("instances[%s] not found", instanceId))
-	}
-
-	if child == nil {
-		return req.Fail(fmt.Sprintf("instances[%s] is null", instanceId))
-	}
-
 	if status == instance.CLOSED {
-		err = child.managerSocket.Close()
-		delete(parent.instances, instanceId)
+		err = parent.cleanDeletedInstance(instanceId)
 		if err != nil {
-			return req.Fail(fmt.Sprintf("child(%s).managerSocket.Close: %v", instanceId, err))
-		}
-		err = child.handleSocket.Close()
-		if err != nil {
-			return req.Fail(fmt.Sprintf("child(%s).handleSocket.Close: %v", instanceId, err))
+			return req.Fail(fmt.Sprintf("parent.cleanDeletedInstance('%s'): %v", instanceId, err))
 		}
 		if err := parent.pubInstanceDeleted(instanceId); err != nil {
 			parent.logger.Error("parent.pubInstanceDeleted", "instanceId", instanceId, "error", err)
 		}
-	} else {
-		if status == instance.READY {
-			if err := parent.pubInstanceAdded(instanceId); err != nil {
-				parent.logger.Error("parent.pubInstanceAdded", "instanceId", instanceId, "error", err)
-			}
+
+	} else if status == instance.READY {
+		_, ok := parent.instances[instanceId]
+		if !ok {
+			return req.Fail(fmt.Sprintf("instances[%s] not found", instanceId))
 		}
-		parent.instances[instanceId].status = status
+
+		if err := parent.pubInstanceAdded(instanceId); err != nil {
+			parent.logger.Error("parent.pubInstanceAdded", "instanceId", instanceId, "error", err)
+		}
 	}
+	parent.instances[instanceId].status = status
 
 	return req.Ok(key_value.Empty())
 }
@@ -180,7 +193,7 @@ func (parent *Parent) Start() error {
 		ready <- nil
 
 		for {
-			if parent.close && len(parent.instances) == 0 {
+			if parent.close {
 				break
 			}
 
@@ -236,6 +249,21 @@ func (parent *Parent) Start() error {
 
 		parent.close = false
 
+		// removing all running instances
+		for instanceId, child := range parent.instances {
+			if child.status == instance.CLOSED {
+				continue
+			}
+			err := parent.DeleteInstance(instanceId, true)
+			if err != nil {
+				parent.logger.Error("parent.DeleteInstance", "instanceId", instanceId, "error", err)
+			}
+			err = parent.cleanDeletedInstance(instanceId)
+			if err != nil {
+				parent.logger.Error("parent.cleanDeletedInstance", "instanceId", instanceId, "error", err)
+			}
+		}
+
 		err = poller.RemoveBySocket(sock)
 		if err != nil {
 			err = fmt.Errorf("poller.RemoveBySocket: %v", err)
@@ -278,18 +306,6 @@ func (parent *Parent) Start() error {
 // it broadcasts them through pub socket.
 // Also, it needs a time for closing the instance manager sockets.
 func (parent *Parent) Close() {
-	// removing all running instances
-	for instanceId, child := range parent.instances {
-		if child.status == instance.CLOSED {
-			continue
-		}
-		err := parent.DeleteInstance(instanceId)
-		if err != nil {
-			err = fmt.Errorf("parent.DeleteInstance(%s): %v", instanceId, err)
-			parent.logger.Error("parent.DeleteInstance", "instanceId", instanceId, "error", err)
-		}
-	}
-
 	parent.close = true
 
 	err := parent.pubClose()
@@ -368,7 +384,9 @@ func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, 
 // Instance sends back to instance manager a status update.
 //
 // instanceId must be registered in the instance manager.
-func (parent *Parent) DeleteInstance(instanceId string) error {
+//
+// If instant is set true, then instance is closed without replying back
+func (parent *Parent) DeleteInstance(instanceId string, instant bool) error {
 	child, ok := parent.instances[instanceId]
 	if !ok {
 		return fmt.Errorf("instance[%s] not found", instanceId)
@@ -382,7 +400,7 @@ func (parent *Parent) DeleteInstance(instanceId string) error {
 
 	req := message.Request{
 		Command:    "close",
-		Parameters: key_value.Empty(),
+		Parameters: key_value.Empty().Set("instant", instant),
 	}
 	reqStr, err := req.String()
 	if err != nil {
@@ -394,6 +412,9 @@ func (parent *Parent) DeleteInstance(instanceId string) error {
 		return fmt.Errorf("child(%s).SendMessage(%s): %w", instanceId, reqStr, err)
 	}
 
+	if instant {
+		return nil
+	}
 	replyStr, err := child.managerSocket.RecvMessage(0)
 	if err != nil {
 		return fmt.Errorf("child(%s).RecvMessage: %w", instanceId, err)
