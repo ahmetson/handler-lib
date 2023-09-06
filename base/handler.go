@@ -9,9 +9,9 @@ import (
 	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/frontend"
 	"github.com/ahmetson/handler-lib/handler_manager"
 	"github.com/ahmetson/handler-lib/instance_manager"
-	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/handler-lib/route"
 	"github.com/ahmetson/log-lib"
 	"slices"
@@ -30,7 +30,7 @@ type Handler struct {
 	depIds              []string
 	depConfigs          key_value.KeyValue
 	DepClients          key_value.KeyValue
-	Reactor             *reactor.Reactor
+	Frontend            *frontend.Frontend
 	InstanceManager     *instance_manager.Parent
 	instanceManagerRuns bool
 	Manager             *handler_manager.HandlerManager
@@ -46,7 +46,7 @@ func New() *Handler {
 		depIds:              make([]string, 0),
 		depConfigs:          key_value.Empty(),
 		DepClients:          key_value.Empty(),
-		Reactor:             reactor.New(),
+		Frontend:            frontend.New(),
 		InstanceManager:     nil,
 		instanceManagerRuns: false,
 		Manager:             nil,
@@ -60,10 +60,10 @@ func (c *Handler) Config() *config.Handler {
 
 // SetConfig adds the parameters of the handler from the config.
 //
-// Sets Reactor's configuration as well.
+// Sets Frontend's configuration as well.
 func (c *Handler) SetConfig(handler *config.Handler) {
 	c.config = handler
-	c.Reactor.SetConfig(handler)
+	c.Frontend.SetConfig(handler)
 }
 
 // SetLogger sets the logger (depends on configuration).
@@ -79,9 +79,9 @@ func (c *Handler) SetLogger(parent *log.Logger) error {
 	c.logger = logger
 
 	c.InstanceManager = instance_manager.New(c.config.Id, c.logger)
-	c.Reactor.SetInstanceManager(c.InstanceManager)
+	c.Frontend.SetInstanceManager(c.InstanceManager)
 
-	c.Manager = handler_manager.New(c.Reactor, c.InstanceManager, c.RunInstanceManager)
+	c.Manager = handler_manager.New(c.Frontend, c.InstanceManager, c.RunInstanceManager)
 	c.Manager.SetConfig(c.config)
 
 	return nil
@@ -222,9 +222,9 @@ func (c *Handler) Close() error {
 	if c.InstanceManager != nil && c.InstanceManager.Status() == instance_manager.Running {
 		c.InstanceManager.Close()
 	}
-	if c.Reactor != nil && c.Reactor.Status() == reactor.RUNNING {
-		if err := c.Reactor.Close(); err != nil {
-			return fmt.Errorf("c.Reactor.Close: %w", err)
+	if c.Frontend != nil && c.Frontend.Status() == frontend.RUNNING {
+		if err := c.Frontend.Close(); err != nil {
+			return fmt.Errorf("c.Frontend.Close: %w", err)
 		}
 	}
 	if c.Manager != nil && c.Manager.Status() == handler_manager.SocketReady {
@@ -341,15 +341,15 @@ func (c *Handler) Start() error {
 	if c.InstanceManager == nil {
 		return fmt.Errorf("instance Manager not set")
 	}
-	if c.Reactor == nil {
-		return fmt.Errorf("reactor not set")
+	if c.Frontend == nil {
+		return fmt.Errorf("frontend not set")
 	}
 	if err := c.initDepClients(); err != nil {
 		return fmt.Errorf("initDepClients: %w", err)
 	}
 
 	// Adding the first instance Manager
-	go c.Reactor.Run()
+	go c.Frontend.Run()
 	go c.RunInstanceManager()
 	go func() {
 		err := c.Manager.Run()

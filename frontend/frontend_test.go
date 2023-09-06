@@ -1,4 +1,4 @@
-package reactor
+package frontend
 
 import (
 	"github.com/ahmetson/common-lib/data_type"
@@ -16,57 +16,57 @@ import (
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
 // returns the current testing orchestra
-type TestReactorSuite struct {
+type TestFrontendSuite struct {
 	suite.Suite
 
-	reactor      *Reactor
+	frontend     *Frontend
 	handleConfig *config.Handler
 }
 
-func (test *TestReactorSuite) SetupTest() {
+func (test *TestFrontendSuite) SetupTest() {
 	test.handleConfig = &config.Handler{Type: config.SyncReplierType, Category: "test", Id: "sample", Port: 0, InstanceAmount: 1}
 }
 
-func (test *TestReactorSuite) Test_0_New() {
-	test.reactor = New()
+func (test *TestFrontendSuite) Test_0_New() {
+	test.frontend = New()
 }
 
-func (test *TestReactorSuite) Test_10_SetConfig() {
+func (test *TestFrontendSuite) Test_10_SetConfig() {
 	s := &test.Suite
 
-	// The reactor has no info about the handler
-	s.Require().Nil(test.reactor.externalConfig)
+	// The frontend has no info about the handler
+	s.Require().Nil(test.frontend.externalConfig)
 
-	test.reactor.SetConfig(test.handleConfig)
+	test.frontend.SetConfig(test.handleConfig)
 
-	// The reactor has the configuration of the handler
-	s.Require().NotNil(test.reactor.externalConfig)
+	// The frontend has the configuration of the handler
+	s.Require().NotNil(test.frontend.externalConfig)
 }
 
 // Test_11_External tests the external socket is running and the messages are queued.
 //
 // It doesn't send the messages to the consumer.
-func (test *TestReactorSuite) Test_11_External() {
+func (test *TestFrontendSuite) Test_11_External() {
 	s := &test.Suite
 
 	// Queue is populated by External socket, so let's test it.
-	err := test.reactor.queue.SetCap(2)
+	err := test.frontend.queue.SetCap(2)
 	s.Require().NoError(err)
 
 	// Let's prepare the external socket from the handle configuration
-	err = test.reactor.prepareExternalSocket()
+	err = test.frontend.prepareExternalSocket()
 	s.Require().NoError(err)
 
 	// user that will send the messages
-	clientUrl := config.ExternalUrl(test.reactor.externalConfig.Id, test.reactor.externalConfig.Port)
+	clientUrl := config.ExternalUrl(test.frontend.externalConfig.Id, test.frontend.externalConfig.Port)
 	user, err := zmq.NewSocket(zmq.DEALER)
 	s.Require().NoError(err)
 	err = user.Connect(clientUrl)
 	s.Require().NoError(err)
 
 	// before external socket receives the messages, we must be sure queue is valid
-	s.Require().True(test.reactor.queue.IsEmpty())
-	s.Require().EqualValues(test.reactor.queue.Len(), uint(0))
+	s.Require().True(test.frontend.queue.IsEmpty())
+	s.Require().EqualValues(test.frontend.queue.Len(), uint(0))
 
 	for i := 1; i <= 2; i++ {
 		msg := message.Request{Command: "cmd", Parameters: key_value.Empty().Set("id", i).Set("cap", 2)}
@@ -78,14 +78,14 @@ func (test *TestReactorSuite) Test_11_External() {
 
 	// A delay a bit, until external socket will receive the user messages
 	time.Sleep(time.Millisecond * 50)
-	err = test.reactor.handleExternal()
+	err = test.frontend.handleExternal()
 	s.Require().NoError(err)
-	err = test.reactor.handleExternal()
+	err = test.frontend.handleExternal()
 	s.Require().NoError(err)
 
-	s.Require().False(test.reactor.queue.IsEmpty())
-	s.Require().True(test.reactor.queue.IsFull())
-	s.Require().EqualValues(test.reactor.queue.Len(), uint(2))
+	s.Require().False(test.frontend.queue.IsEmpty())
+	s.Require().True(test.frontend.queue.IsFull())
+	s.Require().EqualValues(test.frontend.queue.Len(), uint(2))
 
 	// If we try to send a message, it should fail
 	i := 3
@@ -95,7 +95,7 @@ func (test *TestReactorSuite) Test_11_External() {
 	_, err = user.SendMessage("", msgStr)
 	s.Require().NoError(err)
 
-	err = test.reactor.handleExternal()
+	err = test.frontend.handleExternal()
 	s.Require().NoError(err)
 
 	// However, the third message that user receives should be a failure
@@ -106,45 +106,45 @@ func (test *TestReactorSuite) Test_11_External() {
 	s.Require().False(rep.IsOK())
 
 	// Trying to decrease the length should fail
-	err = test.reactor.queue.SetCap(1)
+	err = test.frontend.queue.SetCap(1)
 	s.Require().Error(err)
 
 	// Clean out
 	err = user.Close()
 	s.Require().NoError(err)
 
-	err = test.reactor.external.Close()
+	err = test.frontend.external.Close()
 	s.Require().NoError(err)
 
 	// clean out the queue
-	test.reactor.queue = data_type.NewQueue()
+	test.frontend.queue = data_type.NewQueue()
 }
 
 // Test_12_Consumer tests the consuming
-func (test *TestReactorSuite) Test_12_Consumer() {
+func (test *TestFrontendSuite) Test_12_Consumer() {
 	s := &test.Suite
 
 	// Consumer requires Instance Manager
-	err := test.reactor.handleConsume()
+	err := test.frontend.handleConsume()
 	s.Require().Error(err)
 
 	// Added Instance Manager
 	cmd, instanceId, instanceManager := test.instanceManager()
 
-	test.reactor.SetInstanceManager(instanceManager) // adding
+	test.frontend.SetInstanceManager(instanceManager) // adding
 
 	// Empty queue does nothing
-	s.Require().True(test.reactor.queue.IsEmpty())
+	s.Require().True(test.frontend.queue.IsEmpty())
 
-	// Instance manager is set, zeromq reactor is set, but no queue should do nothing
-	err = test.reactor.handleConsume()
+	// Instance manager is set, zeromq frontend is set, but no queue should do nothing
+	err = test.frontend.handleConsume()
 	s.Require().Error(err)
 
-	// Also, consumer requires zeromq reactor
-	test.reactor.prepareSockets()
+	// Also, consumer requires zeromq frontend
+	test.frontend.prepareSockets()
 
-	// Instance manager is set, zeromq reactor is set, but no queue should do nothing
-	err = test.reactor.handleConsume()
+	// Instance manager is set, zeromq frontend is set, but no queue should do nothing
+	err = test.frontend.handleConsume()
 	s.Require().NoError(err)
 
 	// add a message into the queue
@@ -153,37 +153,37 @@ func (test *TestReactorSuite) Test_12_Consumer() {
 	s.Require().NoError(err)
 	messageId := "msg_1"
 
-	s.Require().True(test.reactor.queue.IsEmpty())
-	test.reactor.queue.Push([]string{messageId, "", reqStr})
-	s.Require().False(test.reactor.queue.IsEmpty())
+	s.Require().True(test.frontend.queue.IsEmpty())
+	test.frontend.queue.Push([]string{messageId, "", reqStr})
+	s.Require().False(test.frontend.queue.IsEmpty())
 
 	// Before testing handle consume with queue,
 	// make sure that processing is empty.
 	// Consuming the message should remove the message from queue and add it to the processing list
-	s.Require().True(test.reactor.processing.IsEmpty())
+	s.Require().True(test.frontend.processing.IsEmpty())
 
 	// Consuming the message
-	err = test.reactor.handleConsume()
+	err = test.frontend.handleConsume()
 	s.Require().NoError(err)
 
 	// The consumed message should be moved from queue to the processing
-	s.Require().True(test.reactor.queue.IsEmpty())
-	s.Require().False(test.reactor.processing.IsEmpty())
+	s.Require().True(test.frontend.queue.IsEmpty())
+	s.Require().False(test.frontend.processing.IsEmpty())
 
 	// The processing list has the expected tracking. Such as instance handles the message id
-	rawMessageId, err := test.reactor.processing.Get(instanceId)
+	rawMessageId, err := test.frontend.processing.Get(instanceId)
 	s.Require().NoError(err)
 	s.Require().EqualValues(messageId, rawMessageId.(string))
 
 	// clean out
 	instanceManager.Close()
-	test.reactor.processing = key_value.NewList()
+	test.frontend.processing = key_value.NewList()
 
 	time.Sleep(time.Millisecond * 100) // wait until instance manager ends
 }
 
 // Create an instance manager. Returns a test command, instance id and instance manager itself
-func (test *TestReactorSuite) instanceManager() (string, string, *instance_manager.Parent) {
+func (test *TestFrontendSuite) instanceManager() (string, string, *instance_manager.Parent) {
 	s := &test.Suite
 
 	cmd := "hello"
@@ -215,28 +215,28 @@ func (test *TestReactorSuite) instanceManager() (string, string, *instance_manag
 	return cmd, instanceId, instanceManager
 }
 
-// Test_13_Run runs the Reactor
-func (test *TestReactorSuite) Test_13_Run() {
+// Test_13_Run runs the Frontend
+func (test *TestFrontendSuite) Test_13_Run() {
 	s := &test.Suite
 
 	// Queue is populated by External socket, so let's test it.
-	err := test.reactor.queue.SetCap(1)
+	err := test.frontend.queue.SetCap(1)
 	s.Require().NoError(err)
 
-	// The reactor runs for the first time
-	s.Require().Equal(CREATED, test.reactor.Status())
+	// The frontend runs for the first time
+	s.Require().Equal(CREATED, test.frontend.Status())
 
 	cmd, _, instanceManager := test.instanceManager()
-	test.reactor.SetInstanceManager(instanceManager)
+	test.frontend.SetInstanceManager(instanceManager)
 
 	// Run
-	go test.reactor.Run()
+	go test.frontend.Run()
 
 	// Wait a bit for initialization
 	time.Sleep(time.Millisecond * 10)
 
 	// Running?
-	s.Require().Equal(RUNNING, test.reactor.Status())
+	s.Require().Equal(RUNNING, test.frontend.Status())
 
 	// The external user sends the request.
 	// The request is handled by one instance.
@@ -249,7 +249,7 @@ func (test *TestReactorSuite) Test_13_Run() {
 	// (before 1 second of instance handling expires).
 	// The third request should not be added to the queue, since the queue is full.
 	// User will be idle
-	clientUrl := config.ExternalUrl(test.reactor.externalConfig.Id, test.reactor.externalConfig.Port)
+	clientUrl := config.ExternalUrl(test.frontend.externalConfig.Id, test.frontend.externalConfig.Port)
 	user, err := zmq.NewSocket(zmq.DEALER)
 	s.Require().NoError(err)
 	err = user.Connect(clientUrl)
@@ -260,8 +260,8 @@ func (test *TestReactorSuite) Test_13_Run() {
 	s.Require().NoError(err)
 
 	// Everything should be empty
-	s.Require().True(test.reactor.queue.IsEmpty())
-	s.Require().True(test.reactor.processing.IsEmpty())
+	s.Require().True(test.frontend.queue.IsEmpty())
+	s.Require().True(test.frontend.processing.IsEmpty())
 
 	// The first message consumed instantly
 	_, err = user.SendMessage("", reqStr)
@@ -271,10 +271,10 @@ func (test *TestReactorSuite) Test_13_Run() {
 	time.Sleep(time.Millisecond * 50)
 
 	// It's processing?
-	s.Require().True(!test.reactor.queue.IsEmpty() || !test.reactor.processing.IsEmpty())
+	s.Require().True(!test.frontend.queue.IsEmpty() || !test.frontend.processing.IsEmpty())
 
 	// Sending the second message
-	s.Require().True(test.reactor.queue.IsEmpty())
+	s.Require().True(test.frontend.queue.IsEmpty())
 	req.Parameters.Set("id", 2)
 	reqStr, err = req.String()
 	s.Require().NoError(err)
@@ -285,8 +285,8 @@ func (test *TestReactorSuite) Test_13_Run() {
 	// Wait a bit for transmission between sockets
 	time.Sleep(time.Millisecond * 50)
 
-	// The reactor queued
-	s.Require().True(test.reactor.queue.IsFull())
+	// The frontend queued
+	s.Require().True(test.frontend.queue.IsFull())
 
 	// Sending the third message
 	req.Parameters.Set("id", 3)
@@ -310,13 +310,13 @@ func (test *TestReactorSuite) Test_13_Run() {
 	_, err = user.RecvMessage(0)
 	s.Require().NoError(err)
 
-	// Close the reactor
-	err = test.reactor.Close()
+	// Close the frontend
+	err = test.frontend.Close()
 	s.Require().NoError(err)
 
 	// wait a bit before the socket runner stops
 	time.Sleep(time.Millisecond * 50)
-	s.Require().Equal(CREATED, test.reactor.Status())
+	s.Require().Equal(CREATED, test.frontend.Status())
 
 	err = user.Close()
 	s.Require().NoError(err)
@@ -325,6 +325,6 @@ func (test *TestReactorSuite) Test_13_Run() {
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestReactor(t *testing.T) {
-	suite.Run(t, new(TestReactorSuite))
+func TestFrontend(t *testing.T) {
+	suite.Run(t, new(TestFrontendSuite))
 }

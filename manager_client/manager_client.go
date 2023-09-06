@@ -27,11 +27,11 @@ type Interface interface {
 	HandlerStatus() (string, key_value.KeyValue, error)
 
 	// ClosePart stops the running handler part.
-	// Part could be 'reactor,' 'instance_manager,' optionally a 'broadcaster'
+	// Part could be 'frontend,' 'instance_manager,' optionally a 'broadcaster'
 	ClosePart(part string) error
 
 	// RunPart runs the handler part. If the handler part was running already, returns an error.
-	// Part could be 'reactor,' 'instance_manager,' optionally a 'broadcaster'
+	// Part could be 'frontend,' 'instance_manager,' optionally a 'broadcaster'
 	RunPart(part string) error
 
 	// InstanceAmount that are currently running
@@ -153,7 +153,7 @@ func (c *Client) ClosePart(part string) error {
 }
 
 // RunPart runs the handler part. If the handler part was running already, returns an error.
-// Part could be 'reactor,' 'instance_manager,' optionally a 'broadcaster'
+// Part could be 'frontend,' 'instance_manager,' optionally a 'broadcaster'
 func (c *Client) RunPart(part string) error {
 	req := message.Request{
 		Command:    handlerConfig.RunPart,

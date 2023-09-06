@@ -105,13 +105,13 @@ Another client is connected to the manager of the instance.
 > The instance handler client and instance manager client
 > are passed from instance manager to other threads.
 
-### Reactor
-The *reactor* package defines the external socket.
+### Frontend
+The **frontend** package defines the external socket.
 This package depends on the *instance_manager*.
 
-The reactor exposes an `external` socket.
+The frontend exposes an `external` socket.
 The messages that the handler has to receive are accepted by `external` socket.
-The reactor keeps all incoming messages in the internal `queue`.
+The frontend keeps all incoming messages in the internal `queue`.
 It also has the `consumer` that checks the `queue` in **every millisecond**.
 Consumer forwards the messages to the ready instances.
 
@@ -123,5 +123,5 @@ can manage the handler.
 ---
 
 Even though the zeromq sockets are not thread safe.
-The instance manager, reactor or handler manager are not closing the sockets.
+The instance manager, frontend or handler manager are not closing the sockets.
 They send the signal to the responsible thread that closes the sockets.

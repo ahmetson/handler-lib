@@ -5,8 +5,8 @@ import (
 	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/frontend"
 	"github.com/ahmetson/handler-lib/instance_manager"
-	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/log-lib"
 	"github.com/stretchr/testify/suite"
 	"slices"
@@ -240,7 +240,7 @@ func (test *TestHandlerSuite) Test_14_Run() {
 
 	// Make sure that everything works
 	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Running)
-	s.Require().Equal(test.inprocHandler.Reactor.Status(), reactor.RUNNING)
+	s.Require().Equal(test.inprocHandler.Frontend.Status(), frontend.RUNNING)
 
 	// Now let's close it
 	err = test.inprocHandler.Close()
@@ -250,7 +250,7 @@ func (test *TestHandlerSuite) Test_14_Run() {
 
 	// Make sure that everything is closed
 	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Idle)
-	s.Require().Equal(test.inprocHandler.Reactor.Status(), reactor.CREATED)
+	s.Require().Equal(test.inprocHandler.Frontend.Status(), frontend.CREATED)
 }
 
 // Test_15_Misc tests requiredMetadata, AnyRoute functions.

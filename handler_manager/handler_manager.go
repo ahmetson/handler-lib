@@ -6,8 +6,8 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/frontend"
 	instances "github.com/ahmetson/handler-lib/instance_manager"
-	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/handler-lib/route"
 	zmq "github.com/pebbe/zmq4"
 	"time"
@@ -21,7 +21,7 @@ const (
 )
 
 type HandlerManager struct {
-	reactor            *reactor.Reactor
+	frontend           *frontend.Frontend
 	instanceManager    *instances.Parent
 	runInstanceManager func()
 	config             *config.Handler
@@ -33,9 +33,9 @@ type HandlerManager struct {
 }
 
 // New handler manager
-func New(reactor *reactor.Reactor, parent *instances.Parent, runInstanceManager func()) *HandlerManager {
+func New(frontend *frontend.Frontend, parent *instances.Parent, runInstanceManager func()) *HandlerManager {
 	m := &HandlerManager{
-		reactor:            reactor,
+		frontend:           frontend,
 		instanceManager:    parent,
 		runInstanceManager: runInstanceManager,
 		routes:             key_value.Empty(),
@@ -63,16 +63,16 @@ func (m *HandlerManager) Status() string {
 func (m *HandlerManager) setRoutes() {
 	// Requesting status which is calculated from statuses of the handler parts
 	onStatus := func(req message.Request) message.Reply {
-		reactorStatus := m.reactor.Status()
+		frontendStatus := m.frontend.Status()
 		instanceStatus := m.instanceManager.Status()
 
 		params := key_value.Empty()
 
-		if reactorStatus == reactor.RUNNING && instanceStatus == instances.Running {
+		if frontendStatus == frontend.RUNNING && instanceStatus == instances.Running {
 			params.Set("status", Ready)
 		} else {
 			parts := key_value.Empty().
-				Set("reactor", reactorStatus).
+				Set("frontend", frontendStatus).
 				Set("instance_manager", instanceStatus)
 
 			params.Set("status", Incomplete).
@@ -83,19 +83,19 @@ func (m *HandlerManager) setRoutes() {
 	}
 
 	// Stop one of the parts
-	// Either: reactor or instance manager
+	// Either: frontend or instance manager
 	onClosePart := func(req message.Request) message.Reply {
 		part, err := req.Parameters.GetString("part")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
 		}
 
-		if part == "reactor" {
-			if m.reactor.Status() != reactor.RUNNING {
-				return req.Fail("reactor not running")
+		if part == "frontend" {
+			if m.frontend.Status() != frontend.RUNNING {
+				return req.Fail("frontend not running")
 			} else {
-				if err := m.reactor.Close(); err != nil {
-					return req.Fail(fmt.Sprintf("failed to close the reactor: %v", err))
+				if err := m.frontend.Close(); err != nil {
+					return req.Fail(fmt.Sprintf("failed to close the frontend: %v", err))
 				}
 				return req.Ok(key_value.Empty())
 			}
@@ -117,11 +117,11 @@ func (m *HandlerManager) setRoutes() {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
 		}
 
-		if part == "reactor" {
-			if m.reactor.Status() == reactor.RUNNING {
-				return req.Fail("reactor running")
+		if part == "frontend" {
+			if m.frontend.Status() == frontend.RUNNING {
+				return req.Fail("frontend running")
 			} else {
-				go m.reactor.Run()
+				go m.frontend.Run()
 				return req.Ok(key_value.Empty())
 			}
 		} else if part == "instance_manager" {
@@ -144,8 +144,8 @@ func (m *HandlerManager) setRoutes() {
 	// Returns queue amount and currently processed images amount
 	onMessageAmount := func(req message.Request) message.Reply {
 		params := key_value.Empty().
-			Set("queue_length", m.reactor.QueueLen()).
-			Set("processing_length", m.reactor.ProcessingLen())
+			Set("queue_length", m.frontend.QueueLen()).
+			Set("processing_length", m.frontend.ProcessingLen())
 		return req.Ok(params)
 	}
 
@@ -177,7 +177,7 @@ func (m *HandlerManager) setRoutes() {
 
 	onParts := func(req message.Request) message.Reply {
 		parts := []string{
-			"reactor",
+			"frontend",
 			"instance_manager",
 		}
 		messageTypes := []string{

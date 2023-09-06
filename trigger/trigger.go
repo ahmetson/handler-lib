@@ -8,8 +8,8 @@ import (
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/base"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/frontend"
 	instances "github.com/ahmetson/handler-lib/instance_manager"
-	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/handler-lib/route"
 	zmq "github.com/pebbe/zmq4"
 )
@@ -77,7 +77,7 @@ func (handler *Trigger) Config() *config.Trigger {
 
 // SetConfig adds the parameters of the handler from the config.
 //
-// Sets reactor's configuration as well.
+// Sets frontend's configuration as well.
 func (handler *Trigger) SetConfig(trigger *config.Trigger) {
 	// The broadcaster
 	handler.port = trigger.BroadcastPort
@@ -188,12 +188,12 @@ func (handler *Trigger) Start() error {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
 		}
 
-		if part == "reactor" {
-			if m.Reactor.Status() != reactor.RUNNING {
-				return req.Fail("reactor not running")
+		if part == "frontend" {
+			if m.Frontend.Status() != frontend.RUNNING {
+				return req.Fail("frontend not running")
 			} else {
-				if err := m.Reactor.Close(); err != nil {
-					return req.Fail(fmt.Sprintf("failed to close the reactor: %v", err))
+				if err := m.Frontend.Close(); err != nil {
+					return req.Fail(fmt.Sprintf("failed to close the frontend: %v", err))
 				}
 				return req.Ok(key_value.Empty())
 			}
@@ -217,11 +217,11 @@ func (handler *Trigger) Start() error {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
 		}
 
-		if part == "reactor" {
-			if m.Reactor.Status() == reactor.RUNNING {
-				return req.Fail("reactor running")
+		if part == "frontend" {
+			if m.Frontend.Status() == frontend.RUNNING {
+				return req.Fail("frontend running")
 			} else {
-				go m.Reactor.Run()
+				go m.Frontend.Run()
 				return req.Ok(key_value.Empty())
 			}
 		} else if part == "instance_manager" {
@@ -240,15 +240,15 @@ func (handler *Trigger) Start() error {
 	}
 	onMessageAmount := func(req message.Request) message.Reply {
 		params := key_value.Empty().
-			Set("queue_length", m.Reactor.QueueLen()).
-			Set("processing_length", m.Reactor.ProcessingLen()).
+			Set("queue_length", m.Frontend.QueueLen()).
+			Set("processing_length", m.Frontend.ProcessingLen()).
 			Set("broadcasting_length", handler.broadcasting.Len())
 		return req.Ok(params)
 	}
 
 	onParts := func(req message.Request) message.Reply {
 		parts := []string{
-			"reactor",
+			"frontend",
 			"instance_manager",
 			"broadcaster",
 		}

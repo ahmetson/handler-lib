@@ -5,8 +5,8 @@ import (
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
+	"github.com/ahmetson/handler-lib/frontend"
 	"github.com/ahmetson/handler-lib/instance_manager"
-	"github.com/ahmetson/handler-lib/reactor"
 	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
@@ -22,7 +22,7 @@ type TestHandlerManagerSuite struct {
 
 	instanceManager *instance_manager.Parent
 	instanceRunner  func()
-	reactor         *reactor.Reactor
+	frontend        *frontend.Frontend
 
 	handlerManager *HandlerManager
 
@@ -62,15 +62,15 @@ func (test *TestHandlerManagerSuite) SetupTest() {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	})
 
-	test.reactor = reactor.New()
-	test.reactor.SetConfig(test.inprocConfig)
-	test.reactor.SetInstanceManager(test.instanceManager)
+	test.frontend = frontend.New()
+	test.frontend.SetConfig(test.inprocConfig)
+	test.frontend.SetInstanceManager(test.instanceManager)
 
-	test.handlerManager = New(test.reactor, test.instanceManager, test.instanceRunner)
+	test.handlerManager = New(test.frontend, test.instanceManager, test.instanceRunner)
 	test.handlerManager.SetConfig(test.inprocConfig)
 
 	go test.instanceManager.Run()
-	go test.reactor.Run()
+	go test.frontend.Run()
 	go func() {
 		err = test.handlerManager.Run()
 		s.Require().NoError(err)
@@ -81,7 +81,7 @@ func (test *TestHandlerManagerSuite) SetupTest() {
 
 	// make sure that parts are running
 	s.Require().Equal(instance_manager.Running, test.instanceManager.Status())
-	s.Require().Equal(reactor.RUNNING, test.reactor.Status())
+	s.Require().Equal(frontend.RUNNING, test.frontend.Status())
 	s.Require().Equal(SocketReady, test.handlerManager.status)
 
 	// Client that will imitate the service
@@ -115,8 +115,8 @@ func (test *TestHandlerManagerSuite) cleanOut() {
 		test.instanceManager.Close()
 	}
 
-	if test.reactor.Status() == reactor.RUNNING {
-		err = test.reactor.Close()
+	if test.frontend.Status() == frontend.RUNNING {
+		err = test.frontend.Close()
 		s.Require().NoError(err)
 	}
 
@@ -129,7 +129,7 @@ func (test *TestHandlerManagerSuite) cleanOut() {
 
 	// Make sure that everything is closed
 	s.Require().Equal(instance_manager.Idle, test.instanceManager.Status())
-	s.Require().Equal(reactor.CREATED, test.reactor.Status())
+	s.Require().Equal(frontend.CREATED, test.frontend.Status())
 	s.Require().Equal(SocketIdle, test.handlerManager.status)
 }
 
@@ -179,13 +179,13 @@ func (test *TestHandlerManagerSuite) Test_12_ClosePart() {
 	reply = test.req(req)
 	s.Require().False(reply.IsOK())
 
-	// Stopping the reactor must succeed
-	params.Set("part", "reactor")
+	// Stopping the frontend must succeed
+	params.Set("part", "frontend")
 	req.Parameters = params
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	// Re-stopping the reactor must fail
+	// Re-stopping the frontend must fail
 	time.Sleep(time.Millisecond * 100)
 	reply = test.req(req)
 	s.Require().False(reply.IsOK())
@@ -196,7 +196,7 @@ func (test *TestHandlerManagerSuite) Test_12_ClosePart() {
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	// Re-stopping the reactor must fail
+	// Re-stopping the frontend must fail
 	time.Sleep(time.Millisecond * 100)
 	reply = test.req(req)
 	s.Require().False(reply.IsOK())
@@ -210,15 +210,15 @@ func (test *TestHandlerManagerSuite) Test_13_RunPart() {
 	params := key_value.Empty()
 	req := message.Request{Command: config.ClosePart, Parameters: params}
 
-	// Stopping the reactor that was run during test setup
-	params.Set("part", "reactor")
+	// Stopping the frontend that was run during test setup
+	params.Set("part", "frontend")
 	req.Parameters = params
 	reply := test.req(req)
 	s.Require().True(reply.IsOK())
 
-	// Make sure the reactor stopped
+	// Make sure the frontend stopped
 	time.Sleep(time.Millisecond * 100)
-	s.Require().Equal(reactor.CREATED, test.reactor.Status())
+	s.Require().Equal(frontend.CREATED, test.frontend.Status())
 
 	// Let's test running it
 	req.Command = config.RunPart
@@ -228,7 +228,7 @@ func (test *TestHandlerManagerSuite) Test_13_RunPart() {
 
 	// Make sure it's running
 	time.Sleep(time.Millisecond * 100)
-	s.Require().Equal(reactor.RUNNING, test.reactor.Status())
+	s.Require().Equal(frontend.RUNNING, test.frontend.Status())
 
 	//
 	// Testing with the instance manager
@@ -458,13 +458,13 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	//
 	// Turn the status to incomplete
 	//
-	partReq := message.Request{Command: config.ClosePart, Parameters: key_value.Empty().Set("part", "reactor")}
+	partReq := message.Request{Command: config.ClosePart, Parameters: key_value.Empty().Set("part", "frontend")}
 	reply = test.req(partReq)
 	s.Require().True(reply.IsOK())
 
-	// Wait a bit for the reactor closes itself
+	// Wait a bit for the frontend closes itself
 	time.Sleep(time.Millisecond * 100)
-	s.Require().Equal(reactor.CREATED, test.reactor.Status())
+	s.Require().Equal(frontend.CREATED, test.frontend.Status())
 
 	// Status must be incomplete
 	reply = test.req(req)
@@ -474,12 +474,12 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	s.Require().NoError(err)
 	s.Require().Equal(Incomplete, status)
 
-	// Only reactor must be incomplete
+	// Only frontend must be incomplete
 	parts, err := reply.Parameters.GetKeyValue("parts")
 	s.Require().NoError(err)
-	reactorStatus, err := parts.GetString("reactor")
+	frontendStatus, err := parts.GetString("frontend")
 	s.Require().NoError(err)
-	s.Require().Equal(reactor.CREATED, reactorStatus)
+	s.Require().Equal(frontend.CREATED, frontendStatus)
 	instanceManager, err := parts.GetString("instance_manager")
 	s.Require().NoError(err)
 	s.Require().Equal(instance_manager.Running, instanceManager)
@@ -491,7 +491,7 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	reply = test.req(partReq)
 	s.Require().True(reply.IsOK())
 
-	// Wait a bit for the reactor closes itself
+	// Wait a bit for the frontend closes itself
 	time.Sleep(time.Millisecond * 100)
 	s.Require().Equal(instance_manager.Idle, test.instanceManager.Status())
 
@@ -503,12 +503,12 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	s.Require().NoError(err)
 	s.Require().Equal(Incomplete, status)
 
-	// Reactor and instance manager are incomplete
+	// Frontend and instance manager are incomplete
 	parts, err = reply.Parameters.GetKeyValue("parts")
 	s.Require().NoError(err)
-	reactorStatus, err = parts.GetString("reactor")
+	frontendStatus, err = parts.GetString("frontend")
 	s.Require().NoError(err)
-	s.Require().Equal(reactor.CREATED, reactorStatus)
+	s.Require().Equal(frontend.CREATED, frontendStatus)
 	instanceManager, err = parts.GetString("instance_manager")
 	s.Require().NoError(err)
 	s.Require().Equal(instance_manager.Idle, instanceManager)
@@ -534,24 +534,24 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	s.Require().NoError(err)
 	s.Require().Equal(Incomplete, status)
 
-	// Only reactor is incomplete
+	// Only frontend is incomplete
 	parts, err = reply.Parameters.GetKeyValue("parts")
 	s.Require().NoError(err)
-	reactorStatus, err = parts.GetString("reactor")
+	frontendStatus, err = parts.GetString("frontend")
 	s.Require().NoError(err)
-	s.Require().Equal(reactor.CREATED, reactorStatus)
+	s.Require().Equal(frontend.CREATED, frontendStatus)
 	instanceManager, err = parts.GetString("instance_manager")
 	s.Require().NoError(err)
 	s.Require().Equal(instance_manager.Running, instanceManager)
 
-	// Run Reactor
-	partReq.Parameters.Set("part", "reactor")
+	// Run Frontend
+	partReq.Parameters.Set("part", "frontend")
 	reply = test.req(partReq)
 	s.Require().True(reply.IsOK())
 
-	// Wait a bit for reactor initialization
+	// Wait a bit for frontend initialization
 	time.Sleep(time.Millisecond * 100)
-	s.Require().Equal(reactor.RUNNING, test.reactor.Status())
+	s.Require().Equal(frontend.RUNNING, test.frontend.Status())
 
 	// Status must be ready
 	reply = test.req(req)
