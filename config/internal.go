@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 )
 
 // UrlToFileName converts the given url to the file name.
@@ -18,7 +19,7 @@ import (
 //
 // This url is set as the handler's name in the config.
 // Then the handler package will generate an inproc:// url based on the handler name.
-Func UrlToFileName(url string) string {
+func UrlToFileName(url string) string {
 	return strings.ReplaceAll(strings.ReplaceAll(url, "/", "."), "\\", ".")
 }
 
