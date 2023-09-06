@@ -248,8 +248,8 @@ func (c *Instance) Start() error {
 			return
 		}
 
-		// exit from instance.Run
-		// the rest of the code are notified by the pusher
+		// exit from instance.Starts
+		// the pusher notifies the errors occured later
 		ready <- nil
 
 		for {
