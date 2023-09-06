@@ -60,7 +60,7 @@ func (handler *Trigger) Close() error {
 }
 
 // Route adds a route along with its handler to this handler
-func (handler *Trigger) Route(string, any, ...string) error {
+func (handler *Trigger) Route(_ string, _ interface{}, _ ...string) error {
 	return fmt.Errorf("trigger doesn't support routing")
 }
 

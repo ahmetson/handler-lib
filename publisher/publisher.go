@@ -25,7 +25,7 @@ func (c *Publisher) TriggerClient() *clientConfig.Client {
 }
 
 // Config adds the parameters of the handler from the config.
-func (c *Publisher) Config(*config.Trigger) *config.Trigger {
+func (c *Publisher) Config() *config.Trigger {
 	return c.base.Config()
 }
 
