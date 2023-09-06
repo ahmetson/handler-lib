@@ -364,23 +364,31 @@ func (c *Instance) Start() error {
 
 		err = poller.RemoveBySocket(handler)
 		if err != nil {
-			err = fmt.Errorf("poller.RemoveBySocket('handler'): %w", err)
-			pubErr := c.pubFail(parent, err)
-			if pubErr != nil {
-				// we add it to the error stack, but continue to clean out the rest
-				// since removing from the poller won't affect the other socket operations.
-				c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+			if instant {
+				c.logger.Error("poller.RemoveBySocket", "socket", "handler", "error", err)
+			} else {
+				err = fmt.Errorf("poller.RemoveBySocket('handler'): %w", err)
+				pubErr := c.pubFail(parent, err)
+				if pubErr != nil {
+					// we add it to the error stack, but continue to clean out the rest
+					// since removing from the poller won't affect the other socket operations.
+					c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+				}
 			}
 		}
 
 		err = poller.RemoveBySocket(manager)
 		if err != nil {
-			err = fmt.Errorf("poller.RemoveBySocket('manager'): %w", err)
-			pubErr := c.pubFail(parent, err)
-			if pubErr != nil {
-				// we add it to the error stack, but continue to clean out the rest
-				// since removing from the poller won't affect the other socket operations.
-				c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+			if instant {
+				c.logger.Error("poller.RemoveBySocket", "socket", "manager", "error", err)
+			} else {
+				err = fmt.Errorf("poller.RemoveBySocket('manager'): %w", err)
+				pubErr := c.pubFail(parent, err)
+				if pubErr != nil {
+					// we add it to the error stack, but continue to clean out the rest
+					// since removing from the poller won't affect the other socket operations.
+					c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+				}
 			}
 		}
 
@@ -390,12 +398,16 @@ func (c *Instance) Start() error {
 		// one option is to remove the thread, and create a new instance with another id.
 		err = manager.Close()
 		if err != nil {
-			err = fmt.Errorf("manager.Close: %w", err)
-			pubErr := c.pubFail(parent, err)
-			if pubErr != nil {
-				// we add it to the error stack, but continue to clean out the rest
-				// since removing from the poller won't affect the other socket operations.
-				c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+			if instant {
+				c.logger.Error("manager.Close", "error", err)
+			} else {
+				err = fmt.Errorf("manager.Close: %w", err)
+				pubErr := c.pubFail(parent, err)
+				if pubErr != nil {
+					// we add it to the error stack, but continue to clean out the rest
+					// since removing from the poller won't affect the other socket operations.
+					c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+				}
 			}
 		}
 
@@ -403,25 +415,31 @@ func (c *Instance) Start() error {
 		// see above manager.Close comment.
 		err = handler.Close()
 		if err != nil {
-			err = fmt.Errorf("handler.Close: %w", err)
-			pubErr := c.pubFail(parent, err)
-			if pubErr != nil {
-				// we add it to the error stack, but continue to clean out the rest
-				// since removing from the poller won't affect the other socket operations.
-				c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+			if instant {
+				c.logger.Error("handler.Close", "error", err)
+			} else {
+				err = fmt.Errorf("handler.Close: %w", err)
+				pubErr := c.pubFail(parent, err)
+				if pubErr != nil {
+					// we add it to the error stack, but continue to clean out the rest
+					// since removing from the poller won't affect the other socket operations.
+					c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+				}
 			}
 		}
 
-		pubErr := c.pubStatus(parent, CLOSED)
-		if pubErr != nil {
-			c.logger.Error("c.pubStatus", "argument", CLOSED, "error", pubErr)
-			// we add it to the error stack, but continue to clean out the rest
-			// since removing from the poller won't affect the other socket operations.
+		if !instant {
+			pubErr := c.pubStatus(parent, CLOSED)
+			if pubErr != nil {
+				c.logger.Error("c.pubStatus", "argument", CLOSED, "error", pubErr)
+				// we add it to the error stack, but continue to clean out the rest
+				// since removing from the poller won't affect the other socket operations.
+			}
 		}
 
 		err = parent.Close()
 		if err != nil {
-			c.logger.Error("parent.Close", "error", pubErr)
+			c.logger.Error("parent.Close", "error", err)
 		}
 	}(ready)
 
