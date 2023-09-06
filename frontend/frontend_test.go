@@ -204,7 +204,7 @@ func (test *TestFrontendSuite) instanceManager() (string, string, *instance_mana
 	s.Require().NoError(err)
 	instanceManager := instance_manager.New(test.handleConfig.Id, logger)
 
-	go instanceManager.Run()
+	s.Require().NoError(instanceManager.Start())
 
 	time.Sleep(time.Millisecond * 50) // wait until it updates the status
 	instanceId, err := instanceManager.AddInstance(test.handleConfig.Type, &routes, &routeDeps, &depClients)
