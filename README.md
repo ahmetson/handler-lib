@@ -1,21 +1,40 @@
 # Handler Lib
-The *handler* module creates the request
-handlers.
+The *handler* module defines the handlers.
+The handler is responsible for routing the requests to the user-defined functions.
 
-The primary description of the handler is defined in
-the `base` directory. The `base` package has two
-exposed structures. The first structure is `Handler`.
-The second structure is `Interface` of the `Handler`.
+![User and Handler diagram](_assets/Handler.jpg "Handler diagram")
 
-The `base.Handler` is not supposed to be used by
-itself. Rather, users must use the derived handlers.
+*Diagram available on [Source](https://drive.google.com/file/d/1B0JOWbrbby9yUy66pMwWnlf8ic18XOs-/view?usp=sharing)*
 
-To check the derived handlers against the validness,
-the `Interface` shall be used.
+There are different types of the handlers. 
+Each type applies a certain behavior to the collection of the routes.
 
-The available handlers are on their own directories:
-* *sync_replier* is the type of the handler that handles one request at a time.
-* *replier* is the type of the handler that handles multiple requests on parallel.
+**SyncReplier** handles one request from multiple users at a time. 
+The requests are queued while one request is processing.
+**Replier** handles many requests from multiple users at a time.
+It's a *server* part of classic *client-server* architecture.
+The **Replier** may run multiple instances running on parallel threads. However, it's managed by the service, so don't worry about it.
+Just remember that if more requests are coming, then the **Replier** tries to use more CPU cores.
+**Publisher** is submits the message from the handler to the connected users. The **publisher** is the trigger-able handler.
+Like that, it has two endpoints. One is for users to subscribe, another endpoint to trigger the broadcasting.
+Usually, the trigger will be called by the handler function in another handler route.
+**Pusher** submits the message from the handler to the connected users. If multiple users are connected,
+then requests will be submitted in a round-robin algorithm.
+
+> **Glossary**
+> 
+> *Notice we have two terms for **handler &ndash; user interaction**:*
+> 
+> **Request** &ndash; sender (user or handler) expects a reply from the destination (user or handler).
+> 
+> **Submit** &ndash; a message sent to the destination doesn't expect a reply. 
+> It's fast; however, the sender doesn't know message delivery.
+
+The primary definition of the handler is written in the `base` package. 
+It's composed of the `Handler` structure and `Interface` of the `Handler`.
+The `base` not supposed to be used by itself. Use the derived handlers.
+
+To check the derived handlers against the validness, the `base.Interface` shall be used.
 
 # Internal structure
 
