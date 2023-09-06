@@ -170,7 +170,7 @@ func (m *HandlerManager) setRoutes() {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('instance_id'): %v", err))
 		}
 
-		err = m.instanceManager.DeleteInstance(instanceId)
+		err = m.instanceManager.DeleteInstance(instanceId, false)
 		if err != nil {
 			return req.Fail(fmt.Sprintf("instanceManager.DeleteInstance('%s'): %v", instanceId, err))
 		}
