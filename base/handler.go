@@ -307,7 +307,6 @@ func (c *Handler) StartInstanceManager() error {
 					if addedInstanceId != instanceId {
 						continue
 					} else {
-						c.logger.Error("first instance created added", "id", c.config.Id, "event", req.Command, "instanceId", instanceId)
 						instanceId = ""
 					}
 				}
