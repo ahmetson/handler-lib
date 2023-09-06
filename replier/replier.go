@@ -111,14 +111,3 @@ func (c *Replier) Start() error {
 func (c *Replier) MaxInstanceAmount() uint {
 	return uint(c.maxInstanceAmount)
 }
-
-//func unwrap(msg []string) (head string, tail []string) {
-//	head = msg[0]
-//	if len(msg) > 1 && msg[1] == "" {
-//		tail = msg[2:]
-//	} else {
-//		tail = msg[1:]
-//	}
-//
-//	return
-//}

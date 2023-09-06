@@ -231,7 +231,10 @@ func (handler *Trigger) Start() error {
 			if m.InstanceManager.Status() == instances.Running {
 				return req.Fail("instance manager running")
 			} else {
-				go m.RunInstanceManager()
+				err := m.StartInstanceManager()
+				if err != nil {
+					return req.Fail(fmt.Sprintf("m.StartInstanceManager: %v", err))
+				}
 				return req.Ok(key_value.Empty())
 			}
 		} else if part == "broadcaster" {
