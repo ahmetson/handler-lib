@@ -15,15 +15,9 @@ import (
 type kvRef = *key_value.KeyValue
 
 const (
-	InstanceCreated      = "created" // Instance is created, but not initialized yet. Used for child instances
-	Running              = "running"
-	Idle                 = "idle"
-	EventClose           = "close"            // notify instance manager is starting to close
-	EventIdle            = "idle"             // notify instance manager is not running but created
-	EventReady           = "ready"            // notify instance manager is ready
-	EventError           = "error"            // notify if in the instance manager occurred an error
-	EventInstanceAdded   = "instance_added"   // notify if a new instance added
-	EventInstanceDeleted = "instance_deleted" // notify if the instance is deleted
+	InstanceCreated = "created" // Instance is created, but not initialized yet. Used for child instances
+	Running         = "running"
+	Idle            = "idle"
 )
 
 type Child struct {
@@ -60,73 +54,6 @@ func New(id string, parent *log.Logger) *Parent {
 // Status of the instance manager.
 func (parent *Parent) Status() string {
 	return parent.status
-}
-
-// Broadcast that instance manager received a close signal
-func (parent *Parent) pubIdle(closeSignal bool) error {
-	parameters := key_value.Empty().Set("close", closeSignal)
-	if err := parent.pubEvent(EventIdle, parameters); err != nil {
-		return fmt.Errorf("parent.pubEvent('idle'): %w", err)
-	}
-	return nil
-}
-
-func (parent *Parent) pubReady() error {
-	parameters := key_value.Empty()
-	if err := parent.pubEvent(EventReady, parameters); err != nil {
-		return fmt.Errorf("parent.pubEvent('ready'): %w", err)
-	}
-	return nil
-}
-
-func (parent *Parent) pubClose() error {
-	parameters := key_value.Empty()
-	if err := parent.pubEvent(EventClose, parameters); err != nil {
-		return fmt.Errorf("parent.pubEvent('ready'): %w", err)
-	}
-	return nil
-}
-
-func (parent *Parent) pubError() error {
-	parameters := key_value.Empty().Set("message", parent.status)
-	if err := parent.pubEvent(EventError, parameters); err != nil {
-		return fmt.Errorf("parent.pubEvent('error'): %w", err)
-	}
-	return nil
-}
-
-func (parent *Parent) pubInstanceAdded(id string) error {
-	parameters := key_value.Empty().Set("id", id)
-	if err := parent.pubEvent(EventInstanceAdded, parameters); err != nil {
-		return fmt.Errorf("parent.pubEvent('error'): %w", err)
-	}
-	return nil
-}
-
-func (parent *Parent) pubInstanceDeleted(id string) error {
-	parameters := key_value.Empty().Set("id", id)
-	if err := parent.pubEvent(EventInstanceDeleted, parameters); err != nil {
-		return fmt.Errorf("parent.pubEvent('error'): %w", err)
-	}
-	return nil
-}
-
-func (parent *Parent) pubEvent(event string, parameters key_value.KeyValue) error {
-	if parent.eventSock == nil {
-		return fmt.Errorf("event sock not set")
-	}
-	req := message.Request{Command: event, Parameters: parameters}
-	reqStr, err := req.String()
-	if err != nil {
-		return fmt.Errorf("req.String: %w", err)
-	}
-
-	_, err = parent.eventSock.SendMessage(reqStr)
-	if err != nil {
-		return fmt.Errorf("eventSock.SendMessageDontWait: %w", err)
-	}
-
-	return nil
 }
 
 // onInstanceStatus updates the instance status.
@@ -174,23 +101,6 @@ func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
 	}
 
 	return req.Ok(key_value.Empty())
-}
-
-// newEventSocket returns an instance manager status broadcaster.
-// It's used by the handler_manager and frontend to detect the instance amount.
-func (parent *Parent) newEventSocket() (*zmq.Socket, error) {
-	eventSock, err := zmq.NewSocket(zmq.PUB)
-	if err != nil {
-		return nil, fmt.Errorf("zmq.NewSocket(zmq.PUB): %w", err)
-	}
-
-	eventUrl := config.InstanceManagerEventUrl(parent.id)
-	err = eventSock.Bind(eventUrl)
-	if err != nil {
-		return nil, fmt.Errorf("eventSock.Bind('%s'): %w", eventUrl, err)
-	}
-
-	return eventSock, nil
 }
 
 // newPullSocket returns a socket that receives the instance status created by this Parent.
