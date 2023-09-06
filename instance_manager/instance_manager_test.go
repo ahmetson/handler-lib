@@ -65,7 +65,7 @@ func (test *TestInstanceSuite) Test_10_Close() {
 	s.Require().Equal(Idle, test.parent.Status())
 
 	// Let's run the service
-	go test.parent.Run()
+	s.Require().NoError(test.parent.Start())
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
 	// Make sure that the service is running
@@ -101,7 +101,7 @@ func (test *TestInstanceSuite) Test_11_AddInstance() {
 	s.Require().Error(err)
 
 	// Running instance manager
-	go test.parent.Run()
+	s.Require().NoError(test.parent.Start())
 
 	// waiting a bit for initialization
 	time.Sleep(time.Millisecond * 10)
@@ -113,10 +113,6 @@ func (test *TestInstanceSuite) Test_11_AddInstance() {
 
 	// The instance should be created
 	s.Require().Len(test.parent.instances, 1)
-	s.Equal(InstanceCreated, test.parent.instances[instanceId].status)
-
-	// Instance should be ready
-	time.Sleep(time.Millisecond * 100)
 	s.Equal(instance.READY, test.parent.instances[instanceId].status)
 
 	// Clean out after adding a new instance
@@ -143,7 +139,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 	s.Require().Equal(Idle, test.parent.Status())
 
 	// Running instance manager
-	go test.parent.Run()
+	s.Require().NoError(test.parent.Start())
 
 	// waiting a bit for initialization
 	time.Sleep(time.Millisecond * 100)
