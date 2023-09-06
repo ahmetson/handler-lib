@@ -115,7 +115,7 @@ func (test *TestTriggerSuite) TearDownTest() {
 	s.Require().NoError(test.trigger.Close())
 }
 
-// Test_10_Config makes sure that configuration methods are running without any error.
+// Test_10_Config makes sure that configuration methods started without any error.
 //
 // It doesn't validate the internal parameters.
 // So it must validate them.
@@ -129,10 +129,10 @@ func (test *TestTriggerSuite) Test_10_Config() {
 	s.Require().NoError(err)
 }
 
-// Test_14_Run runs the trigger.
+// Test_14_Start start the trigger.
 //
 // The trigger creates a client that will subscribe for the messages to subscribe.
-func (test *TestTriggerSuite) Test_14_Run() {
+func (test *TestTriggerSuite) Test_14_Start() {
 	s := &test.Suite
 
 	err := test.handler.Start()
@@ -157,7 +157,6 @@ func (test *TestTriggerSuite) Test_14_Run() {
 	s.Require().Equal(test.handler.InstanceManager.Status(), instance_manager.Running)
 	s.Require().Equal(test.handler.Frontend.Status(), frontend.RUNNING)
 	s.Require().NotNil(test.handler.socket)
-	s.Require().Empty(test.handler.status) // created without any error
 
 	// Now let's close it
 	err = test.handler.Close()
@@ -169,7 +168,6 @@ func (test *TestTriggerSuite) Test_14_Run() {
 	s.Require().Equal(test.handler.InstanceManager.Status(), instance_manager.Idle)
 	s.Require().Equal(test.handler.Frontend.Status(), frontend.CREATED)
 	s.Require().Nil(test.handler.socket)
-	s.Require().Empty(test.handler.status) // exited without any error
 }
 
 // In order for 'go test' to run this suite, we need to create

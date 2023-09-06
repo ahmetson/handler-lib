@@ -11,6 +11,7 @@ import (
 	"github.com/ahmetson/handler-lib/frontend"
 	instances "github.com/ahmetson/handler-lib/instance_manager"
 	"github.com/ahmetson/handler-lib/route"
+	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 )
 
@@ -22,7 +23,7 @@ type Trigger struct {
 	closePub     bool
 	port         uint64
 	id           string
-	status       string
+	logger       *log.Logger
 	handlerType  config.HandlerType
 	broadcasting *data_type.Queue
 }
@@ -90,52 +91,67 @@ func (handler *Trigger) SetConfig(trigger *config.Trigger) {
 	handler.Handler.SetConfig(trigger.Handler)
 }
 
-// runBroadcaster creates a socket that will be linked by the user
-func (handler *Trigger) runBroadcaster() {
-	socket, err := zmq.NewSocket(config.SocketType(handler.handlerType))
-	if err != nil {
-		handler.status = fmt.Sprintf("new_socket('%s'): %v", handler.handlerType, err)
-		return
-	}
+func (handler *Trigger) SetLogger(logger *log.Logger) error {
+	handler.logger = logger
 
-	pubUrl := config.ExternalUrl(handler.id, handler.port)
-	err = socket.Bind(pubUrl)
-	if err != nil {
-		handler.status = fmt.Sprintf("socket.Bind('%s'): %v", pubUrl, err)
-	}
+	return handler.Handler.SetLogger(logger)
+}
 
-	handler.socket = socket
+// startBroadcaster creates a socket that will be linked by the user
+func (handler *Trigger) startBroadcaster() error {
+	ready := make(chan error)
 
-	for {
-		if handler.closePub {
-			break
-		}
-		if handler.broadcasting.IsEmpty() {
-			continue
-		}
-
-		req := handler.broadcasting.Pop().(message.Request)
-		reqStr, err := req.String()
+	go func(ready chan error) {
+		socket, err := zmq.NewSocket(config.SocketType(handler.handlerType))
 		if err != nil {
-			handler.status = fmt.Sprintf("socket.SendMessageDontWait: %v", err)
-			break
+			ready <- fmt.Errorf("new_socket('%s'): %v", handler.handlerType, err)
+			return
 		}
-		_, err = socket.SendMessageDontwait(reqStr)
+
+		pubUrl := config.ExternalUrl(handler.id, handler.port)
+		err = socket.Bind(pubUrl)
 		if err != nil {
-			handler.status = fmt.Sprintf("socket.SendMessageDontWait: %v", err)
-			break
+			ready <- fmt.Errorf("socket.Bind('%s'): %v", pubUrl, err)
+			return
 		}
-	}
 
-	handler.closePub = false
-	err = socket.Close()
-	if err != nil {
-		handler.status = fmt.Sprintf("socket.Close: %v", err)
-		return
-	}
+		handler.socket = socket
 
-	handler.status = ""
-	handler.socket = nil
+		// Socket preparation finished without any error, return back from startBroadcaster
+		ready <- nil
+
+		for {
+			if handler.closePub {
+				break
+			}
+			if handler.broadcasting.IsEmpty() {
+				continue
+			}
+
+			req := handler.broadcasting.Pop().(message.Request)
+			reqStr, err := req.String()
+			if err != nil {
+				handler.logger.Error("handler.broadcasting.Pop", "type", "message.Request", "error", err)
+				break
+			}
+			_, err = socket.SendMessageDontwait(reqStr)
+			if err != nil {
+				handler.logger.Error("socket.SendMessageDontWait", "request", reqStr, "error", err)
+				break
+			}
+		}
+
+		handler.closePub = false
+		err = socket.Close()
+		if err != nil {
+			handler.logger.Error("socket.Close", "error", err)
+			return
+		}
+
+		handler.socket = nil
+	}(ready)
+
+	return <-ready
 }
 
 func (handler *Trigger) onTrigger(req message.Request) message.Reply {
@@ -233,12 +249,15 @@ func (handler *Trigger) Start() error {
 			} else {
 				err := m.StartInstanceManager()
 				if err != nil {
-					return req.Fail(fmt.Sprintf("m.StartInstanceManager: %v", err))
+					return req.Fail(fmt.Sprintf("base.StartInstanceManager: %v", err))
 				}
 				return req.Ok(key_value.Empty())
 			}
 		} else if part == "broadcaster" {
-			go handler.runBroadcaster()
+			err := handler.startBroadcaster()
+			if err != nil {
+				return req.Fail(fmt.Sprintf("trigger.startBroadcaster: %v", err))
+			}
 			return req.Ok(key_value.Empty())
 		} else {
 			return req.Fail(fmt.Sprintf("unknown part '%s' to stop", part))
@@ -287,7 +306,13 @@ func (handler *Trigger) Start() error {
 		return fmt.Errorf("overwriting handler manager 'parts' failed: %w", err)
 	}
 
-	go handler.runBroadcaster()
+	if err := handler.startBroadcaster(); err != nil {
+		return fmt.Errorf("trigger.startBroadcaster: %w", err)
+	}
 
-	return m.Start()
+	if err := m.Start(); err != nil {
+		return fmt.Errorf("base.Start: %w", err)
+	}
+
+	return nil
 }
