@@ -242,6 +242,10 @@ func (c *Instance) Start() error {
 		// the pusher notifies the errors occurred later
 		ready <- nil
 
+		// when it receives a close event,
+		// the parent might be already closed
+		instant := false
+
 		for {
 			if c.close {
 				break
@@ -311,26 +315,41 @@ func (c *Instance) Start() error {
 						break
 					}
 				} else if polled.Socket == manager {
-					fmt.Printf("manager received a message")
-					// for now, the instance supports only one command: CLOSE
-					_, err := manager.RecvMessage(0)
+					// The instance manager supports only one command: CLOSE.
+					// Therefore, it doesn't have any routes.
+					//
+					// The manager doesn't notify the instance manager for one reason.
+					// If the manager received a CLOSE command, then instance manager might be closed already.
+					messages, err := manager.RecvMessage(0)
 					if err != nil {
-						pubErr := c.pubFail(parent, fmt.Errorf("manager.RecvMessage: %w", err))
-						if pubErr != nil {
-							c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
-						}
+						c.logger.Error("manager.RecvMessage", "error", err)
 						break
 					}
 
-					// the close parameter is set to true after reply the message back.
-					// otherwise, the socket may be closed while the requester is waiting for a reply message.
-					// it could leave to the app froze-up.
-					reply := message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
-					if err := c.reply(manager, reply); err != nil {
-						failErr := fmt.Errorf("c.reply('manager'): %w", err)
-						pubErr := c.pubFail(parent, failErr)
-						if pubErr != nil {
-							c.logger.Error("c.pubFail", "argument", failErr, "error", pubErr)
+					req, err := message.NewReq(messages)
+					if err != nil {
+						c.logger.Error("message.NewReq", "socket", "manager", "messages", messages, "error", err)
+						break
+					}
+
+					// Assuming the request is close
+					instant, err = req.Parameters.GetBoolean("instant")
+					if err != nil {
+						c.logger.Error("req.Parameters.GetBoolean", "socket", "manager", "key", "instant", "error", err)
+						break
+					}
+
+					if !instant {
+						// the close parameter is set to true after reply the message back.
+						// otherwise, the socket may be closed while the requester is waiting for a reply message.
+						// it could leave to the app froze-up.
+						reply := message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
+						if err := c.reply(manager, reply); err != nil {
+							failErr := fmt.Errorf("c.reply('manager'): %w", err)
+							pubErr := c.pubFail(parent, failErr)
+							if pubErr != nil {
+								c.logger.Error("c.pubFail", "argument", failErr, "error", pubErr)
+							}
 						}
 					}
 
