@@ -160,7 +160,13 @@ func (c *Instance) Errors() []error {
 	return c.errors
 }
 
-// Start the instance manager and handler.
+// Start the instance manager and handler in the internal goroutine.
+// It waits until the sockets are bound to the endpoints.
+// If until the binding occurs an error, then it will return it back.
+//
+// After binding, the occurred errors are sent back to the instance manager by the pub socket.
+//
+// If pub socket had an error then, the errors are added to the Errors() stack.
 func (c *Instance) Start() error {
 	ready := make(chan error)
 
@@ -342,14 +348,12 @@ func (c *Instance) Start() error {
 
 					// mark as close, we don't exit straight from the loop,
 					// because poller may be processing another signal.
-					// so adding a close signal to the queue
+					// therefore, adding a close signal to the queue
 					c.close = true
 					c.status = CLOSED
 				}
 			}
 		}
-
-		fmt.Errorf("exited from poller loop\n")
 
 		err = poller.RemoveBySocket(handler)
 		if err != nil {
