@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"strings"
 )
 
 // UrlToFileName converts the given url to the file name. Simply it replaces the slashes with dots.
@@ -18,9 +17,9 @@ import (
 //
 // This url is set as the handler's name in the config.
 // Then the handler package will generate an inproc:// url based on the handler name.
-func UrlToFileName(url string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(url, "/", "."), "\\", ".")
-}
+// func UrlToFileName(url string) string {
+//	return strings.ReplaceAll(strings.ReplaceAll(url, "/", "."), "\\", ".")
+// }
 
 // ManagerUrl returns the handler manager socket
 func ManagerUrl(handlerId string) string {
