@@ -123,17 +123,15 @@ func (test *TestHandlerSuite) TearDownTest() {
 func (test *TestHandlerSuite) Test_10_Run() {
 	s := &test.Suite
 
-	go func() {
-		err := test.pub.Run()
-		s.Require().NoError(err)
-	}()
+	err := test.pub.Start()
+	s.Require().NoError(err)
 
 	// Wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything works
 	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
-	err := test.trigger.Submit(&req)
+	err = test.trigger.Submit(&req)
 	s.Require().NoError(err)
 
 	test.logger.Info("waiting for a message in the subscriber")

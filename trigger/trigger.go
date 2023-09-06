@@ -77,7 +77,7 @@ func (handler *Trigger) Config() *config.Trigger {
 
 // SetConfig adds the parameters of the handler from the config.
 //
-// Sets frontend configuration as well.
+// Sets frontend's configuration as well.
 func (handler *Trigger) SetConfig(trigger *config.Trigger) {
 	// The broadcaster
 	handler.port = trigger.BroadcastPort
@@ -148,10 +148,10 @@ func (handler *Trigger) onTrigger(req message.Request) message.Reply {
 	return req.Ok(key_value.Empty())
 }
 
-// Run the trigger directly, not by goroutine.
+// Start the trigger directly, not by goroutine.
 //
 // The Trigger-able handlers can have only one instance
-func (handler *Trigger) Run() error {
+func (handler *Trigger) Start() error {
 	m := handler.Handler
 
 	if m.Config() == nil {
@@ -283,5 +283,5 @@ func (handler *Trigger) Run() error {
 
 	go handler.runBroadcaster()
 
-	return m.Run()
+	return m.Start()
 }

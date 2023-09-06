@@ -99,10 +99,8 @@ func (test *TestHandlerSuite) req(client *zmq.Socket, request message.Request) m
 func (test *TestHandlerSuite) Test_10_Run() {
 	s := &test.Suite
 
-	go func() {
-		err := test.replier.Run()
-		s.Require().NoError(err)
-	}()
+	err := test.replier.Start()
+	s.Require().NoError(err)
 
 	// Wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
@@ -141,10 +139,8 @@ func (test *TestHandlerSuite) Test_10_Run() {
 func (test *TestHandlerSuite) Test_11_Request() {
 	s := &test.Suite
 
-	go func() {
-		err := test.replier.Run()
-		s.Require().NoError(err)
-	}()
+	err := test.replier.Start()
+	s.Require().NoError(err)
 
 	// Wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)

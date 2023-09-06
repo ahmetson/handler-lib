@@ -49,7 +49,7 @@ type Interface interface {
 	// Close the handler if it's running. If it's not running, then do nothing
 	Close() error
 
-	Run() error
+	Start() error
 
 	// The Status is empty is the handler is running.
 	// Returns an error string if the Manager is not running

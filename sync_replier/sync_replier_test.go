@@ -100,10 +100,8 @@ func (test *TestHandlerSuite) cleanOut() {
 func (test *TestHandlerSuite) Test_10_Run() {
 	s := &test.Suite
 
-	go func() {
-		err := test.syncReplier.Run()
-		s.Require().NoError(err)
-	}()
+	err := test.syncReplier.Start()
+	s.Require().NoError(err)
 
 	// Wait a bit for initialization
 	time.Sleep(time.Millisecond * 100)
