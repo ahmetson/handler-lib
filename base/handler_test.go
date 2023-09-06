@@ -202,29 +202,29 @@ func (test *TestHandlerSuite) Test_13_InstanceManager() {
 
 	// It should be idle
 	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Idle)
-	s.Require().False(test.inprocHandler.instanceManagerRuns)
+	s.Require().False(test.inprocHandler.instanceManagerStarted)
 	s.Require().Empty(test.inprocHandler.InstanceManager.Instances())
 
 	// Running instance Manager
-	go test.inprocHandler.RunInstanceManager()
+	s.Require().NoError(test.inprocHandler.StartInstanceManager())
 
 	// Waiting a bit for instance Manager initialization
 	time.Sleep(time.Millisecond * 2000)
 
 	// Instance Manager should be running
-	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Running)
-	s.Require().True(test.inprocHandler.instanceManagerRuns)
+	s.Require().Equal(instance_manager.Running, test.inprocHandler.InstanceManager.Status())
+	s.Require().True(test.inprocHandler.instanceManagerStarted)
 	s.Require().Len(test.inprocHandler.InstanceManager.Instances(), 1)
 
 	// Let's send the close signal
 	s.Require().NoError(test.inprocHandler.Close())
 
 	// Waiting a bit for instance Manager closing
-	time.Sleep(time.Millisecond * 10)
+	time.Sleep(time.Millisecond * 100)
 
 	// Check that Instance Manager is not running
-	s.Require().Equal(test.inprocHandler.InstanceManager.Status(), instance_manager.Idle)
-	s.Require().False(test.inprocHandler.instanceManagerRuns)
+	s.Require().Equal(instance_manager.Idle, test.inprocHandler.InstanceManager.Status())
+	s.Require().False(test.inprocHandler.instanceManagerStarted)
 	s.Require().Empty(test.inprocHandler.InstanceManager.Instances())
 }
 

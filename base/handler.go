@@ -22,35 +22,35 @@ import (
 
 // The Handler is the socket wrapper for the clientConfig.
 type Handler struct {
-	config              *config.Handler
-	socket              *zmq.Socket
-	logger              *log.Logger
-	Routes              key_value.KeyValue
-	RouteDeps           key_value.KeyValue
-	depIds              []string
-	depConfigs          key_value.KeyValue
-	DepClients          key_value.KeyValue
-	Frontend            *frontend.Frontend
-	InstanceManager     *instance_manager.Parent
-	instanceManagerRuns bool
-	Manager             *handler_manager.HandlerManager
-	status              string
+	config                 *config.Handler
+	socket                 *zmq.Socket
+	logger                 *log.Logger
+	Routes                 key_value.KeyValue
+	RouteDeps              key_value.KeyValue
+	depIds                 []string
+	depConfigs             key_value.KeyValue
+	DepClients             key_value.KeyValue
+	Frontend               *frontend.Frontend
+	InstanceManager        *instance_manager.Parent
+	instanceManagerStarted bool
+	Manager                *handler_manager.HandlerManager
+	status                 string
 }
 
 // New handler
 func New() *Handler {
 	return &Handler{
-		logger:              nil,
-		Routes:              key_value.Empty(),
-		RouteDeps:           key_value.Empty(),
-		depIds:              make([]string, 0),
-		depConfigs:          key_value.Empty(),
-		DepClients:          key_value.Empty(),
-		Frontend:            frontend.New(),
-		InstanceManager:     nil,
-		instanceManagerRuns: false,
-		Manager:             nil,
-		status:              "",
+		logger:                 nil,
+		Routes:                 key_value.Empty(),
+		RouteDeps:              key_value.Empty(),
+		depIds:                 make([]string, 0),
+		depConfigs:             key_value.Empty(),
+		DepClients:             key_value.Empty(),
+		Frontend:               frontend.New(),
+		InstanceManager:        nil,
+		instanceManagerStarted: false,
+		Manager:                nil,
+		status:                 "",
 	}
 }
 
@@ -81,7 +81,7 @@ func (c *Handler) SetLogger(parent *log.Logger) error {
 	c.InstanceManager = instance_manager.New(c.config.Id, c.logger)
 	c.Frontend.SetInstanceManager(c.InstanceManager)
 
-	c.Manager = handler_manager.New(c.Frontend, c.InstanceManager, c.StartInstanceManager)
+	c.Manager = handler_manager.New(parent, c.Frontend, c.InstanceManager, c.StartInstanceManager)
 	c.Manager.SetConfig(c.config)
 
 	return nil
@@ -234,7 +234,7 @@ func (c *Handler) Close() error {
 	return nil
 }
 
-// StartInstanceManager runs the instance Manager and listens to its events
+// StartInstanceManager starts the instance Manager and listens to its events
 func (c *Handler) StartInstanceManager() error {
 	ready := make(chan error)
 
@@ -256,7 +256,7 @@ func (c *Handler) StartInstanceManager() error {
 			ready <- fmt.Errorf("socket.Connect('%s'): %w", url, err)
 			return
 		}
-		c.instanceManagerRuns = true
+		c.instanceManagerStarted = true
 
 		err = c.InstanceManager.Start()
 		if err != nil {
@@ -334,7 +334,7 @@ func (c *Handler) StartInstanceManager() error {
 			c.logger.Error("failed to close instance Manager sub", "id", c.config.Id, "error", err)
 		}
 
-		c.instanceManagerRuns = false
+		c.instanceManagerStarted = false
 	}(ready)
 
 	return <-ready
@@ -344,7 +344,8 @@ func (c *Handler) Status() string {
 	return c.status
 }
 
-// Start the handler directly, not by goroutine
+// Start the handler directly, not by goroutine.
+// Will call the start function of each part.
 func (c *Handler) Start() error {
 	if c.config == nil {
 		return fmt.Errorf("configuration not set")
@@ -367,13 +368,12 @@ func (c *Handler) Start() error {
 		return fmt.Errorf("c.Frontend.Start: %w", err)
 	}
 
-	go c.RunInstanceManager()
-	go func() {
-		err := c.Manager.Run()
-		if err != nil {
-			c.status = err.Error()
-		}
-	}()
+	if err := c.StartInstanceManager(); err != nil {
+		return fmt.Errorf("c.StartInstanceManager: %w", err)
+	}
+	if err := c.Manager.Start(); err != nil {
+		return fmt.Errorf("c.Manager.Start: %w", err)
+	}
 
 	return nil
 }
