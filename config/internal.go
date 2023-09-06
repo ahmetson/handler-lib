@@ -18,9 +18,9 @@ import (
 //
 // This url is set as the handler's name in the config.
 // Then the handler package will generate an inproc:// url based on the handler name.
-// Func UrlToFileName(url string) string {
-//	return strings.ReplaceAll(strings.ReplaceAll(url, "/", "."), "\\", ".")
-// }
+Func UrlToFileName(url string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(url, "/", "."), "\\", ".")
+}
 
 // ManagerUrl returns the handler manager socket
 func ManagerUrl(handlerId string) string {
