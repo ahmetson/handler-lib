@@ -84,7 +84,7 @@ func (reactor *Reactor) prepareExternalSocket() error {
 
 	external, err := zmq.NewSocket(socketType)
 	if err != nil {
-		return fmt.Errorf("newFrontend(%s): %v", reactor.externalConfig.Type, err)
+		return fmt.Errorf("zmq.NewSocket(%s): %v", reactor.externalConfig.Type, err)
 	}
 
 	// Keep in memory one message
@@ -179,7 +179,7 @@ func (reactor *Reactor) Run() {
 // This function will forward the messages to the backend.
 // Since backend is calling the workers, which means the worker will be busy, this function removes the worker from the queue.
 // Since the queue is removed, it will remove the external from the reactor.
-// Frontend will still receive the messages, however, they will be queued until external will not be added to the reactor.
+// The external socket will still receive the messages, however, they will be queued until external will not be added to the reactor.
 func (reactor *Reactor) handleExternal() error {
 	msg, err := reactor.external.RecvMessage(0)
 	if err != nil {

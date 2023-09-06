@@ -76,7 +76,7 @@ func (test *TestReactorSuite) Test_11_External() {
 		s.Require().NoError(err)
 	}
 
-	// A delay a bit, until frontend will catch the user messages
+	// A delay a bit, until external socket will receive the user messages
 	time.Sleep(time.Millisecond * 50)
 	err = test.reactor.handleExternal()
 	s.Require().NoError(err)
