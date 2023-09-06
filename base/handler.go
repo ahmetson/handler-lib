@@ -360,3 +360,23 @@ func (c *Handler) Start() error {
 
 	return nil
 }
+
+// Does nothing, simply returns the data
+var anyHandler = func(request message.Request) message.Reply {
+	replyParameters := key_value.Empty()
+	replyParameters.Set("route", request.Command)
+
+	reply := request.Ok(replyParameters)
+	return reply
+}
+
+func AnyRoute(handler Interface) error {
+	if err := handler.Route(route.Any, anyHandler); err != nil {
+		return fmt.Errorf("failed to '%s' route into the handler: %w", route.Any, err)
+	}
+	return nil
+}
+
+func requiredMetadata() []string {
+	return []string{"Identity", "pub_key"}
+}

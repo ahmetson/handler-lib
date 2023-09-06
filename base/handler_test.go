@@ -253,6 +253,20 @@ func (test *TestHandlerSuite) Test_14_Run() {
 	s.Require().Equal(test.inprocHandler.Reactor.Status(), reactor.CREATED)
 }
 
+// Test_15_Misc tests requiredMetadata, AnyRoute functions.
+func (test *TestHandlerSuite) Test_15_Misc() {
+	s := &test.Suite
+
+	s.Require().Len(requiredMetadata(), 2)
+
+	handler := New()
+	s.Require().Empty(handler.Routes)
+
+	s.Require().NoError(AnyRoute(handler))
+
+	s.Require().NotEmpty(handler.Routes)
+}
+
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
 func TestHandler(t *testing.T) {

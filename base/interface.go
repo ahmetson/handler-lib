@@ -1,12 +1,8 @@
 package base
 
 import (
-	"fmt"
 	clientConfig "github.com/ahmetson/client-lib/config"
-	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
-	"github.com/ahmetson/handler-lib/route"
 	"github.com/ahmetson/log-lib"
 )
 
@@ -58,24 +54,4 @@ type Interface interface {
 	// The Status is empty is the handler is running.
 	// Returns an error string if the Manager is not running
 	Status() string
-}
-
-// Does nothing, simply returns the data
-var anyHandler = func(request message.Request) message.Reply {
-	replyParameters := key_value.Empty()
-	replyParameters.Set("route", request.Command)
-
-	reply := request.Ok(replyParameters)
-	return reply
-}
-
-func AnyRoute(handler Interface) error {
-	if err := handler.Route(route.Any, anyHandler); err != nil {
-		return fmt.Errorf("failed to '%s' route into the handler: %w", route.Any, err)
-	}
-	return nil
-}
-
-func requiredMetadata() []string {
-	return []string{"Identity", "pub_key"}
 }
