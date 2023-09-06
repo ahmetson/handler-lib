@@ -43,6 +43,7 @@ type Instance struct {
 	logger      *log.Logger
 	close       bool
 	status      string // Instance status
+	errors      []error
 }
 
 // New handler of the handlerType
@@ -59,6 +60,7 @@ func New(handlerType config.HandlerType, id string, parentId string, parent *log
 		logger:      logger,
 		close:       false,
 		status:      PREPARE,
+		errors:      make([]error, 0),
 	}
 }
 
@@ -112,173 +114,293 @@ func (c *Instance) Status() string {
 	return c.status
 }
 
-func (c *Instance) Run() {
-	parent, err := zmq.NewSocket(zmq.PUSH)
-	if err != nil {
-		c.logger.Warn("failed to create a parent client socket, parent should check it")
-		return
-	}
-
-	err = parent.Connect(config.ParentUrl(c.parentId))
-	if err != nil {
-		c.logger.Fatal("failed to connect to the parent", "error", err)
-	}
-
-	// Notify the parent that it's getting prepared
+// pubStatus notifies instance manager with the status of this Instance.
+func (c *Instance) pubStatus(parent *zmq.Socket, status string) error {
 	req := message.Request{
 		Command:    "set_status",
-		Parameters: key_value.Empty().Set("id", c.Id).Set("status", PREPARE),
+		Parameters: key_value.Empty().Set("id", c.Id).Set("status", status),
 	}
-	reqStr, _ := req.String()
+
+	reqStr, err := req.String()
+	if err != nil {
+		return fmt.Errorf("request.String: %w", err)
+	}
+
 	_, err = parent.SendMessageDontwait(reqStr)
 	if err != nil {
-		c.logger.Fatal("failed to send status as PREPARE to parent", "err", err)
+		return fmt.Errorf("parent.SendMessageDontWait: %w", err)
 	}
 
-	handler, err := zmq.NewSocket(config.SocketType(c.Type()))
+	return nil
+}
+
+// pubFail notifies instance manager that this Instance crashed
+func (c *Instance) pubFail(parent *zmq.Socket, instanceErr error) error {
+	req := message.Request{
+		Command:    "set_status",
+		Parameters: key_value.Empty().Set("id", c.Id).Set("status", CLOSED).Set("message", instanceErr.Error()),
+	}
+
+	reqStr, err := req.String()
 	if err != nil {
-		errMsg := fmt.Sprintf("failed to create a handler socket of %s type: %v", c.Type(), err)
-		reply := message.Reply{Status: message.FAIL, Parameters: key_value.Empty(), Message: errMsg}
-		replyStr, _ := reply.String()
-		if _, err := parent.SendMessage(replyStr); err != nil {
-			c.logger.Warn("failed to send a message to parent", "message", reply)
-			return
-		}
+		return fmt.Errorf("request.String: %w", err)
 	}
 
-	err = handler.Bind(config.InstanceHandleUrl(c.parentId, c.Id))
-	if err != nil {
-		c.logger.Fatal("bind error", "error", err)
-	}
-
-	manage, err := zmq.NewSocket(zmq.REP)
-	if err != nil {
-		errMsg := fmt.Sprintf("failed to create a manager socket: %v", err)
-		reply := message.Reply{Status: message.FAIL, Parameters: key_value.Empty(), Message: errMsg}
-		replyStr, _ := reply.String()
-		if _, err := parent.SendMessage(replyStr); err != nil {
-			c.logger.Warn("failed to send a message to parent", "message", reply)
-			return
-		}
-	}
-
-	err = manage.Bind(config.InstanceUrl(c.parentId, c.Id))
-	if err != nil {
-		c.logger.Fatal("bind error", "error", err)
-	}
-
-	poller := zmq.NewPoller()
-	poller.Add(handler, zmq.POLLIN)
-	poller.Add(manage, zmq.POLLIN)
-
-	c.status = READY
-	c.close = false
-	req.Parameters.Set("status", READY)
-	reqStr, _ = req.String()
 	_, err = parent.SendMessageDontwait(reqStr)
 	if err != nil {
-		c.logger.Fatal("failed to send status as READY to parent", "err", err)
+		return fmt.Errorf("parent.SendMessageDontWait: %w", err)
 	}
 
-	for {
-		if c.close {
-			err = poller.RemoveBySocket(handler)
-			if err != nil {
-				c.logger.Fatal("remove handler", "error", err)
-			}
-			err = poller.RemoveBySocket(manage)
-			if err != nil {
-				c.logger.Fatal("remove manager", "error", err)
-			}
+	return nil
+}
 
-			req.Parameters.Set("status", CLOSED)
-			reqStr, _ = req.String()
-			_, err = parent.SendMessageDontwait(reqStr)
-			if err != nil {
-				c.logger.Fatal("failed to send status as CLOSED to parent", "err", err)
-			}
+// Errors that occurred in the instance during data transfer between instance manager and this service.
+// So, instance couldn't send it to the instance.
+func (c *Instance) Errors() []error {
+	return c.errors
+}
 
-			break
-		}
+// Start the instance manager and handler.
+func (c *Instance) Start() error {
+	ready := make(chan error)
 
-		sockets, err := poller.Poll(time.Millisecond)
+	c.errors = make([]error, 0)
+
+	go func(ready chan error) {
+		parent, err := zmq.NewSocket(zmq.PUSH)
 		if err != nil {
-			newErr := fmt.Errorf("poller.Poll(%s): %w", c.Type(), err)
-			c.logger.Fatal("failed", "error", newErr)
+			ready <- fmt.Errorf("zmq.NewSocket('PUSH'): %w", err)
+			return
 		}
 
-		if len(sockets) == 0 {
-			continue
+		parentUrl := config.ParentUrl(c.parentId)
+		err = parent.Connect(parentUrl)
+		if err != nil {
+			ready <- fmt.Errorf("parent.Connect('%s'): %w", parentUrl, err)
+			return
 		}
 
-		for _, polled := range sockets {
-			if polled.Socket == handler {
-				data, meta, err := handler.RecvMessageWithMetadata(0)
-				if err != nil {
-					newErr := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
-					if err := c.replyError(handler, newErr); err != nil {
-						c.logger.Fatal("error", "message", err)
+		// Notify the parent that it's getting prepared
+		err = c.pubStatus(parent, PREPARE)
+		if err != nil {
+			ready <- fmt.Errorf("c.pubStatus('%s'): %w", PREPARE, err)
+			return
+		}
+
+		handler, err := zmq.NewSocket(config.SocketType(c.Type()))
+		if err != nil {
+			ready <- fmt.Errorf("zmq.NewSocket('handler', type: '%s'): %w", c.Type(), err)
+			return
+		}
+
+		handlerUrl := config.InstanceHandleUrl(c.parentId, c.Id)
+		err = handler.Bind(handlerUrl)
+		if err != nil {
+			ready <- fmt.Errorf("handler.Bind('%s'): %w", handlerUrl, err)
+			return
+		}
+
+		manager, err := zmq.NewSocket(zmq.REP)
+		if err != nil {
+			closeErr := handler.Close()
+			if closeErr != nil {
+				err = fmt.Errorf("%w: handler.Close: %w", err, closeErr)
+			}
+			ready <- fmt.Errorf("zmq.NewSocket('manager'): %w", err)
+			return
+		}
+
+		managerUrl := config.InstanceUrl(c.parentId, c.Id)
+		err = manager.Bind(managerUrl)
+		if err != nil {
+			closeErr := handler.Close()
+			if closeErr != nil {
+				err = fmt.Errorf("%w: handler.Close: %w", err, closeErr)
+			}
+			ready <- fmt.Errorf("manager.Bind('%s'): %w", managerUrl, err)
+			return
+		}
+
+		poller := zmq.NewPoller()
+		poller.Add(handler, zmq.POLLIN)
+		poller.Add(manager, zmq.POLLIN)
+
+		c.status = READY
+		c.close = false
+
+		err = c.pubStatus(parent, READY)
+		if err != nil {
+			closeErr := handler.Close()
+			if closeErr != nil {
+				err = fmt.Errorf("%w: handler.Close: %w", err, closeErr)
+			}
+			closeErr = manager.Close()
+			if closeErr != nil {
+				err = fmt.Errorf("%w: manager.Close: %w", err, closeErr)
+			}
+			ready <- fmt.Errorf("c.pubStatus('%s'): %w", READY, err)
+			return
+		}
+
+		// exit from instance.Run
+		// the rest of the code are notified by the pusher
+		ready <- nil
+
+		for {
+			if c.close {
+				break
+			}
+
+			sockets, err := poller.Poll(time.Millisecond)
+			if err != nil {
+				newErr := fmt.Errorf("poller.Poll(%s): %w", c.Type(), err)
+				pubErr := c.pubFail(parent, newErr)
+				if pubErr != nil {
+					c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", newErr, pubErr))
+				}
+				break
+			}
+
+			if len(sockets) == 0 {
+				continue
+			}
+
+			for _, polled := range sockets {
+				if polled.Socket == handler {
+					data, meta, err := handler.RecvMessageWithMetadata(0)
+					if err != nil {
+						newErr := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
+						err = c.replyError(handler, newErr)
+						if err != nil {
+							newErr = fmt.Errorf("c.ReplyError('handler', '%w'): %w", newErr, err)
+						}
+						pubErr := c.pubFail(parent, newErr)
+						if pubErr != nil {
+							c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", newErr, pubErr))
+						}
+						break
 					}
-					c.logger.Fatal("error", "message", newErr)
-				}
 
-				req.Parameters.Set("status", HANDLING)
-				reqStr, _ = req.String()
-				_, err = parent.SendMessageDontwait(reqStr)
-				if err != nil {
-					c.logger.Fatal("failed to send status as HANDLING to parent", "err", err)
-				}
+					pubErr := c.pubStatus(parent, HANDLING)
+					if pubErr != nil {
+						// no need to call for c.pubFail, since that could also lead to the same error as pubStatus.
+						// they use the same socket.
+						c.errors = append(c.errors, fmt.Errorf("c.pubStatus('HANDLING'): %w", pubErr))
+						break
+					}
 
-				reply, err := c.processMessage(data, meta)
-				if err != nil {
-					c.logger.Fatal("processMessage", "message", data, "meta", meta, "error", err)
-				}
+					reply, err := c.processMessage(data, meta)
+					if err != nil {
+						pubErr := c.pubFail(parent, fmt.Errorf("c.processData: %w", err))
+						if pubErr != nil {
+							c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", err, pubErr))
+						}
+						break
+					}
 
-				req.Parameters.Set("status", READY)
-				reqStr, _ = req.String()
-				_, err = parent.SendMessageDontwait(reqStr)
-				if err != nil {
-					c.logger.Fatal("failed to send status as READY after handling to parent", "err", err)
-				}
+					pubErr = c.pubStatus(parent, READY)
+					if pubErr != nil {
+						// no need to call for c.pubFail, since that could also lead to the same error as pubStatus.
+						// they use the same socket.
+						c.errors = append(c.errors, fmt.Errorf("c.pubStatus('READY'): %w", pubErr))
+						break
+					}
 
-				if err := c.reply(handler, reply); err != nil {
-					c.logger.Fatal("failed to reply back to handler", "request string", data, "reply", reply, "error", err)
-				}
-			} else if polled.Socket == manage {
-				data, err := manage.RecvMessage(0)
-				if err != nil {
-					c.logger.Fatal("failed to receive manager message", "error", err)
-				}
+					if err := c.reply(handler, reply); err != nil {
+						failErr := fmt.Errorf("c.reply('handler'): %w", err)
+						pubErr := c.pubFail(parent, failErr)
+						if pubErr != nil {
+							c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", failErr, pubErr))
+						}
+						break
+					}
+				} else if polled.Socket == manager {
+					fmt.Printf("manager received a message")
+					// for now, the instance supports only one command: CLOSE
+					_, err := manager.RecvMessage(0)
+					if err != nil {
+						pubErr := c.pubFail(parent, fmt.Errorf("manager.RecvMessage: %w", err))
+						if pubErr != nil {
+							c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", err, pubErr))
+						}
+						break
+					}
 
-				// the close parameter is set to true after reply the message back.
-				// otherwise, the socket may be closed while the requester is waiting for a reply message.
-				// it could leave to the app froze-up.
-				reply := message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
-				if err := c.reply(manage, reply); err != nil {
-					c.logger.Fatal("failed to reply back to manager", "request string", data, "error", err)
-				}
+					// the close parameter is set to true after reply the message back.
+					// otherwise, the socket may be closed while the requester is waiting for a reply message.
+					// it could leave to the app froze-up.
+					reply := message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
+					if err := c.reply(manager, reply); err != nil {
+						failErr := fmt.Errorf("c.reply('manager'): %w", err)
+						pubErr := c.pubFail(parent, failErr)
+						if pubErr != nil {
+							c.errors = append(c.errors, fmt.Errorf("c.pubFail('%w'): %w", failErr, pubErr))
+						}
+					}
 
-				// close it
-				c.close = true
-				c.status = CLOSED
+					fmt.Printf("exiting from the instance\n")
+
+					// mark as close, we don't exit straight from the loop,
+					// because poller may be processing another signal.
+					// so adding a close signal to the queue
+					c.close = true
+					c.status = CLOSED
+				}
 			}
 		}
-	}
 
-	err = manage.Close()
-	if err != nil {
-		c.logger.Fatal("manage close", "error", err)
-	}
+		fmt.Errorf("exited from poller loop\n")
 
-	err = handler.Close()
-	if err != nil {
-		c.logger.Fatal("handler close", "error", err)
-	}
+		err = poller.RemoveBySocket(handler)
+		if err != nil {
+			pubErr := c.pubFail(parent, fmt.Errorf("poller.RemoveBySocket('handler'): %w", err))
+			if pubErr != nil {
+				// we add it to the error stack, but continue to clean out the rest
+				// since removing from the poller won't affect the other socket operations.
+				c.errors = append(c.errors, pubErr)
+			}
+		}
 
-	err = parent.Close()
-	if err != nil {
-		c.logger.Fatal("parent client close", "error", err)
-	}
+		err = poller.RemoveBySocket(manager)
+		if err != nil {
+			pubErr := c.pubFail(parent, fmt.Errorf("poller.RemoveBySocket('manager'): %w", err))
+			if pubErr != nil {
+				// we add it to the error stack, but continue to clean out the rest
+				// since removing from the poller won't affect the other socket operations.
+				c.errors = append(c.errors, pubErr)
+			}
+		}
+
+		// if manager closing fails, then restart of this instance will throw an error,
+		// since the manager is bound to the endpoint.
+		//
+		// one option is to remove the thread, and create a new instance with another id.
+		err = manager.Close()
+		if err != nil {
+			c.errors = append(c.errors, fmt.Errorf("manager.Close: %w", err))
+		}
+
+		// if manager closing fails, then restart of this instance will throw an error.
+		// see above manager.Close comment.
+		err = handler.Close()
+		if err != nil {
+			c.errors = append(c.errors, fmt.Errorf("handler.Close: %w", err))
+		}
+
+		pubErr := c.pubStatus(parent, CLOSED)
+		if pubErr != nil {
+			// we add it to the error stack, but continue to clean out the rest
+			// since removing from the poller won't affect the other socket operations.
+			c.errors = append(c.errors, fmt.Errorf("c.pubStatis('CLOSED'): %w", pubErr))
+		}
+
+		err = parent.Close()
+		if err != nil {
+			c.errors = append(c.errors, fmt.Errorf("parent.Close: %w", err))
+		}
+	}(ready)
+
+	return <-ready
 }
 
 func (c *Instance) processMessage(msgRaw []string, metadata map[string]string) (message.Reply, error) {

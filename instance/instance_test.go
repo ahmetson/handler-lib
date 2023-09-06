@@ -169,7 +169,7 @@ func (test *TestInstanceSuite) Test_12_Close() {
 	s.Require().Equal(PREPARE, test.instance0.Status())
 
 	// Let's run the service
-	go test.instance0.Run()
+	go test.instance0.Start()
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
 	// Make sure that the service is running
@@ -201,7 +201,7 @@ func (test *TestInstanceSuite) Test_13_Handle() {
 	s := &test.Suite
 
 	// Let's run the service
-	go test.instance0.Run()
+	go test.instance0.Start()
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
 	// Make sure that the service is running
@@ -263,7 +263,7 @@ func (test *TestInstanceSuite) Test_14_HandleRouter() {
 	test.instance1.SetClients(&test.clients)
 
 	// Let's run the service
-	go test.instance1.Run()
+	go test.instance1.Start()
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
 	// Make sure that the service is running
@@ -325,7 +325,7 @@ func (test *TestInstanceSuite) Test_15_HandleDealer() {
 	test.instance1.SetClients(&test.clients)
 
 	// Let's run the service
-	go test.instance1.Run()
+	go test.instance1.Start()
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
 	// Make sure that the service is running
@@ -387,7 +387,7 @@ func (test *TestInstanceSuite) Test_15_HandleDealerRouter() {
 	test.instance1.SetClients(&test.clients)
 
 	// Let's run the service
-	go test.instance1.Run()
+	go test.instance1.Start()
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
 	// Make sure that the service is running
