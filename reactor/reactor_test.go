@@ -78,9 +78,9 @@ func (test *TestReactorSuite) Test_11_External() {
 
 	// A delay a bit, until frontend will catch the user messages
 	time.Sleep(time.Millisecond * 50)
-	err = test.reactor.handleFrontend()
+	err = test.reactor.handleExternal()
 	s.Require().NoError(err)
-	err = test.reactor.handleFrontend()
+	err = test.reactor.handleExternal()
 	s.Require().NoError(err)
 
 	s.Require().False(test.reactor.queue.IsEmpty())
@@ -95,7 +95,7 @@ func (test *TestReactorSuite) Test_11_External() {
 	_, err = user.SendMessage("", msgStr)
 	s.Require().NoError(err)
 
-	err = test.reactor.handleFrontend()
+	err = test.reactor.handleExternal()
 	s.Require().NoError(err)
 
 	// However, the third message that user receives should be a failure

@@ -108,9 +108,9 @@ func (reactor *Reactor) prepareSockets() {
 	reactor.sockets = zmq.NewReactor()
 }
 
-// receiveExternalMessages adds the external socket to zeromq reactor to invoke handleFrontend when it receives a message.
+// receiveExternalMessages adds the external socket to zeromq reactor to invoke handleExternal when it receives a message.
 func (reactor *Reactor) receiveExternalMessages() {
-	reactor.sockets.AddSocket(reactor.external, zmq.POLLIN, func(e zmq.State) error { return reactor.handleFrontend() })
+	reactor.sockets.AddSocket(reactor.external, zmq.POLLIN, func(e zmq.State) error { return reactor.handleExternal() })
 }
 
 // runConsumer adds the consumer to the zeromq reactor to check for queue and send the messages to instances.
@@ -174,30 +174,30 @@ func (reactor *Reactor) Run() {
 	}
 }
 
-// handleFrontend is an event invoked by the zmq4.Reactor whenever a new client request happens.
+// handleExternal is an event invoked by the zmq4.Reactor whenever a new client request happens.
 //
 // This function will forward the messages to the backend.
 // Since backend is calling the workers, which means the worker will be busy, this function removes the worker from the queue.
 // Since the queue is removed, it will remove the external from the reactor.
 // Frontend will still receive the messages, however, they will be queued until external will not be added to the reactor.
-func (reactor *Reactor) handleFrontend() error {
+func (reactor *Reactor) handleExternal() error {
 	msg, err := reactor.external.RecvMessage(0)
 	if err != nil {
-		return fmt.Errorf("handleFrontend: external.RecvMessage: %w", err)
+		return fmt.Errorf("handleExternal: external.RecvMessage: %w", err)
 	}
 	req, err := message.NewReq(msg[2:])
 	if err != nil {
-		return fmt.Errorf("handleFrontend: message.NewReq: %w", err)
+		return fmt.Errorf("handleExternal: message.NewReq: %w", err)
 	}
 
 	if reactor.queue.IsFull() {
 		reply := req.Fail("queue is full")
 		replyStr, err := reply.String()
 		if err != nil {
-			return fmt.Errorf("handleFrontend: reply.String: %w", err)
+			return fmt.Errorf("handleExternal: reply.String: %w", err)
 		}
 		if _, err := reactor.external.SendMessageDontwait(msg[0], msg[1], replyStr); err != nil {
-			return fmt.Errorf("handleFrontend: reactor.external.SendMessageDontwait: %w", err)
+			return fmt.Errorf("handleExternal: reactor.external.SendMessageDontwait: %w", err)
 		}
 		return nil
 	}
