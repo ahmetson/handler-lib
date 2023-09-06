@@ -96,8 +96,8 @@ func (test *TestHandlerSuite) cleanOut() {
 	time.Sleep(time.Millisecond * 100)
 }
 
-// Test_14_Run runs the sync replier
-func (test *TestHandlerSuite) Test_10_Run() {
+// Test_10_Start starts the sync replier and makes sure that it can not have more than 1 instance.
+func (test *TestHandlerSuite) Test_10_Start() {
 	s := &test.Suite
 
 	err := test.syncReplier.Start()

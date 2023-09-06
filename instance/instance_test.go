@@ -161,18 +161,18 @@ func (test *TestInstanceSuite) Test_11_SetClients() {
 	}
 }
 
-// Test_12_Close tests running and closing the instance
+// Test_12_Close tests starting and closing the instance
 func (test *TestInstanceSuite) Test_12_Close() {
 	s := &test.Suite
 
 	// First, it should be prepared
 	s.Require().Equal(PREPARE, test.instance0.Status())
 
-	// Let's run the service
+	// Let's start the instance
 	s.Require().NoError(test.instance0.Start())
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
-	// Make sure that the service is running
+	// Make sure that instance is ready
 	s.Require().Equal(READY, test.instance0.Status())
 
 	// Sending a close message
@@ -200,11 +200,11 @@ func (test *TestInstanceSuite) Test_12_Close() {
 func (test *TestInstanceSuite) Test_13_Handle() {
 	s := &test.Suite
 
-	// Let's run the service
+	// Let's start the instance
 	s.Require().NoError(test.instance0.Start())
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
-	// Make sure that the service is running
+	// Make sure that instance is ready
 	s.Require().Equal(READY, test.instance0.Status())
 
 	// Now we will send some random requests
@@ -262,11 +262,11 @@ func (test *TestInstanceSuite) Test_14_HandleRouter() {
 	test.instance1.SetRoutes(&test.routes, &test.routeDeps)
 	test.instance1.SetClients(&test.clients)
 
-	// Let's run the service
+	// Let's start the instance
 	s.Require().NoError(test.instance1.Start())
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
-	// Make sure that the service is running
+	// Make sure that instance is ready
 	s.Require().Equal(READY, test.instance1.Status())
 
 	// Now we will send some random requests
@@ -324,11 +324,11 @@ func (test *TestInstanceSuite) Test_15_HandleDealer() {
 	test.instance1.SetRoutes(&test.routes, &test.routeDeps)
 	test.instance1.SetClients(&test.clients)
 
-	// Let's run the service
+	// Let's start the instance
 	s.Require().NoError(test.instance1.Start())
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
-	// Make sure that the service is running
+	// Make sure that instance is ready
 	s.Require().Equal(READY, test.instance1.Status())
 
 	// Now we will send some random requests
@@ -386,11 +386,11 @@ func (test *TestInstanceSuite) Test_15_HandleDealerRouter() {
 	test.instance1.SetRoutes(&test.routes, &test.routeDeps)
 	test.instance1.SetClients(&test.clients)
 
-	// Let's run the service
+	// Let's start the instance
 	s.Require().NoError(test.instance1.Start())
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
-	// Make sure that the service is running
+	// Make sure that instance is ready
 	s.Require().Equal(READY, test.instance1.Status())
 
 	// Now we will send some random requests

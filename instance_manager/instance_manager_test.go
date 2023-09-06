@@ -57,18 +57,18 @@ func (test *TestInstanceSuite) Test_0_New() {
 	s.Require().Equal(Idle, test.parent.Status())
 }
 
-// Test_10_Close running the instance manager
+// Test_10_Close starts, then closes the instance manager
 func (test *TestInstanceSuite) Test_10_Close() {
 	s := &test.Suite
 
 	// First, it should be prepared
 	s.Require().Equal(Idle, test.parent.Status())
 
-	// Let's run the service
+	// Let's start the instance manager
 	s.Require().NoError(test.parent.Start())
 	time.Sleep(time.Millisecond * 100) // waiting a time for initialization
 
-	// Make sure that the service is running
+	// Make sure that the instance manager is running
 	s.Require().Equal(Running, test.parent.Status())
 
 	// Sending a close message
@@ -96,11 +96,11 @@ func (test *TestInstanceSuite) Test_11_AddInstance() {
 	// Make sure that there are no instances
 	s.Require().Len(test.parent.instances, 0)
 
-	// Adding a new instance when manager is not running should fail
+	// Adding a new instance when manager not yet started must fail
 	_, err := test.parent.AddInstance(config.SyncReplierType, &test.routes, &test.routeDeps, &test.clients)
 	s.Require().Error(err)
 
-	// Running instance manager
+	// Start instance manager
 	s.Require().NoError(test.parent.Start())
 
 	// waiting a bit for initialization
@@ -138,10 +138,10 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 	s.Require().Len(test.parent.instances, 0)
 	s.Require().Empty(test.parent.Ready())
 
-	// The instance manager should be idle before running
+	// The instance manager should be idle before start
 	s.Require().Equal(Idle, test.parent.Status())
 
-	// Running instance manager
+	// Start instance manager
 	s.Require().NoError(test.parent.Start())
 
 	// waiting a bit for initialization

@@ -95,8 +95,8 @@ func (test *TestHandlerSuite) req(client *zmq.Socket, request message.Request) m
 	return reply
 }
 
-// Test_10_Run runs the sync replier
-func (test *TestHandlerSuite) Test_10_Run() {
+// Test_10_Start start and make sure it can add more instances (since multi instance is the core of the replier)
+func (test *TestHandlerSuite) Test_10_Start() {
 	s := &test.Suite
 
 	err := test.replier.Start()
@@ -159,7 +159,7 @@ func (test *TestHandlerSuite) Test_11_Request() {
 	s.Require().Len(test.replier.base.InstanceManager.Instances(), 1)
 
 	instanceAmount := test.replier.MaxInstanceAmount()
-	test.logger.Info("run", "current", len(test.replier.base.InstanceManager.Instances()), "max", instanceAmount)
+	test.logger.Info("start", "current", len(test.replier.base.InstanceManager.Instances()), "max", instanceAmount)
 
 	// Adding a new instance to make reach the cap
 	for i := 1; i < 3; i++ {

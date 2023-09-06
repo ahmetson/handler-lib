@@ -205,7 +205,7 @@ func (test *TestHandlerSuite) Test_13_InstanceManager() {
 	s.Require().False(test.inprocHandler.instanceManagerStarted)
 	s.Require().Empty(test.inprocHandler.InstanceManager.Instances())
 
-	// Running instance Manager
+	// Starting instance Manager
 	s.Require().NoError(test.inprocHandler.StartInstanceManager())
 
 	// Waiting a bit for instance Manager initialization
@@ -228,8 +228,8 @@ func (test *TestHandlerSuite) Test_13_InstanceManager() {
 	s.Require().Empty(test.inprocHandler.InstanceManager.Instances())
 }
 
-// Test_14_Run runs the handler.
-func (test *TestHandlerSuite) Test_14_Run() {
+// Test_14_Start starts the handler.
+func (test *TestHandlerSuite) Test_14_Start() {
 	s := &test.Suite
 
 	err := test.inprocHandler.Start()

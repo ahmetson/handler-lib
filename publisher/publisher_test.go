@@ -54,7 +54,7 @@ func (test *TestHandlerSuite) SetupTest() {
 	s.Require().Equal(config.ReplierType, test.pub.base.Config().Type) // the trigger is rewritten
 	s.Require().NoError(test.pub.SetLogger(test.logger))
 
-	// running the trigger
+	// Start the trigger
 	triggerClientConfig := test.pub.TriggerClient()
 	triggerClient, err := client.New(triggerClientConfig)
 	s.Require().NoError(err)
@@ -119,8 +119,8 @@ func (test *TestHandlerSuite) TearDownTest() {
 	time.Sleep(time.Millisecond * 100)
 }
 
-// Test_14_Run runs the sync replier
-func (test *TestHandlerSuite) Test_10_Run() {
+// Test_10_Start make sure started publisher is trigger-able and can be subscribed
+func (test *TestHandlerSuite) Test_10_Start() {
 	s := &test.Suite
 
 	err := test.pub.Start()
