@@ -1,7 +1,9 @@
 package instance
 
 import (
+	"context"
 	"fmt"
+	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
@@ -246,6 +248,11 @@ func (c *Instance) Start() error {
 		// the parent might be already closed
 		instant := false
 
+		// canceling the handling, if received a close signal
+		bgCtx := context.Background()
+		var cancelCtx context.Context
+		var cancel context.CancelFunc
+
 		for {
 			if c.close {
 				break
@@ -267,6 +274,10 @@ func (c *Instance) Start() error {
 
 			for _, polled := range sockets {
 				if polled.Socket == handler {
+					if c.status != READY {
+						continue
+					}
+
 					data, meta, err := handler.RecvMessageWithMetadata(0)
 					if err != nil {
 						newErr := fmt.Errorf("socket.recvMessageWithMetadata: %w", err)
@@ -281,6 +292,7 @@ func (c *Instance) Start() error {
 						break
 					}
 
+					c.status = HANDLING
 					pubErr := c.pubStatus(parent, HANDLING)
 					if pubErr != nil {
 						// no need to call for c.pubFail, since that could also lead to the same error as pubStatus.
@@ -289,31 +301,9 @@ func (c *Instance) Start() error {
 						break
 					}
 
-					reply, err := c.processMessage(data, meta)
-					if err != nil {
-						pubErr := c.pubFail(parent, fmt.Errorf("c.processData: %w", err))
-						if pubErr != nil {
-							c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
-						}
-						break
-					}
+					cancelCtx, cancel = context.WithCancel(bgCtx)
 
-					pubErr = c.pubStatus(parent, READY)
-					if pubErr != nil {
-						// no need to call for c.pubFail, since that could also lead to the same error as pubStatus.
-						// they use the same socket.
-						c.logger.Error("c.pubStatus", "argument", READY, "error", pubErr)
-						break
-					}
-
-					if err := c.reply(handler, reply); err != nil {
-						failErr := fmt.Errorf("c.reply('handler'): %w", err)
-						pubErr := c.pubFail(parent, failErr)
-						if pubErr != nil {
-							c.logger.Error("c.pubFail", "argument", failErr, "error", pubErr)
-						}
-						break
-					}
+					go c.processMessage(cancelCtx, cancel, parent, handler, data, meta)
 				} else if polled.Socket == manager {
 					// The instance manager supports only one command: CLOSE.
 					// Therefore, it doesn't have any routes.
@@ -351,6 +341,14 @@ func (c *Instance) Start() error {
 								c.logger.Error("c.pubFail", "argument", failErr, "error", pubErr)
 							}
 						}
+					}
+
+					// Closing here, rather in the beginning of the loop.
+					// Since zmq.Poller takes some time to response.
+					// Meanwhile, the processing could be finished.
+					if c.status == HANDLING {
+						cancel()
+						cancel = nil
 					}
 
 					// mark as close, we don't exit straight from the loop,
@@ -446,14 +444,50 @@ func (c *Instance) Start() error {
 	return <-ready
 }
 
-func (c *Instance) processMessage(msgRaw []string, metadata map[string]string) (message.Reply, error) {
+func (c *Instance) handle(reply chan *message.Reply, req *message.Request, handleInterface interface{}, depClients []*client.Socket) {
+	result := route.Handle(req, handleInterface, depClients)
+	reply <- result
+}
+
+func (c *Instance) setReady(parent *zmq.Socket) {
+	c.status = READY
+	pubErr := c.pubStatus(parent, READY)
+	if pubErr != nil {
+		// no need to call for c.pubFail, since that could also lead to the same error as pubStatus.
+		// they use the same socket.
+		c.logger.Error("c.pubStatus", "argument", READY, "error", pubErr)
+	}
+}
+
+func (c *Instance) processingFinished(parent *zmq.Socket, handler *zmq.Socket, reply *message.Reply) {
+	c.setReady(parent)
+
+	if err := c.reply(handler, *reply); err != nil {
+		failErr := fmt.Errorf("c.reply('handler'): %w", err)
+		pubErr := c.pubFail(parent, failErr)
+		if pubErr != nil {
+			c.logger.Error("c.pubFail", "argument", failErr, "error", pubErr)
+		}
+	}
+}
+
+func (c *Instance) processMessage(ctx context.Context, cancel context.CancelFunc, parent *zmq.Socket, handler *zmq.Socket, msgRaw []string, metadata map[string]string) {
 	// All request types derive from the basic request.
 	// We first attempt to parse basic request from the raw message
 	request, err := message.NewReqWithMeta(msgRaw, metadata)
 	if err != nil {
+		c.setReady(parent)
+
 		newErr := fmt.Errorf("message.NewReqWithMeta (msg len: %d): %w", len(msgRaw), err)
 
-		return message.Reply{}, newErr
+		pubErr := c.pubFail(parent, fmt.Errorf("c.processData: %w", newErr))
+		if pubErr != nil {
+			c.logger.Error("c.pubFail", "argument", err, "error", pubErr)
+		}
+		if cancel != nil {
+			cancel()
+		}
+		return
 	}
 
 	// Add the trace
@@ -464,17 +498,33 @@ func (c *Instance) processMessage(msgRaw []string, metadata map[string]string) (
 
 	handleInterface, depNames, err := route.Route(request.Command, *c.routes, *c.routeDeps)
 	if err != nil {
-		return request.Fail(fmt.Sprintf("route.Route(%s): %v", request.Command, err)), nil
+		reply := request.Fail(fmt.Sprintf("route.Route(%s): %v", request.Command, err))
+		c.processingFinished(parent, handler, &reply)
+		if cancel != nil {
+			cancel()
+		}
+		return
 	}
 
 	depClients := route.FilterExtensionClients(depNames, *c.depClients)
 
-	reply := route.Handle(request, handleInterface, depClients)
+	reply := make(chan *message.Reply)
+	go c.handle(reply, request, handleInterface, depClients)
+
+	// We use a similar pattern to the HTTP server
+	// that we saw in the earlier example
+	select {
+	case result := <-reply:
+		// the manager might cancel it.
+		if cancel != nil {
+			cancel()
+			c.processingFinished(parent, handler, result)
+		}
+	case <-ctx.Done(): // exit without processing
+	}
 
 	// update the stack
 	//if err = reply.SetStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id); err != nil {
 	//	c.logger.Warn("failed to update the reply stack", "error", err)
 	//}
-
-	return *reply, nil
 }
