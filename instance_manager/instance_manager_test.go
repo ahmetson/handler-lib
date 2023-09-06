@@ -111,13 +111,16 @@ func (test *TestInstanceSuite) Test_11_AddInstance() {
 	instanceId, err := test.parent.AddInstance(config.SyncReplierType, &test.routes, &test.routeDeps, &test.clients)
 	s.Require().NoError(err)
 
+	// Wait a bit for instance initialization
+	time.Sleep(time.Millisecond * 100)
+
 	// The instance should be created
 	s.Require().Len(test.parent.instances, 1)
 	s.Equal(instance.READY, test.parent.instances[instanceId].status)
 
 	// Clean out after adding a new instance
 	test.parent.Close()
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Millisecond * 200)
 	s.Equal(Idle, test.parent.Status())
 	s.Require().Len(test.parent.instances, 0)
 }
