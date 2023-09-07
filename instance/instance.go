@@ -184,6 +184,7 @@ func (c *Instance) Start() error {
 			ready <- fmt.Errorf("c.pubStatus('%s'): %w", PREPARE, err)
 			return
 		}
+		c.status = PREPARE
 
 		handler, err := zmq.NewSocket(config.SocketType(c.Type()))
 		if err != nil {
