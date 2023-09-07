@@ -9,13 +9,18 @@ import (
 	"github.com/ahmetson/handler-lib/base"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/frontend"
+	"github.com/ahmetson/handler-lib/handler_manager"
 	instances "github.com/ahmetson/handler-lib/instance_manager"
 	"github.com/ahmetson/handler-lib/route"
 	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 )
 
-const triggerType = config.ReplierType
+const (
+	triggerType        = config.ReplierType
+	BroadcasterRunning = "running"
+	BroadcasterIdle    = "idle"
+)
 
 type Trigger struct {
 	*base.Handler
@@ -164,6 +169,13 @@ func (handler *Trigger) onTrigger(req message.Request) message.Reply {
 	return req.Ok(key_value.Empty())
 }
 
+func (handler *Trigger) broadcasterStatus() string {
+	if handler.socket == nil {
+		return BroadcasterIdle
+	}
+	return BroadcasterRunning
+}
+
 // Start the trigger directly, not by goroutine.
 //
 // The Trigger-able handlers can have only one instance
@@ -182,6 +194,33 @@ func (handler *Trigger) Start() error {
 
 	if err := m.Route(route.Any, handler.onTrigger); err != nil {
 		return fmt.Errorf("handler.Route: %w", err)
+	}
+
+	onStatus := func(req message.Request) message.Reply {
+		partStatuses := m.Manager.PartStatuses()
+		frontendStatus, err := partStatuses.GetString("frontend")
+		if err != nil {
+			return req.Fail(fmt.Sprintf("partStatuses.GetString('frontend'): %v", err))
+		}
+		instanceStatus, err := partStatuses.GetString("instance_manager")
+		if err != nil {
+			return req.Fail(fmt.Sprintf("partStatuses.GetString('instance_manager'): %v", err))
+		}
+		broadcasterStatus := handler.broadcasterStatus()
+
+		params := key_value.Empty()
+
+		if frontendStatus == frontend.RUNNING &&
+			instanceStatus == instances.Running &&
+			broadcasterStatus == BroadcasterRunning {
+			params.Set("status", handler_manager.Ready)
+		} else {
+			partStatuses.Set("broadcaster", broadcasterStatus)
+			params.Set("status", handler_manager.Incomplete).
+				Set("parts", partStatuses)
+		}
+
+		return req.Ok(params)
 	}
 
 	// add a routing that redirects the messages to the trigger
@@ -303,6 +342,9 @@ func (handler *Trigger) Start() error {
 		return fmt.Errorf("overwriting handler manager 'message_amount' failed: %w", err)
 	}
 	if err := m.Manager.Route(config.Parts, onParts); err != nil {
+		return fmt.Errorf("overwriting handler manager 'parts' failed: %w", err)
+	}
+	if err := m.Manager.Route(config.HandlerStatus, onStatus); err != nil {
 		return fmt.Errorf("overwriting handler manager 'parts' failed: %w", err)
 	}
 

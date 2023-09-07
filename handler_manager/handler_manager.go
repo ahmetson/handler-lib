@@ -60,8 +60,23 @@ func (m *HandlerManager) SetConfig(config *config.Handler) {
 	m.config = config
 }
 
+// Status returns the socket status of the handler manager
 func (m *HandlerManager) Status() string {
 	return m.status
+}
+
+// PartStatuses returns statuses of the base handler parts.
+//
+// Intended to be used by the extending handlers.
+func (m *HandlerManager) PartStatuses() key_value.KeyValue {
+	frontendStatus := m.frontend.Status()
+	instanceStatus := m.instanceManager.Status()
+
+	parts := key_value.Empty().
+		Set("frontend", frontendStatus).
+		Set("instance_manager", instanceStatus)
+
+	return parts
 }
 
 // setRoutes sets the default command handlers
