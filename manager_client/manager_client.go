@@ -49,6 +49,9 @@ type Interface interface {
 
 	// Parts returns the available parts and message types
 	Parts() ([]string, []string, error)
+
+	// Id of the handler
+	Id() string
 }
 
 // New client that's connected to the handler
@@ -75,6 +78,11 @@ func (c *Client) Attempt(attempt uint8) {
 
 func (c *Client) Close() error {
 	return c.socket.Close()
+}
+
+// Id of the handler that this Client connected to the manager.
+func (c *Client) Id() string {
+	return c.config.Id
 }
 
 // HandlerStatus returns the handler status.
