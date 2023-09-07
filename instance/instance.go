@@ -324,6 +324,8 @@ func (c *Instance) Start() error {
 					}
 
 					// Assuming the request is close
+					// The instant close or not. If it's an instant close, then it won't send the message
+					// to the parent.
 					instant, err = req.Parameters.GetBoolean("instant")
 					if err != nil {
 						c.logger.Error("req.Parameters.GetBoolean", "socket", "manager", "key", "instant", "error", err)

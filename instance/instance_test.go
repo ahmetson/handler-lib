@@ -180,7 +180,7 @@ func (test *TestInstanceSuite) Test_12_Close() {
 	s.Require().NoError(err)
 	err = instanceManager.Connect(config.InstanceUrl(test.instance0.parentId, test.instance0.Id))
 	s.Require().NoError(err)
-	req := message.Request{Command: "close", Parameters: key_value.Empty()}
+	req := message.Request{Command: "close", Parameters: key_value.Empty().Set("instant", false)}
 	reqStr, err := req.String()
 	s.Require().NoError(err)
 
@@ -230,7 +230,7 @@ func (test *TestInstanceSuite) Test_13_Handle() {
 	s.Require().NoError(err)
 	err = instanceManager.Connect(config.InstanceUrl(test.instance0.parentId, test.instance0.Id))
 	s.Require().NoError(err)
-	req := message.Request{Command: "close", Parameters: key_value.Empty()}
+	req := message.Request{Command: "close", Parameters: key_value.Empty().Set("instant", false)}
 	reqStr, err := req.String()
 	s.Require().NoError(err)
 
@@ -292,7 +292,7 @@ func (test *TestInstanceSuite) Test_14_HandleRouter() {
 	s.Require().NoError(err)
 	err = instanceManager.Connect(config.InstanceUrl(test.instance1.parentId, test.instance1.Id))
 	s.Require().NoError(err)
-	req := message.Request{Command: "close", Parameters: key_value.Empty()}
+	req := message.Request{Command: "close", Parameters: key_value.Empty().Set("instant", false)}
 	reqStr, err := req.String()
 	s.Require().NoError(err)
 
@@ -354,7 +354,7 @@ func (test *TestInstanceSuite) Test_15_HandleDealer() {
 	s.Require().NoError(err)
 	err = instanceManager.Connect(config.InstanceUrl(test.instance1.parentId, test.instance1.Id))
 	s.Require().NoError(err)
-	req := message.Request{Command: "close", Parameters: key_value.Empty()}
+	req := message.Request{Command: "close", Parameters: key_value.Empty().Set("instant", false)}
 	reqStr, err := req.String()
 	s.Require().NoError(err)
 
@@ -416,7 +416,7 @@ func (test *TestInstanceSuite) Test_15_HandleDealerRouter() {
 	s.Require().NoError(err)
 	err = instanceManager.Connect(config.InstanceUrl(test.instance1.parentId, test.instance1.Id))
 	s.Require().NoError(err)
-	req := message.Request{Command: "close", Parameters: key_value.Empty()}
+	req := message.Request{Command: "close", Parameters: key_value.Empty().Set("instant", false)}
 	reqStr, err := req.String()
 	s.Require().NoError(err)
 
