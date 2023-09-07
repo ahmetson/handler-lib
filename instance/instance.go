@@ -522,6 +522,7 @@ func (c *Instance) processMessage(ctx context.Context, cancel context.CancelFunc
 			c.processingFinished(parent, handler, result)
 		}
 	case <-ctx.Done(): // exit without processing
+		c.logger.Info("cancel the instance")
 	}
 
 	// update the stack
