@@ -90,8 +90,6 @@ func (test *TestHandlerSuite) cleanOut() {
 	err := test.managerClient.Close()
 	s.Require().NoError(err)
 
-	s.Require().NoError(test.syncReplier.Close())
-
 	// Wait a bit for closing
 	time.Sleep(time.Millisecond * 100)
 }
@@ -123,6 +121,11 @@ func (test *TestHandlerSuite) Test_10_Start() {
 	req.Command = config.AddInstance
 	reply = test.req(test.managerClient, req)
 	s.Require().False(reply.IsOK())
+
+	// Close the handler
+	req.Command = config.HandlerClose
+	reply = test.req(test.managerClient, req)
+	s.Require().True(reply.IsOK())
 
 	// clean out
 	test.cleanOut()

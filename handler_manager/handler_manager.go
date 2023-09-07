@@ -236,11 +236,6 @@ func (m *HandlerManager) setRoutes() {
 	m.routes.Set(config.HandlerClose, onClose)
 }
 
-// Close the handle manager
-func (m *HandlerManager) Close() {
-	m.close = true
-}
-
 // Route overrides the default route with the given handle.
 // Returns an error if the command is not supported.
 // Returns an error if the handler manager is running.

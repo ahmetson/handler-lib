@@ -7,6 +7,7 @@ import (
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/frontend"
 	"github.com/ahmetson/handler-lib/instance_manager"
+	"github.com/ahmetson/handler-lib/manager_client"
 	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
@@ -159,7 +160,9 @@ func (test *TestTriggerSuite) Test_14_Start() {
 	s.Require().NotNil(test.handler.socket)
 
 	// Now let's close it
-	err = test.handler.Close()
+	triggerClient, err := manager_client.New(test.config.Handler)
+	s.Require().NoError(err)
+	s.Require().NoError(triggerClient.Close())
 
 	// Wait a bit for closing
 	time.Sleep(time.Millisecond * 100)

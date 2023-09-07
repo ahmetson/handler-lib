@@ -217,23 +217,6 @@ func (c *Handler) initDepClients() error {
 	return nil
 }
 
-// Close the handler
-func (c *Handler) Close() error {
-	if c.InstanceManager != nil && c.InstanceManager.Status() == instance_manager.Running {
-		c.InstanceManager.Close()
-	}
-	if c.Frontend != nil && c.Frontend.Status() == frontend.RUNNING {
-		if err := c.Frontend.Close(); err != nil {
-			return fmt.Errorf("c.Frontend.Close: %w", err)
-		}
-	}
-	if c.Manager != nil && c.Manager.Status() == handler_manager.SocketReady {
-		c.Manager.Close()
-	}
-
-	return nil
-}
-
 // StartInstanceManager starts the instance Manager and listens to its events
 func (c *Handler) StartInstanceManager() error {
 	ready := make(chan error)

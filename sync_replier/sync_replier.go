@@ -64,11 +64,6 @@ func (c *SyncReplier) Type() config.HandlerType {
 	return config.SyncReplierType
 }
 
-// Close the handler
-func (c *SyncReplier) Close() error {
-	return c.base.Close()
-}
-
 func (c *SyncReplier) Status() string {
 	return c.base.Status()
 }

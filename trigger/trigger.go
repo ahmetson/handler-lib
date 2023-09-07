@@ -56,15 +56,6 @@ func (handler *Trigger) TriggerClient() *clientConfig.Client {
 	return client.UrlFunc(clientConfig.Url)
 }
 
-func (handler *Trigger) Close() error {
-	if handler.closePub {
-		return nil
-	}
-	handler.closePub = true
-
-	return handler.Handler.Close()
-}
-
 // Route adds a route along with its handler to this handler
 func (handler *Trigger) Route(_ string, _ interface{}, _ ...string) error {
 	return fmt.Errorf("trigger doesn't support routing")

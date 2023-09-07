@@ -46,9 +46,6 @@ type Interface interface {
 	// Type returns the type of the handler
 	Type() config.HandlerType
 
-	// Close the handler if it's running. If it's not running, then do nothing
-	Close() error
-
 	Start() error
 
 	// The Status is empty is the handler is running.

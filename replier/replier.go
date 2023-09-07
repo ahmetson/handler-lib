@@ -67,11 +67,6 @@ func (c *Replier) Type() config.HandlerType {
 	return config.ReplierType
 }
 
-// Close the handler
-func (c *Replier) Close() error {
-	return c.base.Close()
-}
-
 func (c *Replier) Status() string {
 	return c.base.Status()
 }

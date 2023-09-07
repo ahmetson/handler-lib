@@ -71,8 +71,6 @@ func (test *TestHandlerSuite) TearDownTest() {
 	err := test.managingClient.Close()
 	s.Require().NoError(err)
 
-	s.Require().NoError(test.replier.Close())
-
 	// Wait a bit for closing
 	time.Sleep(time.Millisecond * 200)
 }
@@ -133,6 +131,11 @@ func (test *TestHandlerSuite) Test_10_Start() {
 	req.Command = config.AddInstance
 	reply = test.req(test.managingClient, req)
 	s.Require().False(reply.IsOK())
+
+	// Close the handler
+	req.Command = config.HandlerClose
+	reply = test.req(test.managingClient, req)
+	s.Require().True(reply.IsOK())
 }
 
 // Test_11_Request tests that external clients send the message to the instance
@@ -180,6 +183,11 @@ func (test *TestHandlerSuite) Test_11_Request() {
 
 	req = message.Request{Command: "command_1", Parameters: key_value.Empty()}
 	reply = test.req(client, req)
+	s.Require().True(reply.IsOK())
+
+	// Close the handler
+	req.Command = config.HandlerClose
+	reply = test.req(test.managingClient, req)
 	s.Require().True(reply.IsOK())
 }
 

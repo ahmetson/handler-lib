@@ -7,6 +7,7 @@ import (
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/frontend"
 	"github.com/ahmetson/handler-lib/instance_manager"
+	"github.com/ahmetson/handler-lib/manager_client"
 	"github.com/ahmetson/log-lib"
 	"github.com/stretchr/testify/suite"
 	"slices"
@@ -216,8 +217,8 @@ func (test *TestHandlerSuite) Test_13_InstanceManager() {
 	s.Require().True(test.inprocHandler.instanceManagerStarted)
 	s.Require().Len(test.inprocHandler.InstanceManager.Instances(), 1)
 
-	// Let's send the close signal
-	s.Require().NoError(test.inprocHandler.Close())
+	// Let's send the close signal to the instance manager
+	test.inprocHandler.InstanceManager.Close()
 
 	// Waiting a bit for instance Manager closing
 	time.Sleep(time.Millisecond * 100)
@@ -243,9 +244,11 @@ func (test *TestHandlerSuite) Test_14_Start() {
 	s.Require().Equal(test.inprocHandler.Frontend.Status(), frontend.RUNNING)
 
 	// Now let's close it
-	err = test.inprocHandler.Close()
+	inprocClient, err := manager_client.New(test.inprocConfig)
+	s.Require().NoError(err)
+	s.Require().NoError(inprocClient.Close())
 
-	// Wait a bit for closing
+	// Wait a bit for closing handler threads
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything is closed

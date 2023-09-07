@@ -113,8 +113,6 @@ func (test *TestHandlerSuite) TearDownTest() {
 	err := test.trigger.Close()
 	s.Require().NoError(err)
 
-	s.Require().NoError(test.pub.Close())
-
 	// Wait a bit for the closing of publisher and trigger
 	time.Sleep(time.Millisecond * 100)
 }
@@ -137,6 +135,10 @@ func (test *TestHandlerSuite) Test_10_Start() {
 	test.logger.Info("waiting for a message in the subscriber")
 	subscribed := <-test.subscribed
 	test.logger.Info("subscriber received a message", "message", subscribed)
+
+	// Close the handler
+	req.Command = config.HandlerClose
+	s.Require().NoError(test.trigger.Submit(&req))
 }
 
 // In order for 'go test' to run this suite, we need to create

@@ -65,11 +65,6 @@ func (c *Publisher) Type() config.HandlerType {
 	return config.PublisherType
 }
 
-// Close the handler
-func (c *Publisher) Close() error {
-	return c.base.Close()
-}
-
 func (c *Publisher) Status() string {
 	return c.base.Status()
 }
