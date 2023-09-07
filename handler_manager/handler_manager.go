@@ -87,8 +87,15 @@ func (m *HandlerManager) setRoutes() {
 		return req.Ok(params)
 	}
 
-	// Stop one of the parts
-	// Either: frontend or instance manager
+	// onClose adds a close signal to the queue.
+	onClose := func(req message.Request) message.Reply {
+		m.close = true
+
+		return req.Ok(key_value.Empty())
+	}
+
+	// Stop one of the parts.
+	// For example, frontend or instance manager
 	onClosePart := func(req message.Request) message.Reply {
 		part, err := req.Parameters.GetString("part")
 		if err != nil {
@@ -211,6 +218,7 @@ func (m *HandlerManager) setRoutes() {
 	m.routes.Set(config.AddInstance, onAddInstance)
 	m.routes.Set(config.DeleteInstance, onDeleteInstance)
 	m.routes.Set(config.Parts, onParts)
+	m.routes.Set(config.HandlerClose, onClose)
 }
 
 // Close the handle manager
@@ -346,6 +354,37 @@ func (m *HandlerManager) Start() error {
 
 		m.status = SocketIdle
 		m.close = false
+
+		//
+		// Close the parts
+		//
+
+		// Since routes are over-writeable, as extending handlers might add new parts.
+		// We don't call frontend or instanceManager directly.
+		partsHandle := m.routes[config.Parts].(func(message.Request) message.Reply)
+		closeHandle := m.routes[config.ClosePart].(func(message.Request) message.Reply)
+
+		req := message.Request{Command: config.Parts, Parameters: key_value.Empty()}
+
+		partsReply := partsHandle(req)
+		if !partsReply.IsOK() {
+			m.logger.Error("handle func returned an error", "command", config.Parts, "request", req, "reply.Message", partsReply.Message)
+		} else {
+			parts, err := partsReply.Parameters.GetStringList("parts")
+			if err != nil {
+				m.logger.Error("reply.Parameters.GetStringList", "argument", "parts", "command", config.Parts, "request", req, "error", err)
+			} else {
+				req.Command = config.ClosePart
+				for _, part := range parts {
+					req.Parameters.Set("part", part)
+
+					closeReply := closeHandle(req)
+					if !closeReply.IsOK() {
+						m.logger.Info("handle func returned an error", "comment", "it's not an urgent, since part might be closed already", "command", config.ClosePart, "request", req, "reply.Message", closeReply.Message)
+					}
+				}
+			}
+		}
 
 		closeErr := manager.Close()
 		if closeErr != nil {

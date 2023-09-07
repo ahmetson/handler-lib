@@ -15,6 +15,7 @@ const (
 	AddInstance    = "add-instance"
 	DeleteInstance = "delete-instance"
 	Parts          = "parts"
+	HandlerClose   = "close" // Close the handler
 )
 
 type Handler struct {

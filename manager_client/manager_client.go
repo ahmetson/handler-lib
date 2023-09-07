@@ -76,8 +76,26 @@ func (c *Client) Attempt(attempt uint8) {
 	c.socket.Attempt(attempt)
 }
 
+// Close sends a close signal to the Handler
 func (c *Client) Close() error {
-	return c.socket.Close()
+	req := message.Request{
+		Command:    handlerConfig.HandlerClose,
+		Parameters: key_value.Empty(),
+	}
+
+	reply, err := c.socket.Request(&req)
+	if err != nil {
+		return fmt.Errorf("socket.Request('%s'): %w", handlerConfig.ClosePart, err)
+	}
+	if !reply.IsOK() {
+		return fmt.Errorf("reply.Message: %s", reply.Message)
+	}
+
+	err = c.socket.Close()
+	if err != nil {
+		return fmt.Errorf("client.socket.Close: %w", err)
+	}
+	return nil
 }
 
 // Id of the handler that this Client connected to the manager.
