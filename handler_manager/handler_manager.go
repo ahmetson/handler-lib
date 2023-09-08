@@ -34,9 +34,9 @@ type HandlerManager struct {
 	close                bool
 }
 
-// New handler manager
+// New creates a new HandlerManager
 func New(parent *log.Logger, frontend *frontend.Frontend, instanceManager *instances.Parent, startInstanceManager func() error) *HandlerManager {
-	logger := parent.Child("manager")
+	logger := parent.Child("handler_manager")
 
 	m := &HandlerManager{
 		frontend:             frontend,
@@ -60,7 +60,7 @@ func (m *HandlerManager) SetConfig(config *config.Handler) {
 	m.config = config
 }
 
-// Status returns the socket status of the handler manager
+// Status returns the socket status of the HandlerManager.
 func (m *HandlerManager) Status() string {
 	return m.status
 }
@@ -110,7 +110,7 @@ func (m *HandlerManager) setRoutes() {
 	}
 
 	// Stop one of the parts.
-	// For example, frontend or instance manager
+	// For example, frontend or instance_manager
 	onClosePart := func(req message.Request) message.Reply {
 		part, err := req.Parameters.GetString("part")
 		if err != nil {
@@ -128,7 +128,7 @@ func (m *HandlerManager) setRoutes() {
 			}
 		} else if part == "instance_manager" {
 			if m.instanceManager.Status() != instances.Running {
-				return req.Fail("instance manager not running")
+				return req.Fail("instance_manager not running")
 			} else {
 				m.instanceManager.Close()
 				return req.Ok(key_value.Empty())
@@ -156,7 +156,7 @@ func (m *HandlerManager) setRoutes() {
 			}
 		} else if part == "instance_manager" {
 			if m.instanceManager.Status() == instances.Running {
-				return req.Fail("instance manager running")
+				return req.Fail("instance_manager running")
 			} else {
 				err := m.startInstanceManager()
 				if err != nil {
@@ -238,10 +238,10 @@ func (m *HandlerManager) setRoutes() {
 
 // Route overrides the default route with the given handle.
 // Returns an error if the command is not supported.
-// Returns an error if the handler manager is running.
+// Returns an error if HandlerManager is running.
 func (m *HandlerManager) Route(cmd string, handle route.HandleFunc0) error {
 	if m.status == SocketReady {
-		return fmt.Errorf("can not overwrite handler when handler manager is running")
+		return fmt.Errorf("can not overwrite handler when HandlerManager is running")
 	}
 	err := m.routes.Exist(cmd)
 	if err != nil {
@@ -252,7 +252,7 @@ func (m *HandlerManager) Route(cmd string, handle route.HandleFunc0) error {
 	return nil
 }
 
-// Start the handler manager
+// Start the HandlerManager
 func (m *HandlerManager) Start() error {
 	if m.config == nil {
 		return fmt.Errorf("no config")
@@ -261,21 +261,21 @@ func (m *HandlerManager) Start() error {
 	ready := make(chan error)
 
 	go func(ready chan error) {
-		manager, err := zmq.NewSocket(zmq.ROUTER)
+		socket, err := zmq.NewSocket(zmq.ROUTER)
 		if err != nil {
 			ready <- fmt.Errorf("zmq.NewSocket: %w", err)
 			return
 		}
 
 		url := config.ManagerUrl(m.config.Id)
-		err = manager.Bind(url)
+		err = socket.Bind(url)
 		if err != nil {
-			ready <- fmt.Errorf("manager.Bind('%s'): %w", url, err)
+			ready <- fmt.Errorf("socket.Bind('%s'): %w", url, err)
 			return
 		}
 
 		poller := zmq.NewPoller()
-		poller.Add(manager, zmq.POLLIN)
+		poller.Add(socket, zmq.POLLIN)
 
 		m.status = SocketReady
 
@@ -284,9 +284,9 @@ func (m *HandlerManager) Start() error {
 
 		for {
 			if m.close {
-				err = poller.RemoveBySocket(manager)
+				err = poller.RemoveBySocket(socket)
 				if err != nil {
-					m.logger.Error("poller.RemoveBySocket", "socket", "manager", "error", err)
+					m.logger.Error("poller.RemoveBySocket", "error", err)
 				}
 				break
 			}
@@ -301,9 +301,9 @@ func (m *HandlerManager) Start() error {
 				continue
 			}
 
-			raw, err := manager.RecvMessage(0)
+			raw, err := socket.RecvMessage(0)
 			if err != nil {
-				m.logger.Error("manager.RecvMessage", "error", err)
+				m.logger.Error("socket.RecvMessage", "error", err)
 				break
 			}
 
@@ -324,14 +324,14 @@ func (m *HandlerManager) Start() error {
 						m.logger.Error("req.Fail.String", "request", req, "reply", reply, "error", err)
 						continue
 					}
-					_, err = manager.SendMessage(raw[0], raw[1], replyStr)
+					_, err = socket.SendMessage(raw[0], raw[1], replyStr)
 					if err != nil {
-						m.logger.Error("manager.SendMessage", "reply", reply, "error", err)
+						m.logger.Error("socket.SendMessage", "reply", reply, "error", err)
 					}
 				} else {
-					_, err = manager.SendMessage(raw[0], raw[1], replyStr)
+					_, err = socket.SendMessage(raw[0], raw[1], replyStr)
 					if err != nil {
-						m.logger.Error("manager.SendMessage", "reply", reply, "error", err)
+						m.logger.Error("socket.SendMessage", "reply", reply, "error", err)
 					}
 				}
 				continue
@@ -348,15 +348,15 @@ func (m *HandlerManager) Start() error {
 					m.logger.Error("req.Fail.String", "request", req, "reply", reply, "error", err)
 					continue
 				}
-				_, err = manager.SendMessage(raw[0], raw[1], replyStr)
+				_, err = socket.SendMessage(raw[0], raw[1], replyStr)
 				if err != nil {
-					m.logger.Error("manager.SendMessage", "reply", reply, "error", err)
+					m.logger.Error("socket.SendMessage", "reply", reply, "error", err)
 					continue
 				}
 			} else {
-				_, err = manager.SendMessage(raw[0], raw[1], replyStr)
+				_, err = socket.SendMessage(raw[0], raw[1], replyStr)
 				if err != nil {
-					m.logger.Error("manager.SendMessage", "reply", reply, "error", err)
+					m.logger.Error("socket.SendMessage", "reply", reply, "error", err)
 					continue
 				}
 			}
@@ -378,7 +378,7 @@ func (m *HandlerManager) Start() error {
 
 		partsReply := partsHandle(req)
 		if !partsReply.IsOK() {
-			m.logger.Error("handle func returned an error", "command", config.Parts, "request", req, "reply.Message", partsReply.Message)
+			m.logger.Error("failed to handle", "command", config.Parts, "request", req, "reply.Message", partsReply.Message)
 		} else {
 			parts, err := partsReply.Parameters.GetStringList("parts")
 			if err != nil {
@@ -394,9 +394,9 @@ func (m *HandlerManager) Start() error {
 			}
 		}
 
-		closeErr := manager.Close()
+		closeErr := socket.Close()
 		if closeErr != nil {
-			m.logger.Error("manager.Close", "error", err)
+			m.logger.Error("socket.Close", "error", err)
 		}
 	}(ready)
 
