@@ -11,13 +11,17 @@ Each type applies a certain behavior to the collection of the routes.
 
 **SyncReplier** handles one request from multiple users at a time. 
 The requests are queued while one request is processing.
+
 **Replier** handles many requests from multiple users at a time.
 It's a *server* part of classic *client-server* architecture.
 The **Replier** may run multiple instances running on parallel threads. However, it's managed by the service, so don't worry about it.
 Just remember that if more requests are coming, then the **Replier** tries to use more CPU cores.
+
 **Publisher** is submits the message from the handler to the connected users. The **publisher** is the trigger-able handler.
 Like that, it has two endpoints. One is for users to subscribe, another endpoint to trigger the broadcasting.
 Usually, the trigger will be called by the handler function in another handler route.
+
+
 **Pusher** submits the message from the handler to the connected users. If multiple users are connected,
 then requests will be submitted in a round-robin algorithm.
 
