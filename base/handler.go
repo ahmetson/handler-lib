@@ -307,7 +307,7 @@ func (c *Handler) StartInstanceManager() error {
 					break
 				}
 			} else {
-				c.logger.Warn("unhandled instance Manager event", "id", c.config.Id, "event", req.Command, "parameters", req.Parameters)
+				c.logger.Warn("unhandled instance_manager event", "event", req.Command, "parameters", req.Parameters)
 			}
 		}
 
