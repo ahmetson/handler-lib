@@ -66,7 +66,7 @@ func (c *Handler) SetConfig(handler *config.Handler) {
 	c.Frontend.SetConfig(handler)
 }
 
-// SetLogger sets the logger (depends on configuration).
+// SetLogger sets the logger (depends on context).
 //
 // Creates instance Manager.
 //

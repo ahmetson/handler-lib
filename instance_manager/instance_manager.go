@@ -31,6 +31,7 @@ type Parent struct {
 	eventSock      *zmq.Socket
 	lastInstanceId uint
 	id             string
+	parentLogger   *log.Logger
 	logger         *log.Logger
 	status         string
 	close          bool
@@ -38,12 +39,13 @@ type Parent struct {
 
 // New instance manager is created with the handler id
 func New(id string, parent *log.Logger) *Parent {
-	logger := parent.Child("instance-manager")
+	logger := parent.Child("instance_manager")
 
 	return &Parent{
 		id:             id,
 		lastInstanceId: 0,
 		instances:      make(map[string]*Child, 0),
+		parentLogger:   parent,
 		logger:         logger,
 		eventSock:      nil,
 		status:         Idle,
@@ -321,7 +323,7 @@ func (parent *Parent) Close() {
 
 func (parent *Parent) NewInstanceId() string {
 	instanceNum := parent.lastInstanceId + 1
-	return fmt.Sprintf("%s_instance_%d", parent.id, instanceNum)
+	return fmt.Sprintf("instance_%d", instanceNum)
 }
 
 // Handler socket of the instance.
@@ -347,7 +349,7 @@ func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, 
 
 	id := parent.NewInstanceId()
 
-	added := instance.New(handlerType, id, parent.id, parent.logger)
+	added := instance.New(handlerType, id, parent.id, parent.parentLogger)
 	added.SetRoutes(routes, routeDeps)
 	added.SetClients(clients)
 
