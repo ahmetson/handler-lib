@@ -388,10 +388,8 @@ func (m *HandlerManager) Start() error {
 				for _, part := range parts {
 					req.Parameters.Set("part", part)
 
-					closeReply := closeHandle(req)
-					if !closeReply.IsOK() {
-						m.logger.Info("handle func returned an error", "comment", "it's not an urgent, since part might be closed already", "command", config.ClosePart, "request", req, "reply.Message", closeReply.Message)
-					}
+					// if it's failed, it might be because part already closed
+					_ = closeHandle(req)
 				}
 			}
 		}
