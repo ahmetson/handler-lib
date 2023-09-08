@@ -161,8 +161,8 @@ func (test *TestHandlerSuite) Test_11_Request() {
 	// Trying to add a new socket, it will throw an error
 	s.Require().Len(test.replier.base.InstanceManager.Instances(), 1)
 
-	instanceAmount := test.replier.MaxInstanceAmount()
-	test.logger.Info("start", "current", len(test.replier.base.InstanceManager.Instances()), "max", instanceAmount)
+	maxAmount := test.replier.MaxInstanceAmount()
+	s.Require().NotZero(maxAmount)
 
 	// Adding a new instance to make reach the cap
 	for i := 1; i < 3; i++ {

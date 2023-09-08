@@ -132,9 +132,7 @@ func (test *TestHandlerSuite) Test_10_Start() {
 	err = test.trigger.Submit(&req)
 	s.Require().NoError(err)
 
-	test.logger.Info("waiting for a message in the subscriber")
-	subscribed := <-test.subscribed
-	test.logger.Info("subscriber received a message", "message", subscribed)
+	_ = <-test.subscribed
 
 	// Close the handler
 	req.Command = config.HandlerClose

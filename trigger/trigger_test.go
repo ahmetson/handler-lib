@@ -150,9 +150,7 @@ func (test *TestTriggerSuite) Test_14_Start() {
 	err = test.trigger.Submit(&req)
 	s.Require().NoError(err)
 
-	test.logger.Info("waiting for the subscription...")
-	received := <-test.subscribed
-	test.logger.Info("received a message from the external url", "message", received)
+	_ = <-test.subscribed
 
 	// Make sure that everything works
 	s.Require().Equal(test.handler.InstanceManager.Status(), instance_manager.Running)
