@@ -1,17 +1,23 @@
 package frontend
 
 import (
+	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/instance_manager"
+	"github.com/ahmetson/handler-lib/pair"
 	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
 	"testing"
 	"time"
 )
+
+type CustomExternal struct {
+	pairClient *client.Socket
+}
 
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
@@ -21,6 +27,53 @@ type TestFrontendSuite struct {
 
 	frontend     *Frontend
 	handleConfig *config.Handler
+}
+
+// Create an instance manager. Returns a test command, instance id and instance manager itself
+func (test *TestFrontendSuite) instanceManager() (string, string, *instance_manager.Parent) {
+	s := &test.Suite
+
+	cmd := "hello"
+	handleHello := func(req message.Request) *message.Reply {
+		time.Sleep(time.Second) // just to test consuming since there are no ready instances
+		id, err := req.Parameters.GetUint64("id")
+		if err != nil {
+			id = 0
+		}
+		return req.Ok(key_value.Empty().Set("id", id))
+	}
+	routes := key_value.Empty().Set(cmd, handleHello)
+	routeDeps := key_value.Empty()
+	depClients := key_value.Empty()
+
+	// Added Instance Manager
+	logger, err := log.New(test.handleConfig.Id, true)
+	s.Require().NoError(err)
+	instanceManager := instance_manager.New(test.handleConfig.Id, logger)
+
+	s.Require().NoError(instanceManager.Start())
+
+	time.Sleep(time.Millisecond * 50) // wait until it updates the status
+	instanceId, err := instanceManager.AddInstance(test.handleConfig.Type, &routes, &routeDeps, &depClients)
+	s.Require().NoError(err)
+
+	time.Sleep(time.Millisecond * 50) // wait until the instance will be loaded
+
+	return cmd, instanceId, instanceManager
+}
+
+// Create a custom external layer
+func (test *TestFrontendSuite) customExternal() *CustomExternal {
+	s := &test.Suite
+
+	pairClient, err := pair.NewClient(test.handleConfig)
+	s.Require().NoError(err)
+
+	externalLayer := CustomExternal{
+		pairClient: pairClient,
+	}
+
+	return &externalLayer
 }
 
 func (test *TestFrontendSuite) SetupTest() {
@@ -182,39 +235,6 @@ func (test *TestFrontendSuite) Test_12_Consumer() {
 	time.Sleep(time.Millisecond * 100) // wait until instance manager ends
 }
 
-// Create an instance manager. Returns a test command, instance id and instance manager itself
-func (test *TestFrontendSuite) instanceManager() (string, string, *instance_manager.Parent) {
-	s := &test.Suite
-
-	cmd := "hello"
-	handleHello := func(req message.Request) *message.Reply {
-		time.Sleep(time.Second) // just to test consuming since there are no ready instances
-		id, err := req.Parameters.GetUint64("id")
-		if err != nil {
-			id = 0
-		}
-		return req.Ok(key_value.Empty().Set("id", id))
-	}
-	routes := key_value.Empty().Set(cmd, handleHello)
-	routeDeps := key_value.Empty()
-	depClients := key_value.Empty()
-
-	// Added Instance Manager
-	logger, err := log.New(test.handleConfig.Id, true)
-	s.Require().NoError(err)
-	instanceManager := instance_manager.New(test.handleConfig.Id, logger)
-
-	s.Require().NoError(instanceManager.Start())
-
-	time.Sleep(time.Millisecond * 50) // wait until it updates the status
-	instanceId, err := instanceManager.AddInstance(test.handleConfig.Type, &routes, &routeDeps, &depClients)
-	s.Require().NoError(err)
-
-	time.Sleep(time.Millisecond * 50) // wait until the instance will be loaded
-
-	return cmd, instanceId, instanceManager
-}
-
 // Test_13_Run runs the Frontend
 func (test *TestFrontendSuite) Test_13_Run() {
 	s := &test.Suite
@@ -225,6 +245,9 @@ func (test *TestFrontendSuite) Test_13_Run() {
 
 	// The frontend runs for the first time
 	s.Require().Equal(CREATED, test.frontend.Status())
+
+	// The frontend has the configuration of the handler
+	s.Require().NotNil(test.frontend.externalConfig)
 
 	cmd, _, instanceManager := test.instanceManager()
 	test.frontend.SetInstanceManager(instanceManager)
@@ -321,6 +344,66 @@ func (test *TestFrontendSuite) Test_13_Run() {
 	err = user.Close()
 	s.Require().NoError(err)
 
+	instanceManager.Close()
+	test.frontend.processing = key_value.NewList()
+	// wait a bit for thread closing
+	time.Sleep(time.Millisecond * 50)
+}
+
+// Test_14_PairSocket tests over-writing the external socket
+func (test *TestFrontendSuite) Test_14_PairSocket() {
+	s := &test.Suite
+
+	test.frontend = New()
+
+	cmd, _, instanceManager := test.instanceManager()
+	test.frontend.SetInstanceManager(instanceManager)
+
+	// Can not set the pair socket without configuration
+	s.Require().Error(test.frontend.PairExternal())
+	s.Require().False(test.frontend.paired)
+
+	// Pair the external socket.
+	test.frontend.SetConfig(test.handleConfig)
+	s.Require().NoError(test.frontend.PairExternal())
+	s.Require().True(test.frontend.paired)
+	s.Require().Equal(config.PairType, test.frontend.externalConfig.Type)
+
+	// Start
+	s.Require().NoError(test.frontend.Start())
+
+	// Wait a bit for initialization
+	time.Sleep(time.Millisecond * 50)
+
+	// Running?
+	s.Require().Equal(RUNNING, test.frontend.Status())
+
+	customExternal := test.customExternal()
+
+	req := message.Request{Command: cmd, Parameters: key_value.Empty().Set("id", 1)}
+	reqStr, err := req.String()
+	s.Require().NoError(err)
+
+	repl, err := customExternal.pairClient.RawRequest(reqStr)
+	s.Require().NoError(err)
+
+	errorRepl, err := message.ParseReply(repl)
+	s.Require().NoError(err)
+	s.Require().True(errorRepl.IsOK())
+
+	// Close the frontend
+	err = test.frontend.Close()
+	s.Require().NoError(err)
+
+	// wait a bit before the socket runner stops
+	time.Sleep(time.Millisecond * 50)
+	s.Require().Equal(CREATED, test.frontend.Status())
+
+	err = customExternal.pairClient.Close()
+	s.Require().NoError(err)
+
+	instanceManager.Close()
+	test.frontend.processing = key_value.NewList()
 }
 
 // In order for 'go test' to run this suite, we need to create
