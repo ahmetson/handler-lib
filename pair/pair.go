@@ -26,6 +26,8 @@ func Config(originalConfig *config.Handler) *config.Handler {
 func NewClient(originalConfig *config.Handler) (*client.Socket, error) {
 	externalConfig := Config(originalConfig)
 	pairConfig := clientConfig.New("", externalConfig.Id, externalConfig.Port, config.SocketType(externalConfig.Type))
+	pairConfig.UrlFunc(clientConfig.Url)
+
 	pairClient, err := client.New(pairConfig)
 	if err != nil {
 		return nil, fmt.Errorf("client.New: %w", err)
