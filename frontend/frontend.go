@@ -8,6 +8,7 @@ import (
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/instance_manager"
+	"github.com/ahmetson/handler-lib/pair"
 	zmq "github.com/pebbe/zmq4"
 	"time"
 )
@@ -22,6 +23,7 @@ type Frontend struct {
 	sockets         *zmq.Reactor
 	id              string // Handler ID
 	status          string
+	paired          bool
 	externalConfig  *config.Handler
 	queue           *data_type.Queue
 	processing      *key_value.List // Tracking messages processed by the instances
@@ -35,6 +37,7 @@ func New() *Frontend {
 	return &Frontend{
 		external:        nil,
 		status:          CREATED,
+		paired:          false,
 		externalConfig:  nil,
 		queue:           data_type.NewQueue(),
 		processing:      key_value.NewList(),
@@ -45,7 +48,11 @@ func New() *Frontend {
 }
 
 func (f *Frontend) SetConfig(externalConfig *config.Handler) {
-	f.externalConfig = externalConfig
+	if f.paired {
+		f.externalConfig = pair.Config(externalConfig)
+	} else {
+		f.externalConfig = externalConfig
+	}
 }
 
 func (f *Frontend) SetInstanceManager(manager *instance_manager.Parent) {
@@ -259,6 +266,24 @@ func (f *Frontend) Close() error {
 
 		f.processing = key_value.NewList()
 	}
+
+	return nil
+}
+
+// PairExternal runs the external socket as the PAIR.
+// Requires frontend not be running.
+// Requires configuration to be set.
+func (f *Frontend) PairExternal() error {
+	if f.externalConfig == nil {
+		return fmt.Errorf("set the configuration first")
+	}
+	if f.status == RUNNING {
+		return fmt.Errorf("frontend is running")
+	}
+
+	// frontend uses the paired config while paired interface will use external config.
+	f.externalConfig = pair.Config(f.externalConfig)
+	f.paired = true
 
 	return nil
 }
