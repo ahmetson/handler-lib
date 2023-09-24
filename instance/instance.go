@@ -68,7 +68,7 @@ func New(handlerType config.HandlerType, id string, parentId string, parent *log
 //
 // If a handler doesn't support replying (for example, PULL handler),
 // then it returns success.
-func (c *Instance) reply(socket *zmq.Socket, message message.Reply) error {
+func (c *Instance) reply(socket *zmq.Socket, message *message.Reply) error {
 	if !config.CanReply(c.Type()) {
 		return nil
 	}
@@ -336,7 +336,7 @@ func (c *Instance) Start() error {
 						// the close parameter is set to true after reply the message back.
 						// otherwise, the socket may be closed while the requester is waiting for a reply message.
 						// it could leave to the app froze-up.
-						reply := message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
+						reply := &message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
 						if err := c.reply(manager, reply); err != nil {
 							failErr := fmt.Errorf("c.reply('manager'): %w", err)
 							pubErr := c.pubFail(parent, failErr)
@@ -465,7 +465,7 @@ func (c *Instance) setReady(parent *zmq.Socket) {
 func (c *Instance) processingFinished(parent *zmq.Socket, handler *zmq.Socket, reply *message.Reply) {
 	c.setReady(parent)
 
-	if err := c.reply(handler, *reply); err != nil {
+	if err := c.reply(handler, reply); err != nil {
 		failErr := fmt.Errorf("c.reply('handler'): %w", err)
 		pubErr := c.pubFail(parent, failErr)
 		if pubErr != nil {
@@ -502,7 +502,7 @@ func (c *Instance) processMessage(ctx context.Context, cancel context.CancelFunc
 	handleInterface, depNames, err := route.Route(request.Command, *c.routes, *c.routeDeps)
 	if err != nil {
 		reply := request.Fail(fmt.Sprintf("route.Route(%s): %v", request.Command, err))
-		c.processingFinished(parent, handler, &reply)
+		c.processingFinished(parent, handler, reply)
 		if cancel != nil {
 			cancel()
 		}

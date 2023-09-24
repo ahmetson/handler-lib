@@ -46,10 +46,10 @@ func (test *TestHandlerSuite) SetupTest() {
 
 	// Socket to talk to clients
 	test.routes = make(map[string]interface{}, 2)
-	test.routes["command_1"] = func(request message.Request) message.Reply {
+	test.routes["command_1"] = func(request message.Request) *message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
-	test.routes["command_2"] = func(request message.Request) message.Reply {
+	test.routes["command_2"] = func(request message.Request) *message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
 
@@ -83,7 +83,7 @@ func (test *TestHandlerSuite) Test_11_Deps() {
 	s.Require().Empty(test.inprocHandler.DepIds())
 	s.Require().Empty(test.tcpHandler.DepIds())
 
-	test.routes["command_3"] = func(request message.Request, _ *client.Socket, _ *client.Socket) message.Reply {
+	test.routes["command_3"] = func(request message.Request, _ *client.Socket, _ *client.Socket) *message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
 
@@ -104,7 +104,7 @@ func (test *TestHandlerSuite) Test_11_Deps() {
 	s.Require().Error(err)
 
 	// Adding a new command with already added dependency should be fine
-	test.routes["command_4"] = func(request message.Request, _ *client.Socket, _ *client.Socket) message.Reply {
+	test.routes["command_4"] = func(request message.Request, _ *client.Socket, _ *client.Socket) *message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
 	err = test.inprocHandler.Route("command_4", test.routes["command_4"], "dep_1", "dep_3") // command_3 handler requires two dependencies
@@ -123,16 +123,16 @@ func (test *TestHandlerSuite) Test_12_DepConfig() {
 	s.Require().NotNil(test.inprocHandler.logger)
 
 	test.routes = make(map[string]interface{}, 2)
-	test.routes["command_1"] = func(request message.Request) message.Reply {
+	test.routes["command_1"] = func(request message.Request) *message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
-	test.routes["command_2"] = func(request message.Request) message.Reply {
+	test.routes["command_2"] = func(request message.Request) *message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
-	test.routes["command_3"] = func(request message.Request, _ *client.Socket, _ *client.Socket) message.Reply {
+	test.routes["command_3"] = func(request message.Request, _ *client.Socket, _ *client.Socket) *message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
-	test.routes["command_4"] = func(request message.Request, _ *client.Socket, _ *client.Socket) message.Reply {
+	test.routes["command_4"] = func(request message.Request, _ *client.Socket, _ *client.Socket) *message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
 

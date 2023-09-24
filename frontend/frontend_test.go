@@ -187,7 +187,7 @@ func (test *TestFrontendSuite) instanceManager() (string, string, *instance_mana
 	s := &test.Suite
 
 	cmd := "hello"
-	handleHello := func(req message.Request) message.Reply {
+	handleHello := func(req message.Request) *message.Reply {
 		time.Sleep(time.Second) // just to test consuming since there are no ready instances
 		id, err := req.Parameters.GetUint64("id")
 		if err != nil {

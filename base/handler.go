@@ -123,7 +123,7 @@ func (c *Handler) DepIds() []string {
 //
 // If a handler doesn't support replying (for example, PULL handler),
 // then it returns success.
-func (c *Handler) reply(socket *zmq.Socket, message message.Reply) error {
+func (c *Handler) reply(socket *zmq.Socket, message *message.Reply) error {
 	if !config.CanReply(c.config.Type) {
 		return nil
 	}
@@ -361,7 +361,7 @@ func (c *Handler) Start() error {
 }
 
 // Does nothing, simply returns the data
-var anyHandler = func(request message.Request) message.Reply {
+var anyHandler = func(request message.Request) *message.Reply {
 	replyParameters := key_value.Empty()
 	replyParameters.Set("route", request.Command)
 

@@ -70,7 +70,7 @@ func (c *SyncReplier) Status() string {
 
 // Start the handler directly, not by goroutine
 func (c *SyncReplier) Start() error {
-	onAddInstance := func(req message.Request) message.Reply {
+	onAddInstance := func(req message.Request) *message.Reply {
 		m := c.base
 
 		if len(m.InstanceManager.Instances()) != 0 {

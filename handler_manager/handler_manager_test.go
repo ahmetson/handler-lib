@@ -50,14 +50,14 @@ func (test *TestHandlerManagerSuite) SetupTest() {
 
 	// Socket to talk to clients
 	test.routes = key_value.Empty()
-	test.routes.Set("command_1", func(request message.Request) message.Reply {
+	test.routes.Set("command_1", func(request message.Request) *message.Reply {
 		// Used for testing 'message_amount' command.
 		// While handling, the queue length should decrease.
 		// While handling, the processing length should increase.
 		time.Sleep(time.Second)
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	})
-	test.routes.Set("command_2", func(request message.Request) message.Reply {
+	test.routes.Set("command_2", func(request message.Request) *message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	})
 
@@ -575,7 +575,7 @@ func (test *TestHandlerManagerSuite) Test_18_OverwriteRoute() {
 
 	// Overriding must fail when handler manager is running
 	overwritten := "overwritten"
-	onStatus := func(req message.Request) message.Reply {
+	onStatus := func(req message.Request) *message.Reply {
 		params := key_value.Empty().Set("status", overwritten)
 		return req.Ok(params)
 	}

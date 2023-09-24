@@ -83,7 +83,7 @@ func (parent *Parent) cleanDeletedInstance(instanceId string) error {
 
 // onInstanceStatus updates the instance status.
 // since our socket is one directional, there is no point to reply.
-func (parent *Parent) onInstanceStatus(req message.Request) message.Reply {
+func (parent *Parent) onInstanceStatus(req message.Request) *message.Reply {
 	instanceId, err := req.Parameters.GetString("id")
 	if err != nil {
 		return req.Fail(fmt.Sprintf("req.Parameters.GetString('id'): %v", err))

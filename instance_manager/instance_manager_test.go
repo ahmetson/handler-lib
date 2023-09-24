@@ -32,12 +32,12 @@ type TestInstanceSuite struct {
 // Make sure that Account is set to five
 // before each test
 func (test *TestInstanceSuite) SetupTest() {
-	handle0 := func(request message.Request) message.Reply {
+	handle0 := func(request message.Request) *message.Reply {
 		time.Sleep(time.Millisecond * 200)
 		return request.Ok(key_value.Empty())
 	}
 	// delays 1 second for testing ready instances
-	handle1 := func(request message.Request, _ *client.Socket) message.Reply {
+	handle1 := func(request message.Request, _ *client.Socket) *message.Reply {
 		time.Sleep(time.Second)
 		return request.Ok(key_value.Empty())
 	}

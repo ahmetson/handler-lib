@@ -13,11 +13,11 @@ type depSock = *client.Socket
 //
 // Optionally, the handler can pass the shared states in the additional parameters.
 // The most use case for optional request is to pass the link to the Database.
-type HandleFunc0 = func(message.Request) message.Reply
-type HandleFunc1 = func(message.Request, depSock) message.Reply
-type HandleFunc2 = func(message.Request, depSock, depSock) message.Reply
-type HandleFunc3 = func(message.Request, depSock, depSock, depSock) message.Reply
-type HandleFuncN = func(message.Request, ...depSock) message.Reply
+type HandleFunc0 = func(message.Request) *message.Reply
+type HandleFunc1 = func(message.Request, depSock) *message.Reply
+type HandleFunc2 = func(message.Request, depSock, depSock) *message.Reply
+type HandleFunc3 = func(message.Request, depSock, depSock, depSock) *message.Reply
+type HandleFuncN = func(message.Request, ...depSock) *message.Reply
 
 // DepAmount returns -1 if the interface is not a valid HandleFunc.
 // If the interface has more than 3 arguments, it returns 4.
@@ -50,13 +50,13 @@ func DepAmount(handleInterface interface{}) int {
 // Handle calls the handle func for the req.
 // Optionally, if the handler requires the extensions, it will pass the socket clients to the handle func.
 func Handle(req *message.Request, handleInterface interface{}, depClients []*client.Socket) *message.Reply {
-	var reply message.Reply
+	var reply *message.Reply
 
 	depAmount := DepAmount(handleInterface)
 	if !IsHandleFuncWithDeps(handleInterface, len(depClients)) {
 		reply = req.Fail(fmt.Sprintf("the '%s' command handler requires %d dependencies, but route has %d dependencies",
 			req.Command, depAmount, len(depClients)))
-		return &reply
+		return reply
 	}
 
 	if len(depClients) == 0 {
@@ -76,7 +76,7 @@ func Handle(req *message.Request, handleInterface interface{}, depClients []*cli
 		reply = handleFunc(*req, depClients...)
 	}
 
-	return &reply
+	return reply
 }
 
 // IsHandleFunc returns true if the given interface is convertible into HandleFunc
