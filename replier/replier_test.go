@@ -35,11 +35,11 @@ func (test *TestHandlerSuite) SetupTest() {
 
 	// Socket to talk to clients
 	test.routes = make(map[string]interface{}, 2)
-	test.routes["command_1"] = func(request message.Request) message.Reply {
+	test.routes["command_1"] = func(request message.Request) *message.Reply {
 		time.Sleep(time.Millisecond * 100)
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
-	test.routes["command_2"] = func(request message.Request) message.Reply {
+	test.routes["command_2"] = func(request message.Request) *message.Reply {
 		return request.Ok(request.Parameters.Set("id", request.Command))
 	}
 
