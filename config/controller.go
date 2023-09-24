@@ -85,6 +85,8 @@ func SocketType(handlerType HandlerType) zmq.Type {
 		return zmq.PUSH
 	} else if handlerType == PublisherType {
 		return zmq.PUB
+	} else if handlerType == PairType {
+		return zmq.PAIR
 	}
 
 	return zmq.Type(-1)
@@ -100,6 +102,8 @@ func ClientSocketType(handlerType HandlerType) zmq.Type {
 		return zmq.PULL
 	} else if handlerType == PublisherType {
 		return zmq.SUB
+	} else if handlerType == PairType {
+		return zmq.PAIR
 	}
 
 	return zmq.Type(-1)
@@ -118,7 +122,7 @@ func ExternalUrl(id string, port uint64) string {
 // CanReply returns true if the given Handler has to reply back to the user.
 // It's the opposite of CanTrigger.
 func CanReply(handlerType HandlerType) bool {
-	return handlerType == ReplierType || handlerType == SyncReplierType
+	return handlerType == ReplierType || handlerType == SyncReplierType || handlerType == PairType
 }
 
 // CanTrigger returns true if the given Handler must not reply back to the user.

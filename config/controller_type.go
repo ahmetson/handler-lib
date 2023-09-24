@@ -5,7 +5,6 @@ import "fmt"
 // HandlerType defines the available kind of handlers
 type HandlerType string
 
-// ReplierType or PublisherType or ReplierType
 const (
 	// SyncReplierType handlers process a one request at a time.
 	SyncReplierType HandlerType = "SyncReplier"
@@ -17,13 +16,18 @@ const (
 	PublisherType HandlerType = "Publisher"
 	// ReplierType handlers are the asynchronous ReplierType. It's a traditional client-server's server.
 	ReplierType HandlerType = "Replier"
+	PairType    HandlerType = "Pair"
 	UnknownType HandlerType = ""
 )
 
 // IsValid checks whether the given string is the valid or not.
 // If not valid, then returns the error otherwise returns nil.
 func IsValid(t HandlerType) error {
-	if t == SyncReplierType || t == PusherType || t == PublisherType || t == ReplierType {
+	if t == SyncReplierType ||
+		t == PusherType ||
+		t == PublisherType ||
+		t == ReplierType ||
+		t == PairType {
 		return nil
 	}
 
