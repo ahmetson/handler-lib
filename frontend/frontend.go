@@ -24,6 +24,7 @@ type Frontend struct {
 	id              string // Handler ID
 	status          string
 	paired          bool
+	instanceType    config.HandlerType
 	externalConfig  *config.Handler
 	queue           *data_type.Queue
 	processing      *key_value.List // Tracking messages processed by the instances
@@ -49,6 +50,7 @@ func New() *Frontend {
 
 func (f *Frontend) SetConfig(externalConfig *config.Handler) {
 	if f.paired {
+		f.instanceType = externalConfig.Type
 		f.externalConfig = pair.Config(externalConfig)
 	} else {
 		f.externalConfig = externalConfig
@@ -299,6 +301,7 @@ func (f *Frontend) PairExternal() error {
 		return fmt.Errorf("frontend is running")
 	}
 
+	f.instanceType = f.externalConfig.Type
 	// frontend uses the paired config while paired interface will use external config.
 	f.externalConfig = pair.Config(f.externalConfig)
 	f.paired = true
@@ -375,7 +378,7 @@ func (f *Frontend) handleConsume() error {
 		return fmt.Errorf("processing.Add: %w", err)
 	}
 
-	if f.externalConfig.Type == config.ReplierType {
+	if f.instanceType == config.ReplierType {
 		if _, err := sock.SendMessageDontwait("", messages[2:]); err != nil {
 			return fmt.Errorf("instance.SendMessageDontWait: %w", err)
 		}
