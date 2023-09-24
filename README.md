@@ -176,3 +176,5 @@ There are two available functions as well:
 
 Use the configuration for creating your own protocol.
 And the pair client in the protocol, to forward a message to the handler's frontend.
+
+Example is implemented in [web-lib](https://github.com/ahmetson/web-lib) &ndash; a support of the HTTP protocol.
