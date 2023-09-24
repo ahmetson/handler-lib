@@ -192,6 +192,24 @@ func (f *Frontend) handleExternal() error {
 	if err != nil {
 		return fmt.Errorf("handleExternal: external.RecvMessage: %w", err)
 	}
+
+	if len(msg) < 3 {
+		replyStr, err := (&message.Request{}).Fail("handleExternal: id, separator in the message are not set").String()
+		if err != nil {
+			return fmt.Errorf("handleExternal: reply.String: %w", err)
+		}
+
+		reply := []string{replyStr}
+		if len(msg) == 2 {
+			reply = []string{"", replyStr}
+		}
+
+		if _, err := f.external.SendMessageDontwait(reply); err != nil {
+			return fmt.Errorf("handleExternal: len(msg) < 3: frontend.external.SendMessageDontwait: %w", err)
+		}
+		return nil
+	}
+
 	req, err := message.NewReq(msg[2:])
 	if err != nil {
 		return fmt.Errorf("handleExternal: message.NewReq: %w", err)
