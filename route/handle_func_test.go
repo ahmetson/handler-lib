@@ -27,22 +27,22 @@ type TestHandleFuncSuite struct {
 // before each test
 func (test *TestHandleFuncSuite) SetupTest() {
 	// the second argument is invalid
-	handleX := func(request message.Request, param string) *message.Reply {
+	handleX := func(request message.RequestInterface, param string) message.ReplyInterface {
 		return request.Ok(key_value.Empty())
 	}
-	handle0 := func(request message.Request) *message.Reply {
+	handle0 := func(request message.RequestInterface) message.ReplyInterface {
 		return request.Ok(key_value.Empty())
 	}
-	handle1 := func(request message.Request, _ *client.Socket) *message.Reply {
+	handle1 := func(request message.RequestInterface, _ *client.Socket) message.ReplyInterface {
 		return request.Ok(key_value.Empty())
 	}
-	handle2 := func(request message.Request, _ *client.Socket, _ *client.Socket) *message.Reply {
+	handle2 := func(request message.RequestInterface, _ *client.Socket, _ *client.Socket) message.ReplyInterface {
 		return request.Ok(key_value.Empty())
 	}
-	handle3 := func(request message.Request, _ *client.Socket, _ *client.Socket, _ *client.Socket) *message.Reply {
+	handle3 := func(request message.RequestInterface, _ *client.Socket, _ *client.Socket, _ *client.Socket) message.ReplyInterface {
 		return request.Ok(key_value.Empty())
 	}
-	handleN := func(request message.Request, _ ...*client.Socket) *message.Reply {
+	handleN := func(request message.RequestInterface, _ ...*client.Socket) message.ReplyInterface {
 		return request.Ok(key_value.Empty())
 	}
 

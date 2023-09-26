@@ -148,10 +148,9 @@ func (test *TestTriggerSuite) Test_14_Start() {
 
 	// trigger a message
 	req := message.Request{Command: "hello", Parameters: key_value.Empty().Set("number", 1)}
+
 	err = test.trigger.Submit(&req)
 	s.Require().NoError(err)
-
-	test.logger.Info("waiting a subscribed message")
 
 	var wg sync.WaitGroup
 	wg.Add(1)
