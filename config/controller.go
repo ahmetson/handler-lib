@@ -19,18 +19,18 @@ const (
 )
 
 type Handler struct {
-	Type           HandlerType
-	Category       string
-	InstanceAmount uint64
-	Port           uint64
-	Id             string
+	Type           HandlerType `json:"type" yaml:"type"`
+	Category       string      `json:"category" yaml:"category"`
+	InstanceAmount uint64      `json:"instance_amount" yaml:"instance_amount"`
+	Port           uint64      `json:"port" yaml:"port"`
+	Id             string      `json:"id" yaml:"id"`
 }
 
 type Trigger struct {
 	*Handler
-	BroadcastPort uint64
-	BroadcastId   string
-	BroadcastType HandlerType
+	BroadcastPort uint64      `json:"broadcast_port" yaml:"broadcast_port"`
+	BroadcastId   string      `json:"broadcast_id" yaml:"broadcast_id"`
+	BroadcastType HandlerType `json:"broadcast_type" yaml:"broadcast_type"`
 }
 
 // NewHandler configuration of the HandlerType and category.
