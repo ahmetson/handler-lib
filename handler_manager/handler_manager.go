@@ -82,7 +82,7 @@ func (m *HandlerManager) PartStatuses() key_value.KeyValue {
 // setRoutes sets the default command handlers
 func (m *HandlerManager) setRoutes() {
 	// Requesting status which is calculated from statuses of the handler parts
-	onStatus := func(req message.Request) *message.Reply {
+	onStatus := func(req message.RequestInterface) message.ReplyInterface {
 		frontendStatus := m.frontend.Status()
 		instanceStatus := m.instanceManager.Status()
 
@@ -103,7 +103,7 @@ func (m *HandlerManager) setRoutes() {
 	}
 
 	// onClose adds a close signal to the queue.
-	onClose := func(req message.Request) *message.Reply {
+	onClose := func(req message.RequestInterface) message.ReplyInterface {
 		m.close = true
 
 		return req.Ok(key_value.Empty())
@@ -111,8 +111,8 @@ func (m *HandlerManager) setRoutes() {
 
 	// Stop one of the parts.
 	// For example, frontend or instance_manager
-	onClosePart := func(req message.Request) *message.Reply {
-		part, err := req.Parameters.GetString("part")
+	onClosePart := func(req message.RequestInterface) message.ReplyInterface {
+		part, err := req.RouteParameters().GetString("part")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
 		}
@@ -138,8 +138,8 @@ func (m *HandlerManager) setRoutes() {
 		}
 	}
 
-	onRunPart := func(req message.Request) *message.Reply {
-		part, err := req.Parameters.GetString("part")
+	onRunPart := func(req message.RequestInterface) message.ReplyInterface {
+		part, err := req.RouteParameters().GetString("part")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
 		}
@@ -169,13 +169,13 @@ func (m *HandlerManager) setRoutes() {
 		}
 	}
 
-	onInstanceAmount := func(req message.Request) *message.Reply {
+	onInstanceAmount := func(req message.RequestInterface) message.ReplyInterface {
 		instanceAmount := len(m.instanceManager.Instances())
 		return req.Ok(key_value.Empty().Set("instance_amount", instanceAmount))
 	}
 
 	// Returns queue amount and currently processed images amount
-	onMessageAmount := func(req message.Request) *message.Reply {
+	onMessageAmount := func(req message.RequestInterface) message.ReplyInterface {
 		params := key_value.Empty().
 			Set("queue_length", m.frontend.QueueLen()).
 			Set("processing_length", m.frontend.ProcessingLen())
@@ -183,7 +183,7 @@ func (m *HandlerManager) setRoutes() {
 	}
 
 	// Add a new instance, but it doesn't check that instance was added
-	onAddInstance := func(req message.Request) *message.Reply {
+	onAddInstance := func(req message.RequestInterface) message.ReplyInterface {
 		instanceId, err := m.instanceManager.AddInstance(m.config.Type, &m.routes, &m.routeDeps, &m.depClients)
 		if err != nil {
 			return req.Fail(fmt.Sprintf("instanceManager.AddInstance(%s): %v", m.config.Type, err))
@@ -194,8 +194,8 @@ func (m *HandlerManager) setRoutes() {
 	}
 
 	// Delete the instance
-	onDeleteInstance := func(req message.Request) *message.Reply {
-		instanceId, err := req.Parameters.GetString("instance_id")
+	onDeleteInstance := func(req message.RequestInterface) message.ReplyInterface {
+		instanceId, err := req.RouteParameters().GetString("instance_id")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('instance_id'): %v", err))
 		}
@@ -208,7 +208,7 @@ func (m *HandlerManager) setRoutes() {
 		return req.Ok(key_value.Empty())
 	}
 
-	onParts := func(req message.Request) *message.Reply {
+	onParts := func(req message.RequestInterface) message.ReplyInterface {
 		parts := []string{
 			"frontend",
 			"instance_manager",
@@ -313,9 +313,9 @@ func (m *HandlerManager) Start() error {
 				continue
 			}
 
-			handleInterface, depNames, err := route.Route(req.Command, m.routes, m.routeDeps)
+			handleInterface, depNames, err := route.Route(req.CommandName(), m.routes, m.routeDeps)
 			if err != nil {
-				reply := req.Fail(fmt.Sprintf("route.Route(%s): %v", req.Command, err))
+				reply := req.Fail(fmt.Sprintf("route.Route(%s): %v", req.CommandName(), err))
 				replyStr, err := reply.String()
 				if err != nil {
 					reply := req.Fail(fmt.Sprintf("failed to convert reply [%v] to string", reply))
@@ -371,22 +371,24 @@ func (m *HandlerManager) Start() error {
 
 		// Since routes are over-writeable, as extending handlers might add new parts.
 		// We don't call frontend or instanceManager directly.
-		partsHandle := m.routes[config.Parts].(func(message.Request) *message.Reply)
-		closeHandle := m.routes[config.ClosePart].(func(message.Request) *message.Reply)
+		partsHandle := m.routes[config.Parts].(func(message.RequestInterface) message.ReplyInterface)
+		closeHandle := m.routes[config.ClosePart].(func(message.RequestInterface) message.ReplyInterface)
 
-		req := message.Request{Command: config.Parts, Parameters: key_value.Empty()}
+		defReq := message.Request{Command: config.Parts, Parameters: key_value.Empty()}
+		var req message.RequestInterface = &defReq
 
 		partsReply := partsHandle(req)
 		if !partsReply.IsOK() {
-			m.logger.Error("failed to handle", "command", config.Parts, "request", req, "reply.Message", partsReply.Message)
+			m.logger.Error("failed to handle", "command", config.Parts, "request", req, "reply.Message", partsReply.ErrorMessage())
 		} else {
-			parts, err := partsReply.Parameters.GetStringList("parts")
+			parts, err := partsReply.ReplyParameters().GetStringList("parts")
 			if err != nil {
 				m.logger.Error("reply.Parameters.GetStringList", "argument", "parts", "command", config.Parts, "request", req, "error", err)
 			} else {
-				req.Command = config.ClosePart
+				defReq.Command = config.ClosePart
+				req = &defReq
 				for _, part := range parts {
-					req.Parameters.Set("part", part)
+					req.RouteParameters().Set("part", part)
 
 					// if it's failed, it might be because part already closed
 					_ = closeHandle(req)

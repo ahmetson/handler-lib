@@ -15,7 +15,7 @@ import (
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
 // returns the current testing orchestra
-type TestHandlerSuite struct {
+type TestSyncReplierSuite struct {
 	suite.Suite
 	syncReplier   *SyncReplier
 	handlerConfig *config.Handler
@@ -26,7 +26,7 @@ type TestHandlerSuite struct {
 
 // Make sure that Account is set to five
 // before each test
-func (test *TestHandlerSuite) SetupTest() {
+func (test *TestSyncReplierSuite) SetupTest() {
 	s := &test.Suite
 
 	logger, err := log.New("sync-replier", false)
@@ -37,11 +37,11 @@ func (test *TestHandlerSuite) SetupTest() {
 
 	// Socket to talk to clients
 	test.routes = make(map[string]interface{}, 2)
-	test.routes["command_1"] = func(request message.Request) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_1"] = func(request message.RequestInterface) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
-	test.routes["command_2"] = func(request message.Request) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_2"] = func(request message.RequestInterface) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
 
 	err = test.syncReplier.Route("command_1", test.routes["command_1"])
@@ -66,7 +66,7 @@ func (test *TestHandlerSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
-func (test *TestHandlerSuite) req(client *zmq.Socket, request message.Request) message.Reply {
+func (test *TestSyncReplierSuite) req(client *zmq.Socket, request message.Request) message.ReplyInterface {
 	s := &test.Suite
 
 	reqStr, err := request.String()
@@ -78,13 +78,13 @@ func (test *TestHandlerSuite) req(client *zmq.Socket, request message.Request) m
 	raw, err := client.RecvMessage(0)
 	s.Require().NoError(err)
 
-	reply, err := message.ParseReply(raw)
+	reply, err := message.NewRep(raw)
 	s.Require().NoError(err)
 
 	return reply
 }
 
-func (test *TestHandlerSuite) cleanOut() {
+func (test *TestSyncReplierSuite) cleanOut() {
 	s := &test.Suite
 
 	err := test.managerClient.Close()
@@ -95,7 +95,7 @@ func (test *TestHandlerSuite) cleanOut() {
 }
 
 // Test_10_Start starts the sync replier and makes sure that it can not have more than 1 instance.
-func (test *TestHandlerSuite) Test_10_Start() {
+func (test *TestSyncReplierSuite) Test_10_Start() {
 	s := &test.Suite
 
 	err := test.syncReplier.Start()
@@ -109,7 +109,7 @@ func (test *TestHandlerSuite) Test_10_Start() {
 	reply := test.req(test.managerClient, req)
 	s.Require().True(reply.IsOK())
 
-	status, err := reply.Parameters.GetString("status")
+	status, err := reply.ReplyParameters().GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(handler_manager.Ready, status)
 
@@ -133,6 +133,6 @@ func (test *TestHandlerSuite) Test_10_Start() {
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestHandler(t *testing.T) {
-	suite.Run(t, new(TestHandlerSuite))
+func TestSyncReplier(t *testing.T) {
+	suite.Run(t, new(TestSyncReplierSuite))
 }

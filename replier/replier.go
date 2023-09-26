@@ -73,7 +73,7 @@ func (c *Replier) Status() string {
 
 // Start the handler directly, not by goroutine
 func (c *Replier) Start() error {
-	onAddInstance := func(req message.Request) *message.Reply {
+	onAddInstance := func(req message.RequestInterface) message.ReplyInterface {
 		m := c.base
 
 		if len(m.InstanceManager.Instances()) >= c.maxInstanceAmount {

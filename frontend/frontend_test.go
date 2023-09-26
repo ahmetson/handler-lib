@@ -34,9 +34,9 @@ func (test *TestFrontendSuite) instanceManager() (string, string, *instance_mana
 	s := &test.Suite
 
 	cmd := "hello"
-	handleHello := func(req message.Request) *message.Reply {
+	handleHello := func(req message.RequestInterface) message.ReplyInterface {
 		time.Sleep(time.Second) // just to test consuming since there are no ready instances
-		id, err := req.Parameters.GetUint64("id")
+		id, err := req.RouteParameters().GetUint64("id")
 		if err != nil {
 			id = 0
 		}
@@ -154,7 +154,7 @@ func (test *TestFrontendSuite) Test_11_External() {
 	// However, the third message that user receives should be a failure
 	reply, err := user.RecvMessage(0)
 	s.Require().NoError(err)
-	rep, err := message.ParseReply(reply)
+	rep, err := message.NewRep(reply)
 	s.Require().NoError(err)
 	s.Require().False(rep.IsOK())
 
@@ -325,7 +325,7 @@ func (test *TestFrontendSuite) Test_13_Run() {
 	// Now we receive the messages
 	repl, err := user.RecvMessage(0)
 	s.Require().NoError(err)
-	errorRepl, err := message.ParseReply(repl)
+	errorRepl, err := message.NewRep(repl)
 	s.Require().NoError(err)
 	s.Require().False(errorRepl.IsOK())
 	_, err = user.RecvMessage(0)
@@ -387,7 +387,7 @@ func (test *TestFrontendSuite) Test_14_PairSocket() {
 	repl, err := customExternal.pairClient.RawRequest(reqStr)
 	s.Require().NoError(err)
 
-	errorRepl, err := message.ParseReply(repl)
+	errorRepl, err := message.NewRep(repl)
 	s.Require().NoError(err)
 	s.Require().True(errorRepl.IsOK())
 

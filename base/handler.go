@@ -123,7 +123,7 @@ func (c *Handler) DepIds() []string {
 //
 // If a handler doesn't support replying (for example, PULL handler),
 // then it returns success.
-func (c *Handler) reply(socket *zmq.Socket, message *message.Reply) error {
+func (c *Handler) reply(socket *zmq.Socket, message message.ReplyInterface) error {
 	if !config.CanReply(c.config.Type) {
 		return nil
 	}
@@ -138,8 +138,7 @@ func (c *Handler) reply(socket *zmq.Socket, message *message.Reply) error {
 
 // Calls handler.reply() with the error message.
 func (c *Handler) replyError(socket *zmq.Socket, err error) error {
-	request := message.Request{}
-	return c.reply(socket, request.Fail(err.Error()))
+	return c.reply(socket, c.InstanceManager.MessageOps.EmptyReq().Fail(err.Error()))
 }
 
 // Route adds a route along with its handler to this handler
@@ -265,26 +264,26 @@ func (c *Handler) StartInstanceManager() error {
 				break
 			}
 
-			req, err := message.NewReq(raw)
+			req, err := c.InstanceManager.MessageOps.NewReq(raw)
 			if err != nil {
 				c.logger.Error("eventSocket: convert raw to message", "id", c.config.Id, "message", raw, "error", err)
 				continue
 			}
 
-			if req.Command == instance_manager.EventReady {
+			if req.CommandName() == instance_manager.EventReady {
 				if !firstInstance {
 					instanceId, err = c.InstanceManager.AddInstance(c.config.Type, &c.Routes, &c.RouteDeps, &c.DepClients)
 					if err != nil {
-						c.logger.Error("InstanceManager.AddInstance", "id", c.config.Id, "event", req.Command, "type", c.config.Type, "error", err)
+						c.logger.Error("InstanceManager.AddInstance", "id", c.config.Id, "event", req.CommandName(), "type", c.config.Type, "error", err)
 						continue
 					}
 					firstInstance = true
 				}
-			} else if req.Command == instance_manager.EventInstanceAdded {
+			} else if req.CommandName() == instance_manager.EventInstanceAdded {
 				if firstInstance && len(instanceId) > 0 {
-					addedInstanceId, err := req.Parameters.GetString("id")
+					addedInstanceId, err := req.RouteParameters().GetString("id")
 					if err != nil {
-						c.logger.Error("req.Parameters.GetString('id')", "id", c.config.Id, "event", req.Command, "instanceId", instanceId, "error", err)
+						c.logger.Error("req.Parameters.GetString('id')", "id", c.config.Id, "event", req.CommandName(), "instanceId", instanceId, "error", err)
 						continue
 					}
 					if addedInstanceId != instanceId {
@@ -293,21 +292,21 @@ func (c *Handler) StartInstanceManager() error {
 						instanceId = ""
 					}
 				}
-			} else if req.Command == instance_manager.EventError {
-				_, err := req.Parameters.GetString("message")
+			} else if req.CommandName() == instance_manager.EventError {
+				_, err := req.RouteParameters().GetString("message")
 				if err != nil {
-					c.logger.Error("req.Parameters.GetString('message')", "id", c.config.Id, "event", req.Command, "error", err)
+					c.logger.Error("req.Parameters.GetString('message')", "id", c.config.Id, "event", req.CommandName(), "error", err)
 					continue
 				}
 
 				break
-			} else if req.Command == instance_manager.EventIdle {
-				closeSignal, _ := req.Parameters.GetBoolean("close")
+			} else if req.CommandName() == instance_manager.EventIdle {
+				closeSignal, _ := req.RouteParameters().GetBoolean("close")
 				if closeSignal {
 					break
 				}
 			} else {
-				c.logger.Warn("unhandled instance_manager event", "event", req.Command, "parameters", req.Parameters)
+				c.logger.Warn("unhandled instance_manager event", "event", req.CommandName(), "parameters", req.RouteParameters())
 			}
 		}
 
@@ -361,9 +360,9 @@ func (c *Handler) Start() error {
 }
 
 // Does nothing, simply returns the data
-var anyHandler = func(request message.Request) *message.Reply {
+var anyHandler = func(request message.RequestInterface) message.ReplyInterface {
 	replyParameters := key_value.Empty()
-	replyParameters.Set("route", request.Command)
+	replyParameters.Set("route", request.CommandName())
 
 	reply := request.Ok(replyParameters)
 	return reply

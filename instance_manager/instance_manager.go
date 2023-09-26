@@ -29,6 +29,7 @@ type Child struct {
 type Parent struct {
 	instances      map[string]*Child
 	eventSock      *zmq.Socket
+	MessageOps     *message.Operations
 	lastInstanceId uint
 	id             string
 	parentLogger   *log.Logger
@@ -50,6 +51,7 @@ func New(id string, parent *log.Logger) *Parent {
 		eventSock:      nil,
 		status:         Idle,
 		close:          false,
+		MessageOps:     message.DefaultMessage(),
 	}
 }
 
@@ -83,8 +85,8 @@ func (parent *Parent) cleanDeletedInstance(instanceId string) error {
 
 // onInstanceStatus updates the instance status.
 // since our socket is one directional, there is no point to reply.
-func (parent *Parent) onInstanceStatus(req message.Request) *message.Reply {
-	instanceId, err := req.Parameters.GetString("id")
+func (parent *Parent) onInstanceStatus(req message.RequestInterface) message.ReplyInterface {
+	instanceId, err := req.RouteParameters().GetString("id")
 	if err != nil {
 		return req.Fail(fmt.Sprintf("req.Parameters.GetString('id'): %v", err))
 	}
@@ -94,7 +96,7 @@ func (parent *Parent) onInstanceStatus(req message.Request) *message.Reply {
 		return req.Fail(fmt.Sprintf("instances[%s] not found", instanceId))
 	}
 
-	status, err := req.Parameters.GetString("status")
+	status, err := req.RouteParameters().GetString("status")
 	if err != nil {
 		return req.Fail(fmt.Sprintf("req.Parameters.GetString('status'): %v", err))
 	}
@@ -145,6 +147,11 @@ func (parent *Parent) newPullSocket() (*zmq.Socket, error) {
 	}
 
 	return sock, nil
+}
+
+// SetMessageOperations overwrites the default message type.
+func (parent *Parent) SetMessageOperations(messageOps *message.Operations) {
+	parent.MessageOps = messageOps
 }
 
 // Start the instance manager to receive the data from the instances
@@ -236,17 +243,17 @@ func (parent *Parent) Start() error {
 			}
 
 			// Only set_status is supported. If it's not set_status, throw an error.
-			if req.Command != "set_status" {
-				err = fmt.Errorf("command '%s' not supported", req.Command)
+			if req.CommandName() != "set_status" {
+				err = fmt.Errorf("command '%s' not supported", req.CommandName())
 				if pubErr := parent.pubError(); pubErr != nil {
 					parent.logger.Error("parent.pubErr", "argument", err, "error", pubErr)
 				}
 				break
 			}
 
-			reply := parent.onInstanceStatus(*req)
+			reply := parent.onInstanceStatus(req)
 			if !reply.IsOK() {
-				err = fmt.Errorf("onInstanceStatus: %s [%v]", reply.Message, req.Parameters)
+				err = fmt.Errorf("onInstanceStatus: %s [%v]", reply.ErrorMessage(), req.RouteParameters())
 				if pubErr := parent.pubError(); pubErr != nil {
 					parent.logger.Error("parent.pubErr", "argument", err, "error", pubErr)
 				}
@@ -352,6 +359,7 @@ func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, 
 	added := instance.New(handlerType, id, parent.id, parent.parentLogger)
 	added.SetRoutes(routes, routeDeps)
 	added.SetClients(clients)
+	added.SetMessageOps(parent.MessageOps)
 
 	childSock, err := zmq.NewSocket(zmq.REQ)
 	if err != nil {
@@ -426,13 +434,13 @@ func (parent *Parent) DeleteInstance(instanceId string, instant bool) error {
 	if err != nil {
 		return fmt.Errorf("child(%s).RecvMessage: %w", instanceId, err)
 	}
-	reply, err := message.ParseReply(replyStr)
+	reply, err := message.NewRep(replyStr)
 	if err != nil {
 		return fmt.Errorf("parseReply(%s): %w", replyStr, err)
 	}
 
 	if !reply.IsOK() {
-		return fmt.Errorf("instance close failed: %s", reply.Message)
+		return fmt.Errorf("instance close failed: %s", reply.ErrorMessage())
 	}
 
 	return nil

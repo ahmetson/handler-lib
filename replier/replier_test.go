@@ -15,7 +15,7 @@ import (
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
 // returns the current testing orchestra
-type TestHandlerSuite struct {
+type TestReplierSuite struct {
 	suite.Suite
 	replier        *Replier
 	handlerConfig  *config.Handler
@@ -24,7 +24,7 @@ type TestHandlerSuite struct {
 	routes         map[string]interface{}
 }
 
-func (test *TestHandlerSuite) SetupTest() {
+func (test *TestReplierSuite) SetupTest() {
 	s := &test.Suite
 
 	logger, err := log.New("replier", true)
@@ -35,12 +35,12 @@ func (test *TestHandlerSuite) SetupTest() {
 
 	// Socket to talk to clients
 	test.routes = make(map[string]interface{}, 2)
-	test.routes["command_1"] = func(request message.Request) *message.Reply {
+	test.routes["command_1"] = func(request message.RequestInterface) message.ReplyInterface {
 		time.Sleep(time.Millisecond * 100)
-		return request.Ok(request.Parameters.Set("id", request.Command))
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
-	test.routes["command_2"] = func(request message.Request) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_2"] = func(request message.RequestInterface) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
 
 	err = test.replier.Route("command_1", test.routes["command_1"])
@@ -65,7 +65,7 @@ func (test *TestHandlerSuite) SetupTest() {
 	s.Require().NoError(err)
 }
 
-func (test *TestHandlerSuite) TearDownTest() {
+func (test *TestReplierSuite) TearDownTest() {
 	s := &test.Suite
 
 	err := test.managingClient.Close()
@@ -75,7 +75,7 @@ func (test *TestHandlerSuite) TearDownTest() {
 	time.Sleep(time.Millisecond * 200)
 }
 
-func (test *TestHandlerSuite) req(client *zmq.Socket, request message.Request) message.Reply {
+func (test *TestReplierSuite) req(client *zmq.Socket, request message.Request) message.ReplyInterface {
 	s := &test.Suite
 
 	reqStr, err := request.String()
@@ -87,14 +87,14 @@ func (test *TestHandlerSuite) req(client *zmq.Socket, request message.Request) m
 	raw, err := client.RecvMessage(0)
 	s.Require().NoError(err)
 
-	reply, err := message.ParseReply(raw)
+	reply, err := message.NewRep(raw)
 	s.Require().NoError(err)
 
 	return reply
 }
 
 // Test_10_Start start and make sure it can add more instances (since multi instance is the core of the replier)
-func (test *TestHandlerSuite) Test_10_Start() {
+func (test *TestReplierSuite) Test_10_Start() {
 	s := &test.Suite
 
 	err := test.replier.Start()
@@ -108,7 +108,7 @@ func (test *TestHandlerSuite) Test_10_Start() {
 	reply := test.req(test.managingClient, req)
 	s.Require().True(reply.IsOK())
 
-	status, err := reply.Parameters.GetString("status")
+	status, err := reply.ReplyParameters().GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(handler_manager.Ready, status)
 
@@ -139,7 +139,7 @@ func (test *TestHandlerSuite) Test_10_Start() {
 }
 
 // Test_11_Request tests that external clients send the message to the instance
-func (test *TestHandlerSuite) Test_11_Request() {
+func (test *TestReplierSuite) Test_11_Request() {
 	s := &test.Suite
 
 	err := test.replier.Start()
@@ -153,7 +153,7 @@ func (test *TestHandlerSuite) Test_11_Request() {
 	reply := test.req(test.managingClient, req)
 	s.Require().True(reply.IsOK())
 
-	status, err := reply.Parameters.GetString("status")
+	status, err := reply.ReplyParameters().GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(handler_manager.Ready, status)
 
@@ -193,6 +193,6 @@ func (test *TestHandlerSuite) Test_11_Request() {
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestHandler(t *testing.T) {
-	suite.Run(t, new(TestHandlerSuite))
+func TestReplier(t *testing.T) {
+	suite.Run(t, new(TestReplierSuite))
 }

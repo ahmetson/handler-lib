@@ -11,6 +11,7 @@ import (
 	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
+	"sync"
 	"testing"
 	"time"
 )
@@ -150,7 +151,23 @@ func (test *TestTriggerSuite) Test_14_Start() {
 	err = test.trigger.Submit(&req)
 	s.Require().NoError(err)
 
-	_ = <-test.subscribed
+	test.logger.Info("waiting a subscribed message")
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		isTimeout := false
+		select {
+		case _ = <-test.subscribed:
+			isTimeout = false
+		case <-time.After(time.Second * 2):
+			// call timed out
+			isTimeout = true
+		}
+		wg.Done()
+		s.Require().False(isTimeout, "timeout for subscribing")
+	}()
+	wg.Wait()
 
 	// Make sure that everything works
 	s.Require().Equal(test.handler.InstanceManager.Status(), instance_manager.Running)

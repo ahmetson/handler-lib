@@ -9,15 +9,15 @@ import (
 type depSock = *client.Socket
 
 // HandleFunc0 is the function type that manipulates the commands.
-// It accepts at least message.Request and log.Logger then returns a message.Reply.
+// It accepts at least message.RequestInterface and log.Logger then returns a message.ReplyInterface.
 //
 // Optionally, the handler can pass the shared states in the additional parameters.
 // The most use case for optional request is to pass the link to the Database.
-type HandleFunc0 = func(message.Request) *message.Reply
-type HandleFunc1 = func(message.Request, depSock) *message.Reply
-type HandleFunc2 = func(message.Request, depSock, depSock) *message.Reply
-type HandleFunc3 = func(message.Request, depSock, depSock, depSock) *message.Reply
-type HandleFuncN = func(message.Request, ...depSock) *message.Reply
+type HandleFunc0 = func(message.RequestInterface) message.ReplyInterface
+type HandleFunc1 = func(message.RequestInterface, depSock) message.ReplyInterface
+type HandleFunc2 = func(message.RequestInterface, depSock, depSock) message.ReplyInterface
+type HandleFunc3 = func(message.RequestInterface, depSock, depSock, depSock) message.ReplyInterface
+type HandleFuncN = func(message.RequestInterface, ...depSock) message.ReplyInterface
 
 // DepAmount returns -1 if the interface is not a valid HandleFunc.
 // If the interface has more than 3 arguments, it returns 4.
@@ -49,31 +49,31 @@ func DepAmount(handleInterface interface{}) int {
 
 // Handle calls the handle func for the req.
 // Optionally, if the handler requires the extensions, it will pass the socket clients to the handle func.
-func Handle(req *message.Request, handleInterface interface{}, depClients []*client.Socket) *message.Reply {
-	var reply *message.Reply
+func Handle(req message.RequestInterface, handleInterface interface{}, depClients []*client.Socket) message.ReplyInterface {
+	var reply message.ReplyInterface
 
 	depAmount := DepAmount(handleInterface)
 	if !IsHandleFuncWithDeps(handleInterface, len(depClients)) {
 		reply = req.Fail(fmt.Sprintf("the '%s' command handler requires %d dependencies, but route has %d dependencies",
-			req.Command, depAmount, len(depClients)))
+			req.CommandName(), depAmount, len(depClients)))
 		return reply
 	}
 
 	if len(depClients) == 0 {
 		handleFunc := handleInterface.(HandleFunc0)
-		reply = handleFunc(*req)
+		reply = handleFunc(req)
 	} else if len(depClients) == 1 {
 		handleFunc := handleInterface.(HandleFunc1)
-		reply = handleFunc(*req, depClients[0])
+		reply = handleFunc(req, depClients[0])
 	} else if len(depClients) == 2 {
 		handleFunc := handleInterface.(HandleFunc2)
-		reply = handleFunc(*req, depClients[0], depClients[1])
+		reply = handleFunc(req, depClients[0], depClients[1])
 	} else if len(depClients) == 3 {
 		handleFunc := handleInterface.(HandleFunc3)
-		reply = handleFunc(*req, depClients[0], depClients[1], depClients[2])
+		reply = handleFunc(req, depClients[0], depClients[1], depClients[2])
 	} else {
 		handleFunc := handleInterface.(HandleFuncN)
-		reply = handleFunc(*req, depClients...)
+		reply = handleFunc(req, depClients...)
 	}
 
 	return reply

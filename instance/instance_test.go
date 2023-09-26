@@ -34,11 +34,11 @@ type TestInstanceSuite struct {
 // Make sure that Account is set to five
 // before each test
 func (test *TestInstanceSuite) SetupTest() {
-	handle0 := func(request message.Request) *message.Reply {
+	handle0 := func(request message.RequestInterface) message.ReplyInterface {
 		time.Sleep(time.Millisecond * 200)
 		return request.Ok(key_value.Empty())
 	}
-	handle1 := func(request message.Request, _ *client.Socket) *message.Reply {
+	handle1 := func(request message.RequestInterface, _ *client.Socket) message.ReplyInterface {
 		return request.Ok(key_value.Empty())
 	}
 
@@ -56,6 +56,7 @@ func (test *TestInstanceSuite) Test_0_New() {
 	logger, _ := log.New("instance_test", true)
 
 	test.instance0 = New(handlerType, id, test.parentId, logger)
+	test.instance0.SetMessageOps(message.DefaultMessage())
 
 	s.Require().Equal(PREPARE, test.instance0.Status())
 }
@@ -261,6 +262,7 @@ func (test *TestInstanceSuite) Test_14_HandleRouter() {
 	test.instance1 = New(handlerType, id, test.parentId, logger)
 	test.instance1.SetRoutes(&test.routes, &test.routeDeps)
 	test.instance1.SetClients(&test.clients)
+	test.instance1.SetMessageOps(message.DefaultMessage())
 
 	// Let's start the instance
 	s.Require().NoError(test.instance1.Start())
@@ -323,6 +325,7 @@ func (test *TestInstanceSuite) Test_15_HandleDealer() {
 	test.instance1 = New(handlerType, id, test.parentId, logger)
 	test.instance1.SetRoutes(&test.routes, &test.routeDeps)
 	test.instance1.SetClients(&test.clients)
+	test.instance1.SetMessageOps(message.DefaultMessage())
 
 	// Let's start the instance
 	s.Require().NoError(test.instance1.Start())
@@ -385,6 +388,7 @@ func (test *TestInstanceSuite) Test_15_HandleDealerRouter() {
 	test.instance1 = New(handlerType, id, test.parentId, logger)
 	test.instance1.SetRoutes(&test.routes, &test.routeDeps)
 	test.instance1.SetClients(&test.clients)
+	test.instance1.SetMessageOps(message.DefaultMessage())
 
 	// Let's start the instance
 	s.Require().NoError(test.instance1.Start())

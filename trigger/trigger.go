@@ -124,7 +124,7 @@ func (handler *Trigger) startBroadcaster() error {
 				continue
 			}
 
-			req := handler.broadcasting.Pop().(message.Request)
+			req := handler.broadcasting.Pop().(message.RequestInterface)
 			reqStr, err := req.String()
 			if err != nil {
 				handler.logger.Error("handler.broadcasting.Pop", "type", "message.Request", "error", err)
@@ -150,7 +150,7 @@ func (handler *Trigger) startBroadcaster() error {
 	return <-ready
 }
 
-func (handler *Trigger) onTrigger(req message.Request) *message.Reply {
+func (handler *Trigger) onTrigger(req message.RequestInterface) message.ReplyInterface {
 	if handler.broadcasting.IsFull() {
 		return req.Fail("broadcasting queue full")
 	}
@@ -187,7 +187,7 @@ func (handler *Trigger) Start() error {
 		return fmt.Errorf("handler.Route: %w", err)
 	}
 
-	onStatus := func(req message.Request) *message.Reply {
+	onStatus := func(req message.RequestInterface) message.ReplyInterface {
 		partStatuses := m.Manager.PartStatuses()
 		frontendStatus, err := partStatuses.GetString("frontend")
 		if err != nil {
@@ -215,7 +215,7 @@ func (handler *Trigger) Start() error {
 	}
 
 	// add a routing that redirects the messages to the trigger
-	onAddInstance := func(req message.Request) *message.Reply {
+	onAddInstance := func(req message.RequestInterface) message.ReplyInterface {
 		if len(m.InstanceManager.Instances()) != 0 {
 			return req.Fail(fmt.Sprintf("only one instance allowed in sync replier"))
 		}
@@ -228,8 +228,8 @@ func (handler *Trigger) Start() error {
 		params := key_value.Empty().Set("instance_id", instanceId)
 		return req.Ok(params)
 	}
-	onClose := func(req message.Request) *message.Reply {
-		part, err := req.Parameters.GetString("part")
+	onClose := func(req message.RequestInterface) message.ReplyInterface {
+		part, err := req.RouteParameters().GetString("part")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
 		}
@@ -257,8 +257,8 @@ func (handler *Trigger) Start() error {
 			return req.Fail(fmt.Sprintf("unknown part '%s' to stop", part))
 		}
 	}
-	onRunPart := func(req message.Request) *message.Reply {
-		part, err := req.Parameters.GetString("part")
+	onRunPart := func(req message.RequestInterface) message.ReplyInterface {
+		part, err := req.RouteParameters().GetString("part")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
 		}
@@ -293,7 +293,7 @@ func (handler *Trigger) Start() error {
 			return req.Fail(fmt.Sprintf("unknown part '%s' to stop", part))
 		}
 	}
-	onMessageAmount := func(req message.Request) *message.Reply {
+	onMessageAmount := func(req message.RequestInterface) message.ReplyInterface {
 		params := key_value.Empty().
 			Set("queue_length", m.Frontend.QueueLen()).
 			Set("processing_length", m.Frontend.ProcessingLen()).
@@ -301,7 +301,7 @@ func (handler *Trigger) Start() error {
 		return req.Ok(params)
 	}
 
-	onParts := func(req message.Request) *message.Reply {
+	onParts := func(req message.RequestInterface) message.ReplyInterface {
 		parts := []string{
 			"frontend",
 			"instance_manager",

@@ -42,6 +42,7 @@ type Instance struct {
 	routes      *key_value.KeyValue // handler routing
 	routeDeps   *key_value.KeyValue // handler deps
 	depClients  *key_value.KeyValue
+	messageOps  *message.Operations
 	logger      *log.Logger
 	close       bool
 	status      string // Instance status
@@ -68,18 +69,18 @@ func New(handlerType config.HandlerType, id string, parentId string, parent *log
 //
 // If a handler doesn't support replying (for example, PULL handler),
 // then it returns success.
-func (c *Instance) reply(socket *zmq.Socket, message *message.Reply) error {
+func (c *Instance) reply(socket *zmq.Socket, reply message.ReplyInterface) error {
 	if !config.CanReply(c.Type()) {
 		return nil
 	}
 
-	reply, _ := message.String()
-	if len(message.SessionId()) == 0 {
-		if _, err := socket.SendMessage(reply); err != nil {
+	replyStr, _ := reply.String()
+	if len(reply.ConId()) == 0 {
+		if _, err := socket.SendMessage(replyStr); err != nil {
 			return fmt.Errorf("recv error replying error %w" + err.Error())
 		}
 	} else {
-		if _, err := socket.SendMessage(message.SessionId(), "", reply); err != nil {
+		if _, err := socket.SendMessage(reply.ConId(), "", replyStr); err != nil {
 			return fmt.Errorf("recv error replying error %w" + err.Error())
 		}
 	}
@@ -89,8 +90,7 @@ func (c *Instance) reply(socket *zmq.Socket, message *message.Reply) error {
 
 // Calls handler.reply() with the error message.
 func (c *Instance) replyError(socket *zmq.Socket, err error) error {
-	request := message.Request{}
-	return c.reply(socket, request.Fail(err.Error()))
+	return c.reply(socket, c.messageOps.EmptyReq().Fail(err.Error()))
 }
 
 // SetRoutes set the reference to the functions and dependencies from the Handler.
@@ -102,6 +102,10 @@ func (c *Instance) SetRoutes(routes *key_value.KeyValue, routeDeps *key_value.Ke
 // SetClients set the reference to the socket clients
 func (c *Instance) SetClients(clients *key_value.KeyValue) {
 	c.depClients = clients
+}
+
+func (c *Instance) SetMessageOps(ops *message.Operations) {
+	c.messageOps = ops
 }
 
 // Type returns the type of the instances
@@ -116,10 +120,8 @@ func (c *Instance) Status() string {
 
 // pubStatus notifies instance manager with the status of this Instance.
 func (c *Instance) pubStatus(parent *zmq.Socket, status string) error {
-	req := message.Request{
-		Command:    "set_status",
-		Parameters: key_value.Empty().Set("id", c.Id).Set("status", status),
-	}
+	req := c.messageOps.EmptyReq()
+	req.Next("set_status", key_value.Empty().Set("id", c.Id).Set("status", status))
 
 	reqStr, err := req.String()
 	if err != nil {
@@ -136,10 +138,8 @@ func (c *Instance) pubStatus(parent *zmq.Socket, status string) error {
 
 // pubFail notifies instance manager that this Instance crashed
 func (c *Instance) pubFail(parent *zmq.Socket, instanceErr error) error {
-	req := message.Request{
-		Command:    "set_status",
-		Parameters: key_value.Empty().Set("id", c.Id).Set("status", CLOSED).Set("message", instanceErr.Error()),
-	}
+	req := c.messageOps.EmptyReq()
+	key_value.Empty().Set("id", c.Id).Set("status", CLOSED).Set("message", instanceErr.Error())
 
 	reqStr, err := req.String()
 	if err != nil {
@@ -162,6 +162,10 @@ func (c *Instance) pubFail(parent *zmq.Socket, instanceErr error) error {
 //
 // If pub socket had an error then, the errors are printed to stderr
 func (c *Instance) Start() error {
+	if c.messageOps == nil {
+		return fmt.Errorf("no message operations. call SetMessageOps")
+	}
+
 	ready := make(chan error)
 
 	go func(ready chan error) {
@@ -319,14 +323,14 @@ func (c *Instance) Start() error {
 
 					req, err := message.NewReq(messages)
 					if err != nil {
-						c.logger.Error("message.NewReq", "socket", "manager", "messages", messages, "error", err)
+						c.logger.Error("messageOps.NewReq", "socket", "manager", "messages", messages, "error", err)
 						break
 					}
 
 					// Assuming the request is close
 					// The instant close or not. If it's an instant close, then it won't send the message
 					// to the parent.
-					instant, err = req.Parameters.GetBoolean("instant")
+					instant, err = req.RouteParameters().GetBoolean("instant")
 					if err != nil {
 						c.logger.Error("req.Parameters.GetBoolean", "socket", "manager", "key", "instant", "error", err)
 						break
@@ -447,7 +451,7 @@ func (c *Instance) Start() error {
 	return <-ready
 }
 
-func (c *Instance) handle(reply chan *message.Reply, req *message.Request, handleInterface interface{}, depClients []*client.Socket) {
+func (c *Instance) handle(reply chan message.ReplyInterface, req message.RequestInterface, handleInterface interface{}, depClients []*client.Socket) {
 	result := route.Handle(req, handleInterface, depClients)
 	reply <- result
 }
@@ -462,7 +466,7 @@ func (c *Instance) setReady(parent *zmq.Socket) {
 	}
 }
 
-func (c *Instance) processingFinished(parent *zmq.Socket, handler *zmq.Socket, reply *message.Reply) {
+func (c *Instance) processingFinished(parent *zmq.Socket, handler *zmq.Socket, reply message.ReplyInterface) {
 	c.setReady(parent)
 
 	if err := c.reply(handler, reply); err != nil {
@@ -477,11 +481,11 @@ func (c *Instance) processingFinished(parent *zmq.Socket, handler *zmq.Socket, r
 func (c *Instance) processMessage(ctx context.Context, cancel context.CancelFunc, parent *zmq.Socket, handler *zmq.Socket, msgRaw []string, metadata map[string]string) {
 	// All request types derive from the basic request.
 	// We first attempt to parse basic request from the raw message
-	request, err := message.NewReqWithMeta(msgRaw, metadata)
+	request, err := c.messageOps.NewReq(msgRaw)
 	if err != nil {
 		c.setReady(parent)
 
-		newErr := fmt.Errorf("message.NewReqWithMeta (msg len: %d): %w", len(msgRaw), err)
+		newErr := fmt.Errorf("message.NewReq (msg len: %d): %w", len(msgRaw), err)
 
 		pubErr := c.pubFail(parent, fmt.Errorf("c.processData: %w", newErr))
 		if pubErr != nil {
@@ -492,6 +496,7 @@ func (c *Instance) processMessage(ctx context.Context, cancel context.CancelFunc
 		}
 		return
 	}
+	request.SetMeta(metadata)
 
 	// Add the trace
 	//if request.IsFirst() {
@@ -499,9 +504,9 @@ func (c *Instance) processMessage(ctx context.Context, cancel context.CancelFunc
 	//}
 	//request.AddRequestStack(c.serviceUrl, c.config.Category, c.config.Instances[0].Id)
 
-	handleInterface, depNames, err := route.Route(request.Command, *c.routes, *c.routeDeps)
+	handleInterface, depNames, err := route.Route(request.CommandName(), *c.routes, *c.routeDeps)
 	if err != nil {
-		reply := request.Fail(fmt.Sprintf("route.Route(%s): %v", request.Command, err))
+		reply := request.Fail(fmt.Sprintf("route.Route(%s): %v", request.CommandName(), err))
 		c.processingFinished(parent, handler, reply)
 		if cancel != nil {
 			cancel()
@@ -511,7 +516,7 @@ func (c *Instance) processMessage(ctx context.Context, cancel context.CancelFunc
 
 	depClients := route.FilterExtensionClients(depNames, *c.depClients)
 
-	reply := make(chan *message.Reply)
+	reply := make(chan message.ReplyInterface)
 	go c.handle(reply, request, handleInterface, depClients)
 
 	// We use a similar pattern to the HTTP server

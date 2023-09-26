@@ -50,15 +50,15 @@ func (test *TestHandlerManagerSuite) SetupTest() {
 
 	// Socket to talk to clients
 	test.routes = key_value.Empty()
-	test.routes.Set("command_1", func(request message.Request) *message.Reply {
+	test.routes.Set("command_1", func(request message.RequestInterface) message.ReplyInterface {
 		// Used for testing 'message_amount' command.
 		// While handling, the queue length should decrease.
 		// While handling, the processing length should increase.
 		time.Sleep(time.Second)
-		return request.Ok(request.Parameters.Set("id", request.Command))
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	})
-	test.routes.Set("command_2", func(request message.Request) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes.Set("command_2", func(request message.RequestInterface) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	})
 
 	test.frontend = frontend.New()
@@ -129,7 +129,7 @@ func (test *TestHandlerManagerSuite) cleanOut() {
 	s.Require().Equal(SocketIdle, test.handlerManager.status)
 }
 
-func (test *TestHandlerManagerSuite) req(request message.Request) message.Reply {
+func (test *TestHandlerManagerSuite) req(request message.Request) message.ReplyInterface {
 	s := &test.Suite
 
 	reqStr, err := request.String()
@@ -141,7 +141,7 @@ func (test *TestHandlerManagerSuite) req(request message.Request) message.Reply 
 	raw, err := test.inprocClient.RecvMessage(0)
 	s.Require().NoError(err)
 
-	reply, err := message.ParseReply(raw)
+	reply, err := message.NewRep(raw)
 	s.Require().NoError(err)
 
 	return reply
@@ -268,7 +268,7 @@ func (test *TestHandlerManagerSuite) Test_14_InstanceAmount() {
 	reply := test.req(req)
 	s.Require().True(reply.IsOK())
 
-	instanceAmount, err := reply.Parameters.GetUint64("instance_amount")
+	instanceAmount, err := reply.ReplyParameters().GetUint64("instance_amount")
 	s.Require().NoError(err)
 	s.Require().Zero(instanceAmount)
 
@@ -283,7 +283,7 @@ func (test *TestHandlerManagerSuite) Test_14_InstanceAmount() {
 	// The instance amount is not 0
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
-	instanceAmount, err = reply.Parameters.GetUint64("instance_amount")
+	instanceAmount, err = reply.ReplyParameters().GetUint64("instance_amount")
 	s.Require().NoError(err)
 	s.Require().NotZero(instanceAmount)
 
@@ -299,7 +299,7 @@ func (test *TestHandlerManagerSuite) Test_14_InstanceAmount() {
 	// Must be 0 instances
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
-	instanceAmount, err = reply.Parameters.GetUint64("instance_amount")
+	instanceAmount, err = reply.ReplyParameters().GetUint64("instance_amount")
 	s.Require().NoError(err)
 	s.Require().Zero(instanceAmount)
 
@@ -315,7 +315,7 @@ func (test *TestHandlerManagerSuite) Test_15_InstanceAmount() {
 	reply := test.req(req)
 	s.Require().True(reply.IsOK())
 
-	instanceAmount, err := reply.Parameters.GetUint64("instance_amount")
+	instanceAmount, err := reply.ReplyParameters().GetUint64("instance_amount")
 	s.Require().NoError(err)
 	s.Require().Zero(instanceAmount)
 
@@ -330,7 +330,7 @@ func (test *TestHandlerManagerSuite) Test_15_InstanceAmount() {
 	// The instance amount is not 0
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
-	instanceAmount, err = reply.Parameters.GetUint64("instance_amount")
+	instanceAmount, err = reply.ReplyParameters().GetUint64("instance_amount")
 	s.Require().NoError(err)
 	s.Require().NotZero(instanceAmount)
 
@@ -346,7 +346,7 @@ func (test *TestHandlerManagerSuite) Test_15_InstanceAmount() {
 	// Must be 0 instances
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
-	instanceAmount, err = reply.Parameters.GetUint64("instance_amount")
+	instanceAmount, err = reply.ReplyParameters().GetUint64("instance_amount")
 	s.Require().NoError(err)
 	s.Require().Zero(instanceAmount)
 
@@ -370,10 +370,10 @@ func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
 	reply := test.req(req)
 	s.Require().True(reply.IsOK())
 
-	queueAmount, err := reply.Parameters.GetUint64("queue_length")
+	queueAmount, err := reply.ReplyParameters().GetUint64("queue_length")
 	s.Require().NoError(err)
 	s.Require().Zero(queueAmount)
-	procAmount, err := reply.Parameters.GetUint64("processing_length")
+	procAmount, err := reply.ReplyParameters().GetUint64("processing_length")
 	s.Require().NoError(err)
 	s.Require().Zero(procAmount)
 
@@ -391,10 +391,10 @@ func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	queueAmount, err = reply.Parameters.GetUint64("queue_length")
+	queueAmount, err = reply.ReplyParameters().GetUint64("queue_length")
 	s.Require().NoError(err)
 	s.Require().NotZero(queueAmount)
-	procAmount, err = reply.Parameters.GetUint64("processing_length")
+	procAmount, err = reply.ReplyParameters().GetUint64("processing_length")
 	s.Require().NoError(err)
 	s.Require().Zero(procAmount)
 
@@ -410,10 +410,10 @@ func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	queueAmount, err = reply.Parameters.GetUint64("queue_length")
+	queueAmount, err = reply.ReplyParameters().GetUint64("queue_length")
 	s.Require().NoError(err)
 	s.Require().Zero(queueAmount)
-	procAmount, err = reply.Parameters.GetUint64("processing_length")
+	procAmount, err = reply.ReplyParameters().GetUint64("processing_length")
 	s.Require().NoError(err)
 	s.Require().NotZero(procAmount)
 
@@ -423,10 +423,10 @@ func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	queueAmount, err = reply.Parameters.GetUint64("queue_length")
+	queueAmount, err = reply.ReplyParameters().GetUint64("queue_length")
 	s.Require().NoError(err)
 	s.Require().Zero(queueAmount)
-	procAmount, err = reply.Parameters.GetUint64("processing_length")
+	procAmount, err = reply.ReplyParameters().GetUint64("processing_length")
 	s.Require().NoError(err)
 	s.Require().Zero(procAmount)
 
@@ -446,7 +446,7 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	reply := test.req(req)
 	s.Require().True(reply.IsOK())
 
-	status, err := reply.Parameters.GetString("status")
+	status, err := reply.ReplyParameters().GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(Ready, status)
 
@@ -465,12 +465,12 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	status, err = reply.Parameters.GetString("status")
+	status, err = reply.ReplyParameters().GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(Incomplete, status)
 
 	// Only frontend must be incomplete
-	parts, err := reply.Parameters.GetKeyValue("parts")
+	parts, err := reply.ReplyParameters().GetKeyValue("parts")
 	s.Require().NoError(err)
 	frontendStatus, err := parts.GetString("frontend")
 	s.Require().NoError(err)
@@ -494,12 +494,12 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	status, err = reply.Parameters.GetString("status")
+	status, err = reply.ReplyParameters().GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(Incomplete, status)
 
 	// Frontend and instance manager are incomplete
-	parts, err = reply.Parameters.GetKeyValue("parts")
+	parts, err = reply.ReplyParameters().GetKeyValue("parts")
 	s.Require().NoError(err)
 	frontendStatus, err = parts.GetString("frontend")
 	s.Require().NoError(err)
@@ -525,12 +525,12 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	status, err = reply.Parameters.GetString("status")
+	status, err = reply.ReplyParameters().GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(Incomplete, status)
 
 	// Only frontend is incomplete
-	parts, err = reply.Parameters.GetKeyValue("parts")
+	parts, err = reply.ReplyParameters().GetKeyValue("parts")
 	s.Require().NoError(err)
 	frontendStatus, err = parts.GetString("frontend")
 	s.Require().NoError(err)
@@ -552,7 +552,7 @@ func (test *TestHandlerManagerSuite) Test_17_MessageAmount() {
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	status, err = reply.Parameters.GetString("status")
+	status, err = reply.ReplyParameters().GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(Ready, status)
 
@@ -569,13 +569,13 @@ func (test *TestHandlerManagerSuite) Test_18_OverwriteRoute() {
 	reply := test.req(req)
 	s.Require().True(reply.IsOK())
 
-	status, err := reply.Parameters.GetString("status")
+	status, err := reply.ReplyParameters().GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(Ready, status)
 
 	// Overriding must fail when handler manager is running
 	overwritten := "overwritten"
-	onStatus := func(req message.Request) *message.Reply {
+	onStatus := func(req message.RequestInterface) message.ReplyInterface {
 		params := key_value.Empty().Set("status", overwritten)
 		return req.Ok(params)
 	}
@@ -603,7 +603,7 @@ func (test *TestHandlerManagerSuite) Test_18_OverwriteRoute() {
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	status, err = reply.Parameters.GetString("status")
+	status, err = reply.ReplyParameters().GetString("status")
 	s.Require().NoError(err)
 	s.Require().Equal(overwritten, status)
 
@@ -623,7 +623,7 @@ func (test *TestHandlerManagerSuite) Test_19_AddInstance() {
 	reply := test.req(req)
 	s.Require().True(reply.IsOK())
 
-	_, err := reply.Parameters.GetString("instance_id")
+	_, err := reply.ReplyParameters().GetString("instance_id")
 	s.Require().NoError(err)
 
 	// Wait a bit for instance initialization
@@ -658,7 +658,7 @@ func (test *TestHandlerManagerSuite) Test_20_DeleteInstance() {
 	reply = test.req(req)
 	s.Require().True(reply.IsOK())
 
-	instanceId, err := reply.Parameters.GetString("instance_id")
+	instanceId, err := reply.ReplyParameters().GetString("instance_id")
 	s.Require().NoError(err)
 
 	// Wait a bit for initialization of the instance

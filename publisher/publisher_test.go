@@ -8,6 +8,7 @@ import (
 	"github.com/ahmetson/log-lib"
 	zmq "github.com/pebbe/zmq4"
 	"github.com/stretchr/testify/suite"
+	"sync"
 	"testing"
 	"time"
 )
@@ -15,7 +16,7 @@ import (
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
 // returns the current testing orchestra
-type TestHandlerSuite struct {
+type TestPublisherSuite struct {
 	suite.Suite
 	pub           *Publisher
 	config        *config.Trigger
@@ -31,7 +32,7 @@ type TestHandlerSuite struct {
 
 // Make sure that Account is set to five
 // before each test
-func (test *TestHandlerSuite) SetupTest() {
+func (test *TestPublisherSuite) SetupTest() {
 	s := &test.Suite
 
 	logger, err := log.New("publisher", false)
@@ -66,7 +67,7 @@ func (test *TestHandlerSuite) SetupTest() {
 }
 
 // subscribe to the handler.
-func (test *TestHandlerSuite) subscribe() {
+func (test *TestPublisherSuite) subscribe() {
 	s := &test.Suite
 
 	sub, err := zmq.NewSocket(zmq.SUB)
@@ -103,7 +104,7 @@ func (test *TestHandlerSuite) subscribe() {
 	}
 }
 
-func (test *TestHandlerSuite) TearDownTest() {
+func (test *TestPublisherSuite) TearDownTest() {
 	s := &test.Suite
 
 	test.closeClient = true
@@ -118,7 +119,7 @@ func (test *TestHandlerSuite) TearDownTest() {
 }
 
 // Test_10_Start make sure started publisher is trigger-able and can be subscribed
-func (test *TestHandlerSuite) Test_10_Start() {
+func (test *TestPublisherSuite) Test_10_Start() {
 	s := &test.Suite
 
 	err := test.pub.Start()
@@ -132,7 +133,23 @@ func (test *TestHandlerSuite) Test_10_Start() {
 	err = test.trigger.Submit(&req)
 	s.Require().NoError(err)
 
-	_ = <-test.subscribed
+	test.logger.Info("waiting a subscribed message")
+
+	var wg sync.WaitGroup
+	wg.Add(1)
+	go func() {
+		isTimeout := false
+		select {
+		case _ = <-test.subscribed:
+			isTimeout = false
+		case <-time.After(time.Second * 2):
+			// call timed out
+			isTimeout = true
+		}
+		wg.Done()
+		s.Require().False(isTimeout, "timeout for subscribing")
+	}()
+	wg.Wait()
 
 	// Close the handler
 	req.Command = config.HandlerClose
@@ -141,6 +158,6 @@ func (test *TestHandlerSuite) Test_10_Start() {
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestHandler(t *testing.T) {
-	suite.Run(t, new(TestHandlerSuite))
+func TestPublisher(t *testing.T) {
+	suite.Run(t, new(TestPublisherSuite))
 }

@@ -18,7 +18,7 @@ import (
 // Define the suite, and absorb the built-in basic suite
 // functionality from testify - including a T() method which
 // returns the current testing orchestra
-type TestHandlerSuite struct {
+type TestBaseHandlerSuite struct {
 	suite.Suite
 	tcpHandler    *Handler
 	inprocHandler *Handler
@@ -34,7 +34,7 @@ type TestHandlerSuite struct {
 // todo test the business of the handler
 // Make sure that Account is set to five
 // before each test
-func (test *TestHandlerSuite) SetupTest() {
+func (test *TestBaseHandlerSuite) SetupTest() {
 	s := &test.Suite
 
 	logger, err := log.New("handler", false)
@@ -46,11 +46,11 @@ func (test *TestHandlerSuite) SetupTest() {
 
 	// Socket to talk to clients
 	test.routes = make(map[string]interface{}, 2)
-	test.routes["command_1"] = func(request message.Request) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_1"] = func(request message.RequestInterface) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
-	test.routes["command_2"] = func(request message.Request) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_2"] = func(request message.RequestInterface) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
 
 	err = test.inprocHandler.Route("command_1", test.routes["command_1"])
@@ -76,15 +76,15 @@ func (test *TestHandlerSuite) SetupTest() {
 }
 
 // Test_11_Deps tests setting of the route dependencies
-func (test *TestHandlerSuite) Test_11_Deps() {
+func (test *TestBaseHandlerSuite) Test_11_Deps() {
 	s := &test.Suite
 
 	// Handler must not have dependencies yet
 	s.Require().Empty(test.inprocHandler.DepIds())
 	s.Require().Empty(test.tcpHandler.DepIds())
 
-	test.routes["command_3"] = func(request message.Request, _ *client.Socket, _ *client.Socket) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_3"] = func(request message.RequestInterface, _ *client.Socket, _ *client.Socket) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
 
 	// Adding a new route with the dependencies
@@ -104,8 +104,8 @@ func (test *TestHandlerSuite) Test_11_Deps() {
 	s.Require().Error(err)
 
 	// Adding a new command with already added dependency should be fine
-	test.routes["command_4"] = func(request message.Request, _ *client.Socket, _ *client.Socket) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_4"] = func(request message.RequestInterface, _ *client.Socket, _ *client.Socket) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
 	err = test.inprocHandler.Route("command_4", test.routes["command_4"], "dep_1", "dep_3") // command_3 handler requires two dependencies
 	s.Require().NoError(err)
@@ -117,23 +117,23 @@ func (test *TestHandlerSuite) Test_11_Deps() {
 }
 
 // Test_12_DepConfig tests setting of the dependency configurations
-func (test *TestHandlerSuite) Test_12_DepConfig() {
+func (test *TestBaseHandlerSuite) Test_12_DepConfig() {
 	s := &test.Suite
 
 	s.Require().NotNil(test.inprocHandler.logger)
 
 	test.routes = make(map[string]interface{}, 2)
-	test.routes["command_1"] = func(request message.Request) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_1"] = func(request message.RequestInterface) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
-	test.routes["command_2"] = func(request message.Request) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_2"] = func(request message.RequestInterface) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
-	test.routes["command_3"] = func(request message.Request, _ *client.Socket, _ *client.Socket) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_3"] = func(request message.RequestInterface, _ *client.Socket, _ *client.Socket) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
-	test.routes["command_4"] = func(request message.Request, _ *client.Socket, _ *client.Socket) *message.Reply {
-		return request.Ok(request.Parameters.Set("id", request.Command))
+	test.routes["command_4"] = func(request message.RequestInterface, _ *client.Socket, _ *client.Socket) message.ReplyInterface {
+		return request.Ok(request.RouteParameters().Set("id", request.CommandName()))
 	}
 
 	err := test.inprocHandler.Route("command_1", test.routes["command_1"])
@@ -195,7 +195,7 @@ func (test *TestHandlerSuite) Test_12_DepConfig() {
 }
 
 // Test_13_InstanceManager tests setting of the instance Manager and then listening to it.
-func (test *TestHandlerSuite) Test_13_InstanceManager() {
+func (test *TestBaseHandlerSuite) Test_13_InstanceManager() {
 	s := &test.Suite
 
 	// the instance Manager requires
@@ -230,7 +230,7 @@ func (test *TestHandlerSuite) Test_13_InstanceManager() {
 }
 
 // Test_14_Start starts the handler.
-func (test *TestHandlerSuite) Test_14_Start() {
+func (test *TestBaseHandlerSuite) Test_14_Start() {
 	s := &test.Suite
 
 	err := test.inprocHandler.Start()
@@ -257,7 +257,7 @@ func (test *TestHandlerSuite) Test_14_Start() {
 }
 
 // Test_15_Misc tests requiredMetadata, AnyRoute functions.
-func (test *TestHandlerSuite) Test_15_Misc() {
+func (test *TestBaseHandlerSuite) Test_15_Misc() {
 	s := &test.Suite
 
 	s.Require().Len(requiredMetadata(), 2)
@@ -272,6 +272,6 @@ func (test *TestHandlerSuite) Test_15_Misc() {
 
 // In order for 'go test' to run this suite, we need to create
 // a normal test function and pass our suite to suite.Run
-func TestHandler(t *testing.T) {
-	suite.Run(t, new(TestHandlerSuite))
+func TestBaseHandler(t *testing.T) {
+	suite.Run(t, new(TestBaseHandlerSuite))
 }

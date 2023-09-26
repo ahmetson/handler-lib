@@ -88,7 +88,7 @@ func (c *Client) Close() error {
 		return fmt.Errorf("socket.Request('%s'): %w", handlerConfig.ClosePart, err)
 	}
 	if !reply.IsOK() {
-		return fmt.Errorf("reply.Message: %s", reply.Message)
+		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
 	err = c.socket.Close()
@@ -116,16 +116,16 @@ func (c *Client) HandlerStatus() (string, key_value.KeyValue, error) {
 		return "", nil, fmt.Errorf("socket.Request('%s'): %w", handlerConfig.HandlerStatus, err)
 	}
 	if !reply.IsOK() {
-		return "", nil, fmt.Errorf("reply.Message: %s", reply.Message)
+		return "", nil, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
-	status, err := reply.Parameters.GetString("status")
+	status, err := reply.ReplyParameters().GetString("status")
 	if err != nil {
 		return "", nil, fmt.Errorf("reply.Parameters.GetString('status'): %w", err)
 	}
 	parts := key_value.Empty()
 	if status != handler_manager.Ready {
-		parts, err = reply.Parameters.GetKeyValue("parts")
+		parts, err = reply.ReplyParameters().GetKeyValue("parts")
 		if err != nil {
 			return "", nil, fmt.Errorf("reply.Parameters.GetKeyValue('parts'): %w", err)
 		}
@@ -145,14 +145,14 @@ func (c *Client) Parts() ([]string, []string, error) {
 		return nil, nil, fmt.Errorf("socket.Request('%s'): %w", handlerConfig.HandlerStatus, err)
 	}
 	if !reply.IsOK() {
-		return nil, nil, fmt.Errorf("reply.Message: %s", reply.Message)
+		return nil, nil, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
-	parts, err := reply.Parameters.GetStringList("parts")
+	parts, err := reply.ReplyParameters().GetStringList("parts")
 	if err != nil {
 		return nil, nil, fmt.Errorf("reply.Parameters.GetString('parts'): %w", err)
 	}
-	messageTypes, err := reply.Parameters.GetStringList("message_types")
+	messageTypes, err := reply.ReplyParameters().GetStringList("message_types")
 	if err != nil {
 		return nil, nil, fmt.Errorf("reply.Parameters.GetString('message_types'): %w", err)
 	}
@@ -172,7 +172,7 @@ func (c *Client) ClosePart(part string) error {
 		return fmt.Errorf("socket.Request('%s'): %w", handlerConfig.ClosePart, err)
 	}
 	if !reply.IsOK() {
-		return fmt.Errorf("reply.Message: %s", reply.Message)
+		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
 	return nil
@@ -191,7 +191,7 @@ func (c *Client) RunPart(part string) error {
 		return fmt.Errorf("socket.Request('%s'): %w", handlerConfig.RunPart, err)
 	}
 	if !reply.IsOK() {
-		return fmt.Errorf("reply.Message: %s", reply.Message)
+		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
 	return nil
@@ -209,10 +209,10 @@ func (c *Client) InstanceAmount() (uint8, error) {
 		return 0, fmt.Errorf("socket.Request('%s'): %w", handlerConfig.InstanceAmount, err)
 	}
 	if !reply.IsOK() {
-		return 0, fmt.Errorf("reply.Message: %s", reply.Message)
+		return 0, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
-	instanceAmount, err := reply.Parameters.GetUint64("instance_amount")
+	instanceAmount, err := reply.ReplyParameters().GetUint64("instance_amount")
 	if err != nil {
 		return 0, fmt.Errorf("reply.Parameters.GetUint('instance_amount'): %w", err)
 	}
@@ -233,14 +233,14 @@ func (c *Client) MessageAmount() (key_value.KeyValue, error) {
 		return nil, fmt.Errorf("socket.Request('%s'): %w", handlerConfig.MessageAmount, err)
 	}
 	if !reply.IsOK() {
-		return nil, fmt.Errorf("reply.Message: %s", reply.Message)
+		return nil, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
-	if len(reply.Parameters) == 0 {
+	if len(reply.ReplyParameters()) == 0 {
 		return nil, fmt.Errorf("reply.Parameters is empty")
 	}
 
-	return reply.Parameters, nil
+	return reply.ReplyParameters(), nil
 }
 
 // AddInstance adds a new instance. If successfully added, returns its id.
@@ -255,10 +255,10 @@ func (c *Client) AddInstance() (string, error) {
 		return "", fmt.Errorf("socket.Request('%s'): %w", handlerConfig.AddInstance, err)
 	}
 	if !reply.IsOK() {
-		return "", fmt.Errorf("reply.Message: %s", reply.Message)
+		return "", fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
-	instanceId, err := reply.Parameters.GetString("instance_id")
+	instanceId, err := reply.ReplyParameters().GetString("instance_id")
 	if err != nil {
 		return "", fmt.Errorf("reply.Parameters.GetString('instance_id'): %w", err)
 	}
@@ -278,7 +278,7 @@ func (c *Client) DeleteInstance(instanceId string) error {
 		return fmt.Errorf("socket.Request('%s'): %w", handlerConfig.DeleteInstance, err)
 	}
 	if !reply.IsOK() {
-		return fmt.Errorf("reply.Message: %s", reply.Message)
+		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
 	return nil
