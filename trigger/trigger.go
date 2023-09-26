@@ -125,7 +125,7 @@ func (handler *Trigger) startBroadcaster() error {
 			}
 
 			req := handler.broadcasting.Pop().(message.RequestInterface)
-			reqStr, err := req.String()
+			reqStr, err := req.ZmqEnvelope()
 			if err != nil {
 				handler.logger.Error("handler.broadcasting.Pop", "type", "message.Request", "error", err)
 				break

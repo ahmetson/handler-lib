@@ -74,15 +74,12 @@ func (c *Instance) reply(socket *zmq.Socket, reply message.ReplyInterface) error
 		return nil
 	}
 
-	replyStr, _ := reply.String()
-	if len(reply.ConId()) == 0 {
-		if _, err := socket.SendMessage(replyStr); err != nil {
-			return fmt.Errorf("recv error replying error %w" + err.Error())
-		}
-	} else {
-		if _, err := socket.SendMessage(reply.ConId(), "", replyStr); err != nil {
-			return fmt.Errorf("recv error replying error %w" + err.Error())
-		}
+	replyStr, err := reply.ZmqEnvelope()
+	if err != nil {
+		return fmt.Errorf("reply.ZmqEnvelope: %w", err)
+	}
+	if _, err := socket.SendMessage(replyStr); err != nil {
+		return fmt.Errorf("recv error replying error %w" + err.Error())
 	}
 
 	return nil
@@ -123,7 +120,7 @@ func (c *Instance) pubStatus(parent *zmq.Socket, status string) error {
 	req := c.messageOps.EmptyReq()
 	req.Next("set_status", key_value.Empty().Set("id", c.Id).Set("status", status))
 
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	if err != nil {
 		return fmt.Errorf("request.String: %w", err)
 	}
@@ -141,7 +138,7 @@ func (c *Instance) pubFail(parent *zmq.Socket, instanceErr error) error {
 	req := c.messageOps.EmptyReq()
 	key_value.Empty().Set("id", c.Id).Set("status", CLOSED).Set("message", instanceErr.Error())
 
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	if err != nil {
 		return fmt.Errorf("request.String: %w", err)
 	}

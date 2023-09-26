@@ -132,7 +132,7 @@ func (test *TestHandlerManagerSuite) cleanOut() {
 func (test *TestHandlerManagerSuite) req(request message.Request) message.ReplyInterface {
 	s := &test.Suite
 
-	reqStr, err := request.String()
+	reqStr, err := request.ZmqEnvelope()
 	s.Require().NoError(err)
 
 	_, err = test.inprocClient.SendMessage(reqStr)
@@ -379,7 +379,7 @@ func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
 
 	// User sends a message
 	extReq := message.Request{Command: "command_1", Parameters: key_value.Empty()}
-	extReqStr, err := extReq.String()
+	extReqStr, err := extReq.ZmqEnvelope()
 	s.Require().NoError(err)
 	_, err = clientSocket.SendMessageDontwait(extReqStr)
 	s.Require().NoError(err)

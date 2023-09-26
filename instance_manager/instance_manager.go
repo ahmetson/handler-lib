@@ -417,7 +417,7 @@ func (parent *Parent) DeleteInstance(instanceId string, instant bool) error {
 		Command:    "close",
 		Parameters: key_value.Empty().Set("instant", instant),
 	}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	if err != nil {
 		return fmt.Errorf("req.String: %w", err)
 	}

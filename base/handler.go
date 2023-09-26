@@ -128,7 +128,10 @@ func (c *Handler) reply(socket *zmq.Socket, message message.ReplyInterface) erro
 		return nil
 	}
 
-	reply, _ := message.String()
+	reply, err := message.ZmqEnvelope()
+	if err != nil {
+		return fmt.Errorf("message.ZmqEnvelope: %w", err)
+	}
 	if _, err := socket.SendMessage(reply); err != nil {
 		return fmt.Errorf("recv error replying error %w" + err.Error())
 	}

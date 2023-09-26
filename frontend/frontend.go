@@ -196,14 +196,9 @@ func (f *Frontend) handleExternal() error {
 	}
 
 	if len(msg) < 3 {
-		replyStr, err := (&message.Request{}).Fail("handleExternal: id, separator in the message are not set").String()
+		reply, err := (&message.Request{}).Fail("handleExternal: id, separator in the message are not set").ZmqEnvelope()
 		if err != nil {
 			return fmt.Errorf("handleExternal: reply.String: %w", err)
-		}
-
-		reply := []string{replyStr}
-		if len(msg) == 2 {
-			reply = []string{"", replyStr}
 		}
 
 		if _, err := f.external.SendMessageDontwait(reply); err != nil {
@@ -218,12 +213,12 @@ func (f *Frontend) handleExternal() error {
 	}
 
 	if f.queue.IsFull() {
-		reply := req.Fail("queue is full")
-		replyStr, err := reply.String()
+		reply, err := req.Fail("queue is full").ZmqEnvelope()
+
 		if err != nil {
 			return fmt.Errorf("handleExternal: reply.String: %w", err)
 		}
-		if _, err := f.external.SendMessageDontwait(msg[0], msg[1], replyStr); err != nil {
+		if _, err := f.external.SendMessageDontwait(msg[0], msg[1], reply); err != nil {
 			return fmt.Errorf("handleExternal: frontend.external.SendMessageDontwait: %w", err)
 		}
 		return nil

@@ -178,3 +178,10 @@ Use the configuration for creating your own protocol.
 And the pair client in the protocol, to forward a message to the handler's frontend.
 
 Example is implemented in [web-lib](https://github.com/ahmetson/web-lib) &ndash; a support of the HTTP protocol.
+
+### Instance Manager
+In instance manager, it's possible to change the message type.
+Any message has to implement two interfaces
+`message.RequestInterface` and `message.ReplyInterface`.
+
+By default, the messages are parsed as `message.Request` and `message.Reply`

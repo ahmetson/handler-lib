@@ -131,7 +131,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 
 	// request to send
 	req := message.Request{Command: "handle_1", Parameters: key_value.Empty()}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 
 	// Make sure that there are no instances

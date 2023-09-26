@@ -182,7 +182,7 @@ func (test *TestInstanceSuite) Test_12_Close() {
 	err = instanceManager.Connect(config.InstanceUrl(test.instance0.parentId, test.instance0.Id))
 	s.Require().NoError(err)
 	req := message.Request{Command: "close", Parameters: key_value.Empty().Set("instant", false)}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 
 	_, err = instanceManager.SendMessage(reqStr)
@@ -216,7 +216,7 @@ func (test *TestInstanceSuite) Test_13_Handle() {
 	s.Require().NoError(err)
 	for i := 0; i < 2; i++ {
 		req := message.Request{Command: "handle_0", Parameters: key_value.Empty()}
-		reqStr, err := req.String()
+		reqStr, err := req.ZmqEnvelope()
 		s.Require().NoError(err)
 
 		_, err = handleClient.SendMessage(reqStr)
@@ -232,7 +232,7 @@ func (test *TestInstanceSuite) Test_13_Handle() {
 	err = instanceManager.Connect(config.InstanceUrl(test.instance0.parentId, test.instance0.Id))
 	s.Require().NoError(err)
 	req := message.Request{Command: "close", Parameters: key_value.Empty().Set("instant", false)}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 
 	_, err = instanceManager.SendMessage(reqStr)
@@ -279,7 +279,7 @@ func (test *TestInstanceSuite) Test_14_HandleRouter() {
 	s.Require().NoError(err)
 	for i := 0; i < 2; i++ {
 		req := message.Request{Command: "handle_0", Parameters: key_value.Empty()}
-		reqStr, err := req.String()
+		reqStr, err := req.ZmqEnvelope()
 		s.Require().NoError(err)
 
 		_, err = handleClient.SendMessage(reqStr)
@@ -295,7 +295,7 @@ func (test *TestInstanceSuite) Test_14_HandleRouter() {
 	err = instanceManager.Connect(config.InstanceUrl(test.instance1.parentId, test.instance1.Id))
 	s.Require().NoError(err)
 	req := message.Request{Command: "close", Parameters: key_value.Empty().Set("instant", false)}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 
 	_, err = instanceManager.SendMessage(reqStr)
@@ -342,7 +342,7 @@ func (test *TestInstanceSuite) Test_15_HandleDealer() {
 	s.Require().NoError(err)
 	for i := 0; i < 2; i++ {
 		req := message.Request{Command: "handle_0", Parameters: key_value.Empty()}
-		reqStr, err := req.String()
+		reqStr, err := req.ZmqEnvelope()
 		s.Require().NoError(err)
 
 		_, err = handleClient.SendMessage("", reqStr)
@@ -358,7 +358,7 @@ func (test *TestInstanceSuite) Test_15_HandleDealer() {
 	err = instanceManager.Connect(config.InstanceUrl(test.instance1.parentId, test.instance1.Id))
 	s.Require().NoError(err)
 	req := message.Request{Command: "close", Parameters: key_value.Empty().Set("instant", false)}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 
 	_, err = instanceManager.SendMessage(reqStr)
@@ -405,7 +405,7 @@ func (test *TestInstanceSuite) Test_15_HandleDealerRouter() {
 	s.Require().NoError(err)
 	for i := 0; i < 2; i++ {
 		req := message.Request{Command: "handle_0", Parameters: key_value.Empty()}
-		reqStr, err := req.String()
+		reqStr, err := req.ZmqEnvelope()
 		s.Require().NoError(err)
 
 		_, err = handleClient.SendMessage("", reqStr)
@@ -421,7 +421,7 @@ func (test *TestInstanceSuite) Test_15_HandleDealerRouter() {
 	err = instanceManager.Connect(config.InstanceUrl(test.instance1.parentId, test.instance1.Id))
 	s.Require().NoError(err)
 	req := message.Request{Command: "close", Parameters: key_value.Empty().Set("instant", false)}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 
 	_, err = instanceManager.SendMessage(reqStr)

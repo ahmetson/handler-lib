@@ -123,7 +123,7 @@ func (test *TestFrontendSuite) Test_11_External() {
 
 	for i := 1; i <= 2; i++ {
 		msg := message.Request{Command: "cmd", Parameters: key_value.Empty().Set("id", i).Set("cap", 2)}
-		msgStr, err := msg.String()
+		msgStr, err := msg.ZmqEnvelope()
 		s.Require().NoError(err)
 		_, err = user.SendMessage("", msgStr)
 		s.Require().NoError(err)
@@ -143,7 +143,7 @@ func (test *TestFrontendSuite) Test_11_External() {
 	// If we try to send a message, it should fail
 	i := 3
 	msg := message.Request{Command: "cmd", Parameters: key_value.Empty().Set("id", i).Set("cap", 2)}
-	msgStr, err := msg.String()
+	msgStr, err := msg.ZmqEnvelope()
 	s.Require().NoError(err)
 	_, err = user.SendMessage("", msgStr)
 	s.Require().NoError(err)
@@ -202,12 +202,12 @@ func (test *TestFrontendSuite) Test_12_Consumer() {
 
 	// add a message into the queue
 	req := message.Request{Command: cmd, Parameters: key_value.Empty()}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 	messageId := "msg_1"
 
 	s.Require().True(test.frontend.queue.IsEmpty())
-	test.frontend.queue.Push([]string{messageId, "", reqStr})
+	test.frontend.queue.Push([]string{messageId, "", reqStr[1]})
 	s.Require().False(test.frontend.queue.IsEmpty())
 
 	// Before testing handle consume with queue,
@@ -279,7 +279,7 @@ func (test *TestFrontendSuite) Test_13_Run() {
 	s.Require().NoError(err)
 
 	req := message.Request{Command: cmd, Parameters: key_value.Empty().Set("id", 1)}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 
 	// Everything should be empty
@@ -287,7 +287,7 @@ func (test *TestFrontendSuite) Test_13_Run() {
 	s.Require().True(test.frontend.processing.IsEmpty())
 
 	// The first message consumed instantly
-	_, err = user.SendMessage("", reqStr)
+	_, err = user.SendMessage(reqStr)
 	s.Require().NoError(err)
 
 	// Delay a bit for socket transfers
@@ -299,10 +299,10 @@ func (test *TestFrontendSuite) Test_13_Run() {
 	// Sending the second message
 	s.Require().True(test.frontend.queue.IsEmpty())
 	req.Parameters.Set("id", 2)
-	reqStr, err = req.String()
+	reqStr, err = req.ZmqEnvelope()
 	s.Require().NoError(err)
 
-	_, err = user.SendMessage("", reqStr)
+	_, err = user.SendMessage(reqStr)
 	s.Require().NoError(err)
 
 	// Wait a bit for transmission between sockets
@@ -313,10 +313,10 @@ func (test *TestFrontendSuite) Test_13_Run() {
 
 	// Sending the third message
 	req.Parameters.Set("id", 3)
-	reqStr, err = req.String()
+	reqStr, err = req.ZmqEnvelope()
 	s.Require().NoError(err)
 
-	_, err = user.SendMessage("", reqStr)
+	_, err = user.SendMessage(reqStr)
 	s.Require().NoError(err)
 
 	// Wait a bit for transmission between sockets
@@ -381,10 +381,10 @@ func (test *TestFrontendSuite) Test_14_PairSocket() {
 	customExternal := test.customExternal()
 
 	req := message.Request{Command: cmd, Parameters: key_value.Empty().Set("id", 1)}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 
-	repl, err := customExternal.pairClient.RawRequest(reqStr)
+	repl, err := customExternal.pairClient.RawRequest(message.JoinMessages(reqStr))
 	s.Require().NoError(err)
 
 	errorRepl, err := message.NewRep(repl)

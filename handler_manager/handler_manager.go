@@ -316,20 +316,20 @@ func (m *HandlerManager) Start() error {
 			handleInterface, depNames, err := route.Route(req.CommandName(), m.routes, m.routeDeps)
 			if err != nil {
 				reply := req.Fail(fmt.Sprintf("route.Route(%s): %v", req.CommandName(), err))
-				replyStr, err := reply.String()
+				replyStr, err := reply.ZmqEnvelope()
 				if err != nil {
 					reply := req.Fail(fmt.Sprintf("failed to convert reply [%v] to string", reply))
-					replyStr, err := reply.String()
+					replyStr, err := reply.ZmqEnvelope()
 					if err != nil {
 						m.logger.Error("req.Fail.String", "request", req, "reply", reply, "error", err)
 						continue
 					}
-					_, err = socket.SendMessage(raw[0], raw[1], replyStr)
+					_, err = socket.SendMessage(replyStr)
 					if err != nil {
 						m.logger.Error("socket.SendMessage", "reply", reply, "error", err)
 					}
 				} else {
-					_, err = socket.SendMessage(raw[0], raw[1], replyStr)
+					_, err = socket.SendMessage(replyStr)
 					if err != nil {
 						m.logger.Error("socket.SendMessage", "reply", reply, "error", err)
 					}
@@ -340,21 +340,21 @@ func (m *HandlerManager) Start() error {
 			depClients := route.FilterExtensionClients(depNames, m.depClients)
 
 			reply := route.Handle(req, handleInterface, depClients)
-			replyStr, err := reply.String()
+			replyStr, err := reply.ZmqEnvelope()
 			if err != nil {
 				reply := req.Fail(fmt.Sprintf("failed to convert handle reply [%v] to string", reply))
-				replyStr, err := reply.String()
+				replyStr, err := reply.ZmqEnvelope()
 				if err != nil {
 					m.logger.Error("req.Fail.String", "request", req, "reply", reply, "error", err)
 					continue
 				}
-				_, err = socket.SendMessage(raw[0], raw[1], replyStr)
+				_, err = socket.SendMessage(replyStr)
 				if err != nil {
 					m.logger.Error("socket.SendMessage", "reply", reply, "error", err)
 					continue
 				}
 			} else {
-				_, err = socket.SendMessage(raw[0], raw[1], replyStr)
+				_, err = socket.SendMessage(replyStr)
 				if err != nil {
 					m.logger.Error("socket.SendMessage", "reply", reply, "error", err)
 					continue

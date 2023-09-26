@@ -72,7 +72,7 @@ func (parent *Parent) pubEvent(event string, parameters key_value.KeyValue) erro
 		return fmt.Errorf("event sock not set")
 	}
 	req := message.Request{Command: event, Parameters: parameters}
-	reqStr, err := req.String()
+	reqStr, err := req.ZmqEnvelope()
 	if err != nil {
 		return fmt.Errorf("req.String: %w", err)
 	}

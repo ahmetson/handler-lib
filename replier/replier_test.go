@@ -78,7 +78,7 @@ func (test *TestReplierSuite) TearDownTest() {
 func (test *TestReplierSuite) req(client *zmq.Socket, request message.Request) message.ReplyInterface {
 	s := &test.Suite
 
-	reqStr, err := request.String()
+	reqStr, err := request.ZmqEnvelope()
 	s.Require().NoError(err)
 
 	_, err = client.SendMessage(reqStr)
