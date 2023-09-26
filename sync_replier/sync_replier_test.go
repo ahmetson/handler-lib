@@ -1,6 +1,7 @@
 package sync_replier
 
 import (
+	"github.com/ahmetson/client-lib"
 	"github.com/ahmetson/common-lib/data_type/key_value"
 	"github.com/ahmetson/common-lib/message"
 	"github.com/ahmetson/handler-lib/config"
@@ -17,11 +18,12 @@ import (
 // returns the current testing orchestra
 type TestSyncReplierSuite struct {
 	suite.Suite
-	syncReplier   *SyncReplier
-	handlerConfig *config.Handler
-	managerClient *zmq.Socket
-	logger        *log.Logger
-	routes        map[string]interface{}
+	syncReplier    *SyncReplier
+	handlerConfig  *config.Handler
+	managerClient  *zmq.Socket
+	externalClient *client.Socket
+	logger         *log.Logger
+	routes         map[string]interface{}
 }
 
 // Make sure that Account is set to five
@@ -64,6 +66,10 @@ func (test *TestSyncReplierSuite) SetupTest() {
 	managerUrl := config.ManagerUrl(test.handlerConfig.Id)
 	err = test.managerClient.Connect(managerUrl)
 	s.Require().NoError(err)
+
+	externalClient, err := client.NewRaw(zmq.REP, "inproc://"+test.handlerConfig.Id)
+	s.Require().NoError(err)
+	test.externalClient = externalClient
 }
 
 func (test *TestSyncReplierSuite) req(client *zmq.Socket, request message.Request) message.ReplyInterface {
@@ -121,6 +127,12 @@ func (test *TestSyncReplierSuite) Test_10_Start() {
 	req.Command = config.AddInstance
 	reply = test.req(test.managerClient, req)
 	s.Require().False(reply.IsOK())
+
+	// Testing the external connection
+	req = message.Request{Command: "command_1", Parameters: key_value.New()}
+	reply, err = test.externalClient.Request(&req)
+	s.Require().NoError(err)
+	s.Require().True(reply.IsOK())
 
 	// Close the handler
 	req.Command = config.HandlerClose
