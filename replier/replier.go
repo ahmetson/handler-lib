@@ -85,7 +85,7 @@ func (c *Replier) Start() error {
 			return req.Fail(fmt.Sprintf("instanceManager.AddInstance(%s): %v", m.Config().Type, err))
 		}
 
-		params := key_value.Empty().Set("instance_id", instanceId)
+		params := key_value.New().Set("instance_id", instanceId)
 		return req.Ok(params)
 	}
 

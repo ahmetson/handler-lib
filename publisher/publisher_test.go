@@ -129,7 +129,7 @@ func (test *TestPublisherSuite) Test_10_Start() {
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything works
-	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
+	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.New()}
 	err = test.trigger.Submit(&req)
 	s.Require().NoError(err)
 

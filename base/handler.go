@@ -41,11 +41,11 @@ type Handler struct {
 func New() *Handler {
 	return &Handler{
 		logger:                 nil,
-		Routes:                 key_value.Empty(),
-		RouteDeps:              key_value.Empty(),
+		Routes:                 key_value.New(),
+		RouteDeps:              key_value.New(),
 		depIds:                 make([]string, 0),
-		depConfigs:             key_value.Empty(),
-		DepClients:             key_value.Empty(),
+		depConfigs:             key_value.New(),
+		DepClients:             key_value.New(),
 		Frontend:               frontend.New(),
 		InstanceManager:        nil,
 		instanceManagerStarted: false,
@@ -103,7 +103,7 @@ func (c *Handler) AddDepByService(dep *clientConfig.Client) error {
 
 // AddedDepByService returns true if the configuration exists
 func (c *Handler) AddedDepByService(id string) bool {
-	return c.depConfigs.Exist(id) == nil
+	return c.depConfigs.Exist(id)
 }
 
 // addDep adds the dependency id required by one of the Routes.
@@ -154,7 +154,7 @@ func (c *Handler) Route(cmd string, handle any, depIds ...string) error {
 		return fmt.Errorf("the '%s' command handler requires %d dependencies, but route has %d dependencies", cmd, depAmount, len(depIds))
 	}
 
-	if err := c.Routes.Exist(cmd); err == nil {
+	if c.Routes.Exist(cmd) {
 		return nil
 	}
 
@@ -177,7 +177,7 @@ func (c *Handler) depConfigsAdded() error {
 		return fmt.Errorf("required dependencies and configurations are not matching")
 	}
 	for _, id := range c.depIds {
-		if err := c.depConfigs.Exist(id); err != nil {
+		if !c.depConfigs.Exist(id) {
 			return fmt.Errorf("'%s' dependency configuration not added", id)
 		}
 	}
@@ -205,7 +205,7 @@ func (c *Handler) initDepClients() error {
 	for _, depInterface := range c.depConfigs {
 		depConfig := depInterface.(*clientConfig.Client)
 
-		if err := c.DepClients.Exist(depConfig.Id); err == nil {
+		if c.DepClients.Exist(depConfig.Id) {
 			return fmt.Errorf("DepClients.Exist('%s')", depConfig.Id)
 		}
 
@@ -284,7 +284,7 @@ func (c *Handler) StartInstanceManager() error {
 				}
 			} else if req.CommandName() == instance_manager.EventInstanceAdded {
 				if firstInstance && len(instanceId) > 0 {
-					addedInstanceId, err := req.RouteParameters().GetString("id")
+					addedInstanceId, err := req.RouteParameters().StringValue("id")
 					if err != nil {
 						c.logger.Error("req.Parameters.GetString('id')", "id", c.config.Id, "event", req.CommandName(), "instanceId", instanceId, "error", err)
 						continue
@@ -296,7 +296,7 @@ func (c *Handler) StartInstanceManager() error {
 					}
 				}
 			} else if req.CommandName() == instance_manager.EventError {
-				_, err := req.RouteParameters().GetString("message")
+				_, err := req.RouteParameters().StringValue("message")
 				if err != nil {
 					c.logger.Error("req.Parameters.GetString('message')", "id", c.config.Id, "event", req.CommandName(), "error", err)
 					continue
@@ -304,7 +304,7 @@ func (c *Handler) StartInstanceManager() error {
 
 				break
 			} else if req.CommandName() == instance_manager.EventIdle {
-				closeSignal, _ := req.RouteParameters().GetBoolean("close")
+				closeSignal, _ := req.RouteParameters().BoolValue("close")
 				if closeSignal {
 					break
 				}
@@ -364,8 +364,7 @@ func (c *Handler) Start() error {
 
 // Does nothing, simply returns the data
 var anyHandler = func(request message.RequestInterface) message.ReplyInterface {
-	replyParameters := key_value.Empty()
-	replyParameters.Set("route", request.CommandName())
+	replyParameters := key_value.New().Set("route", request.CommandName())
 
 	reply := request.Ok(replyParameters)
 	return reply

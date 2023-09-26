@@ -118,7 +118,7 @@ func (c *Instance) Status() string {
 // pubStatus notifies instance manager with the status of this Instance.
 func (c *Instance) pubStatus(parent *zmq.Socket, status string) error {
 	req := c.messageOps.EmptyReq()
-	req.Next("set_status", key_value.Empty().Set("id", c.Id).Set("status", status))
+	req.Next("set_status", key_value.New().Set("id", c.Id).Set("status", status))
 
 	reqStr, err := req.ZmqEnvelope()
 	if err != nil {
@@ -136,7 +136,7 @@ func (c *Instance) pubStatus(parent *zmq.Socket, status string) error {
 // pubFail notifies instance manager that this Instance crashed
 func (c *Instance) pubFail(parent *zmq.Socket, instanceErr error) error {
 	req := c.messageOps.EmptyReq()
-	key_value.Empty().Set("id", c.Id).Set("status", CLOSED).Set("message", instanceErr.Error())
+	key_value.New().Set("id", c.Id).Set("status", CLOSED).Set("message", instanceErr.Error())
 
 	reqStr, err := req.ZmqEnvelope()
 	if err != nil {
@@ -327,7 +327,7 @@ func (c *Instance) Start() error {
 					// Assuming the request is close
 					// The instant close or not. If it's an instant close, then it won't send the message
 					// to the parent.
-					instant, err = req.RouteParameters().GetBoolean("instant")
+					instant, err = req.RouteParameters().BoolValue("instant")
 					if err != nil {
 						c.logger.Error("req.Parameters.GetBoolean", "socket", "manager", "key", "instant", "error", err)
 						break
@@ -337,7 +337,7 @@ func (c *Instance) Start() error {
 						// the close parameter is set to true after reply the message back.
 						// otherwise, the socket may be closed while the requester is waiting for a reply message.
 						// it could leave to the app froze-up.
-						reply := &message.Reply{Status: message.OK, Parameters: key_value.Empty(), Message: ""}
+						reply := &message.Reply{Status: message.OK, Parameters: key_value.New(), Message: ""}
 						if err := c.reply(manager, reply); err != nil {
 							failErr := fmt.Errorf("c.reply('manager'): %w", err)
 							pubErr := c.pubFail(parent, failErr)

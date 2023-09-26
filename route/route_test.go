@@ -40,7 +40,7 @@ func (test *TestRouteSuite) Test_0_FilterClients() {
 	dep2 := &client.Socket{}
 	dep3 := &client.Socket{}
 	dep4 := &client.Socket{}
-	clients := key_value.Empty().Set("dep_1", dep1).Set("dep_3", dep3)
+	clients := key_value.New().Set("dep_1", dep1).Set("dep_3", dep3)
 
 	filtered = FilterExtensionClients(deps, clients)
 	s.Require().Len(filtered, 3)
@@ -59,13 +59,13 @@ func (test *TestRouteSuite) Test_0_FilterClients() {
 
 func (test *TestRouteSuite) Test_1_Route() {
 	s := &test.Suite
-	handlers := key_value.Empty()
-	deps := key_value.Empty()
+	handlers := key_value.New()
+	deps := key_value.New()
 	var anyHandle = func(request message.RequestInterface, _ *client.Socket) message.ReplyInterface {
-		return request.Ok(key_value.Empty())
+		return request.Ok(key_value.New())
 	}
 	var emptyHandle = func(request message.RequestInterface) message.ReplyInterface {
-		return request.Ok(key_value.Empty())
+		return request.Ok(key_value.New())
 	}
 	anyDeps := []string{"dep_1"}
 	cmd := "cmd"

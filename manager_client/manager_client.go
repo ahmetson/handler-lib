@@ -80,7 +80,7 @@ func (c *Client) Attempt(attempt uint8) {
 func (c *Client) Close() error {
 	req := message.Request{
 		Command:    handlerConfig.HandlerClose,
-		Parameters: key_value.Empty(),
+		Parameters: key_value.New(),
 	}
 
 	reply, err := c.socket.Request(&req)
@@ -108,7 +108,7 @@ func (c *Client) Id() string {
 func (c *Client) HandlerStatus() (string, key_value.KeyValue, error) {
 	req := message.Request{
 		Command:    handlerConfig.HandlerStatus,
-		Parameters: key_value.Empty(),
+		Parameters: key_value.New(),
 	}
 
 	reply, err := c.socket.Request(&req)
@@ -119,13 +119,13 @@ func (c *Client) HandlerStatus() (string, key_value.KeyValue, error) {
 		return "", nil, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
-	status, err := reply.ReplyParameters().GetString("status")
+	status, err := reply.ReplyParameters().StringValue("status")
 	if err != nil {
 		return "", nil, fmt.Errorf("reply.Parameters.GetString('status'): %w", err)
 	}
-	parts := key_value.Empty()
+	parts := key_value.New()
 	if status != handler_manager.Ready {
-		parts, err = reply.ReplyParameters().GetKeyValue("parts")
+		parts, err = reply.ReplyParameters().NestedValue("parts")
 		if err != nil {
 			return "", nil, fmt.Errorf("reply.Parameters.GetKeyValue('parts'): %w", err)
 		}
@@ -137,7 +137,7 @@ func (c *Client) HandlerStatus() (string, key_value.KeyValue, error) {
 func (c *Client) Parts() ([]string, []string, error) {
 	req := message.Request{
 		Command:    handlerConfig.Parts,
-		Parameters: key_value.Empty(),
+		Parameters: key_value.New(),
 	}
 
 	reply, err := c.socket.Request(&req)
@@ -148,11 +148,11 @@ func (c *Client) Parts() ([]string, []string, error) {
 		return nil, nil, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
-	parts, err := reply.ReplyParameters().GetStringList("parts")
+	parts, err := reply.ReplyParameters().StringsValue("parts")
 	if err != nil {
 		return nil, nil, fmt.Errorf("reply.Parameters.GetString('parts'): %w", err)
 	}
-	messageTypes, err := reply.ReplyParameters().GetStringList("message_types")
+	messageTypes, err := reply.ReplyParameters().StringsValue("message_types")
 	if err != nil {
 		return nil, nil, fmt.Errorf("reply.Parameters.GetString('message_types'): %w", err)
 	}
@@ -164,7 +164,7 @@ func (c *Client) Parts() ([]string, []string, error) {
 func (c *Client) ClosePart(part string) error {
 	req := message.Request{
 		Command:    handlerConfig.ClosePart,
-		Parameters: key_value.Empty().Set("part", part),
+		Parameters: key_value.New().Set("part", part),
 	}
 
 	reply, err := c.socket.Request(&req)
@@ -183,7 +183,7 @@ func (c *Client) ClosePart(part string) error {
 func (c *Client) RunPart(part string) error {
 	req := message.Request{
 		Command:    handlerConfig.RunPart,
-		Parameters: key_value.Empty().Set("part", part),
+		Parameters: key_value.New().Set("part", part),
 	}
 
 	reply, err := c.socket.Request(&req)
@@ -201,7 +201,7 @@ func (c *Client) RunPart(part string) error {
 func (c *Client) InstanceAmount() (uint8, error) {
 	req := message.Request{
 		Command:    handlerConfig.InstanceAmount,
-		Parameters: key_value.Empty(),
+		Parameters: key_value.New(),
 	}
 
 	reply, err := c.socket.Request(&req)
@@ -212,7 +212,7 @@ func (c *Client) InstanceAmount() (uint8, error) {
 		return 0, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
-	instanceAmount, err := reply.ReplyParameters().GetUint64("instance_amount")
+	instanceAmount, err := reply.ReplyParameters().Uint64Value("instance_amount")
 	if err != nil {
 		return 0, fmt.Errorf("reply.Parameters.GetUint('instance_amount'): %w", err)
 	}
@@ -225,7 +225,7 @@ func (c *Client) InstanceAmount() (uint8, error) {
 func (c *Client) MessageAmount() (key_value.KeyValue, error) {
 	req := message.Request{
 		Command:    handlerConfig.MessageAmount,
-		Parameters: key_value.Empty(),
+		Parameters: key_value.New(),
 	}
 
 	reply, err := c.socket.Request(&req)
@@ -247,7 +247,7 @@ func (c *Client) MessageAmount() (key_value.KeyValue, error) {
 func (c *Client) AddInstance() (string, error) {
 	req := message.Request{
 		Command:    handlerConfig.AddInstance,
-		Parameters: key_value.Empty(),
+		Parameters: key_value.New(),
 	}
 
 	reply, err := c.socket.Request(&req)
@@ -258,7 +258,7 @@ func (c *Client) AddInstance() (string, error) {
 		return "", fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
 	}
 
-	instanceId, err := reply.ReplyParameters().GetString("instance_id")
+	instanceId, err := reply.ReplyParameters().StringValue("instance_id")
 	if err != nil {
 		return "", fmt.Errorf("reply.Parameters.GetString('instance_id'): %w", err)
 	}
@@ -270,7 +270,7 @@ func (c *Client) AddInstance() (string, error) {
 func (c *Client) DeleteInstance(instanceId string) error {
 	req := message.Request{
 		Command:    handlerConfig.DeleteInstance,
-		Parameters: key_value.Empty().Set("instance_id", instanceId),
+		Parameters: key_value.New().Set("instance_id", instanceId),
 	}
 
 	reply, err := c.socket.Request(&req)

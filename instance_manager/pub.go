@@ -20,7 +20,7 @@ const (
 
 // Broadcast that instance manager received a close signal
 func (parent *Parent) pubIdle(closeSignal bool) error {
-	parameters := key_value.Empty().Set("close", closeSignal)
+	parameters := key_value.New().Set("close", closeSignal)
 	if err := parent.pubEvent(EventIdle, parameters); err != nil {
 		return fmt.Errorf("parent.pubEvent('idle'): %w", err)
 	}
@@ -28,7 +28,7 @@ func (parent *Parent) pubIdle(closeSignal bool) error {
 }
 
 func (parent *Parent) pubReady() error {
-	parameters := key_value.Empty()
+	parameters := key_value.New()
 	if err := parent.pubEvent(EventReady, parameters); err != nil {
 		return fmt.Errorf("parent.pubEvent('ready'): %w", err)
 	}
@@ -36,7 +36,7 @@ func (parent *Parent) pubReady() error {
 }
 
 func (parent *Parent) pubClose() error {
-	parameters := key_value.Empty()
+	parameters := key_value.New()
 	if err := parent.pubEvent(EventClose, parameters); err != nil {
 		return fmt.Errorf("parent.pubEvent('ready'): %w", err)
 	}
@@ -44,7 +44,7 @@ func (parent *Parent) pubClose() error {
 }
 
 func (parent *Parent) pubError() error {
-	parameters := key_value.Empty().Set("message", parent.status)
+	parameters := key_value.New().Set("message", parent.status)
 	if err := parent.pubEvent(EventError, parameters); err != nil {
 		return fmt.Errorf("parent.pubEvent('error'): %w", err)
 	}
@@ -52,7 +52,7 @@ func (parent *Parent) pubError() error {
 }
 
 func (parent *Parent) pubInstanceAdded(id string) error {
-	parameters := key_value.Empty().Set("id", id)
+	parameters := key_value.New().Set("id", id)
 	if err := parent.pubEvent(EventInstanceAdded, parameters); err != nil {
 		return fmt.Errorf("parent.pubEvent('error'): %w", err)
 	}
@@ -60,7 +60,7 @@ func (parent *Parent) pubInstanceAdded(id string) error {
 }
 
 func (parent *Parent) pubInstanceDeleted(id string) error {
-	parameters := key_value.Empty().Set("id", id)
+	parameters := key_value.New().Set("id", id)
 	if err := parent.pubEvent(EventInstanceDeleted, parameters); err != nil {
 		return fmt.Errorf("parent.pubEvent('error'): %w", err)
 	}

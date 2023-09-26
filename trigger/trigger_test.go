@@ -147,7 +147,7 @@ func (test *TestTriggerSuite) Test_14_Start() {
 	s.Require().Len(test.handler.Handler.InstanceManager.Instances(), 1)
 
 	// trigger a message
-	req := message.Request{Command: "hello", Parameters: key_value.Empty().Set("number", 1)}
+	req := message.Request{Command: "hello", Parameters: key_value.New().Set("number", 1)}
 
 	err = test.trigger.Submit(&req)
 	s.Require().NoError(err)

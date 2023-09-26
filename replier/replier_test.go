@@ -104,11 +104,11 @@ func (test *TestReplierSuite) Test_10_Start() {
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything works
-	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
+	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.New()}
 	reply := test.req(test.managingClient, req)
 	s.Require().True(reply.IsOK())
 
-	status, err := reply.ReplyParameters().GetString("status")
+	status, err := reply.ReplyParameters().StringValue("status")
 	s.Require().NoError(err)
 	s.Require().Equal(handler_manager.Ready, status)
 
@@ -149,11 +149,11 @@ func (test *TestReplierSuite) Test_11_Request() {
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything works
-	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
+	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.New()}
 	reply := test.req(test.managingClient, req)
 	s.Require().True(reply.IsOK())
 
-	status, err := reply.ReplyParameters().GetString("status")
+	status, err := reply.ReplyParameters().StringValue("status")
 	s.Require().NoError(err)
 	s.Require().Equal(handler_manager.Ready, status)
 
@@ -181,7 +181,7 @@ func (test *TestReplierSuite) Test_11_Request() {
 	err = client.Connect(externalUrl)
 	s.Require().NoError(err)
 
-	req = message.Request{Command: "command_1", Parameters: key_value.Empty()}
+	req = message.Request{Command: "command_1", Parameters: key_value.New()}
 	reply = test.req(client, req)
 	s.Require().True(reply.IsOK())
 

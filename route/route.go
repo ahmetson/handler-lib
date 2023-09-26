@@ -43,22 +43,18 @@ func Route(cmd string, routeFuncs key_value.KeyValue, routeDeps key_value.KeyVal
 	var handleDeps []string
 	var err error
 
-	err = routeFuncs.Exist(cmd)
-	if err == nil {
+	if routeFuncs.Exist(cmd) {
 		handleInterface = routeFuncs[cmd]
-		err = routeDeps.Exist(cmd)
-		if err == nil {
-			handleDeps, err = routeDeps.GetStringList(cmd)
+		if routeDeps.Exist(cmd) {
+			handleDeps, err = routeDeps.StringsValue(cmd)
 		} else {
 			err = nil
 		}
 	} else {
-		err = routeFuncs.Exist(Any)
-		if err == nil {
+		if routeFuncs.Exist(Any) {
 			handleInterface = routeFuncs[Any]
-			err = routeDeps.Exist(Any)
-			if err == nil {
-				handleDeps, err = routeDeps.GetStringList(Any)
+			if routeDeps.Exist(Any) {
+				handleDeps, err = routeDeps.StringsValue(Any)
 			} else {
 				err = nil
 			}

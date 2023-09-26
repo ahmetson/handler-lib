@@ -105,11 +105,11 @@ func (test *TestSyncReplierSuite) Test_10_Start() {
 	time.Sleep(time.Millisecond * 100)
 
 	// Make sure that everything works
-	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.Empty()}
+	req := message.Request{Command: config.HandlerStatus, Parameters: key_value.New()}
 	reply := test.req(test.managerClient, req)
 	s.Require().True(reply.IsOK())
 
-	status, err := reply.ReplyParameters().GetString("status")
+	status, err := reply.ReplyParameters().StringValue("status")
 	s.Require().NoError(err)
 	s.Require().Equal(handler_manager.Ready, status)
 

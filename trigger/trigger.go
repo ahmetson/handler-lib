@@ -157,7 +157,7 @@ func (handler *Trigger) onTrigger(req message.RequestInterface) message.ReplyInt
 
 	handler.broadcasting.Push(req)
 
-	return req.Ok(key_value.Empty())
+	return req.Ok(key_value.New())
 }
 
 func (handler *Trigger) broadcasterStatus() string {
@@ -189,17 +189,17 @@ func (handler *Trigger) Start() error {
 
 	onStatus := func(req message.RequestInterface) message.ReplyInterface {
 		partStatuses := m.Manager.PartStatuses()
-		frontendStatus, err := partStatuses.GetString("frontend")
+		frontendStatus, err := partStatuses.StringValue("frontend")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("partStatuses.GetString('frontend'): %v", err))
 		}
-		instanceStatus, err := partStatuses.GetString("instance_manager")
+		instanceStatus, err := partStatuses.StringValue("instance_manager")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("partStatuses.GetString('instance_manager'): %v", err))
 		}
 		broadcasterStatus := handler.broadcasterStatus()
 
-		params := key_value.Empty()
+		params := key_value.New()
 
 		if frontendStatus == frontend.RUNNING &&
 			instanceStatus == instances.Running &&
@@ -225,11 +225,11 @@ func (handler *Trigger) Start() error {
 			return req.Fail(fmt.Sprintf("instanceManager.AddInstance(%s): %v", m.Config().Type, err))
 		}
 
-		params := key_value.Empty().Set("instance_id", instanceId)
+		params := key_value.New().Set("instance_id", instanceId)
 		return req.Ok(params)
 	}
 	onClose := func(req message.RequestInterface) message.ReplyInterface {
-		part, err := req.RouteParameters().GetString("part")
+		part, err := req.RouteParameters().StringValue("part")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
 		}
@@ -241,24 +241,24 @@ func (handler *Trigger) Start() error {
 				if err := m.Frontend.Close(); err != nil {
 					return req.Fail(fmt.Sprintf("failed to close the frontend: %v", err))
 				}
-				return req.Ok(key_value.Empty())
+				return req.Ok(key_value.New())
 			}
 		} else if part == "instance_manager" {
 			if m.InstanceManager.Status() != instances.Running {
 				return req.Fail("instance manager not running")
 			} else {
 				m.InstanceManager.Close()
-				return req.Ok(key_value.Empty())
+				return req.Ok(key_value.New())
 			}
 		} else if part == "broadcaster" {
 			handler.closePub = true
-			return req.Ok(key_value.Empty())
+			return req.Ok(key_value.New())
 		} else {
 			return req.Fail(fmt.Sprintf("unknown part '%s' to stop", part))
 		}
 	}
 	onRunPart := func(req message.RequestInterface) message.ReplyInterface {
-		part, err := req.RouteParameters().GetString("part")
+		part, err := req.RouteParameters().StringValue("part")
 		if err != nil {
 			return req.Fail(fmt.Sprintf("req.Parameters.GetString('part'): %v", err))
 		}
@@ -271,7 +271,7 @@ func (handler *Trigger) Start() error {
 				if err != nil {
 					return req.Fail(fmt.Sprintf("m.Frontend.Start: %v", err))
 				}
-				return req.Ok(key_value.Empty())
+				return req.Ok(key_value.New())
 			}
 		} else if part == "instance_manager" {
 			if m.InstanceManager.Status() == instances.Running {
@@ -281,20 +281,20 @@ func (handler *Trigger) Start() error {
 				if err != nil {
 					return req.Fail(fmt.Sprintf("base.StartInstanceManager: %v", err))
 				}
-				return req.Ok(key_value.Empty())
+				return req.Ok(key_value.New())
 			}
 		} else if part == "broadcaster" {
 			err := handler.startBroadcaster()
 			if err != nil {
 				return req.Fail(fmt.Sprintf("trigger.startBroadcaster: %v", err))
 			}
-			return req.Ok(key_value.Empty())
+			return req.Ok(key_value.New())
 		} else {
 			return req.Fail(fmt.Sprintf("unknown part '%s' to stop", part))
 		}
 	}
 	onMessageAmount := func(req message.RequestInterface) message.ReplyInterface {
-		params := key_value.Empty().
+		params := key_value.New().
 			Set("queue_length", m.Frontend.QueueLen()).
 			Set("processing_length", m.Frontend.ProcessingLen()).
 			Set("broadcasting_length", handler.broadcasting.Len())
@@ -313,7 +313,7 @@ func (handler *Trigger) Start() error {
 			"broadcasting_length",
 		}
 
-		params := key_value.Empty().
+		params := key_value.New().
 			Set("parts", parts).
 			Set("message_types", messageTypes)
 

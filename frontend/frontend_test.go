@@ -36,15 +36,15 @@ func (test *TestFrontendSuite) instanceManager() (string, string, *instance_mana
 	cmd := "hello"
 	handleHello := func(req message.RequestInterface) message.ReplyInterface {
 		time.Sleep(time.Second) // just to test consuming since there are no ready instances
-		id, err := req.RouteParameters().GetUint64("id")
+		id, err := req.RouteParameters().Uint64Value("id")
 		if err != nil {
 			id = 0
 		}
-		return req.Ok(key_value.Empty().Set("id", id))
+		return req.Ok(key_value.New().Set("id", id))
 	}
-	routes := key_value.Empty().Set(cmd, handleHello)
-	routeDeps := key_value.Empty()
-	depClients := key_value.Empty()
+	routes := key_value.New().Set(cmd, handleHello)
+	routeDeps := key_value.New()
+	depClients := key_value.New()
 
 	// Added Instance Manager
 	logger, err := log.New(test.handleConfig.Id, true)
@@ -122,7 +122,7 @@ func (test *TestFrontendSuite) Test_11_External() {
 	s.Require().EqualValues(test.frontend.queue.Len(), uint(0))
 
 	for i := 1; i <= 2; i++ {
-		msg := message.Request{Command: "cmd", Parameters: key_value.Empty().Set("id", i).Set("cap", 2)}
+		msg := message.Request{Command: "cmd", Parameters: key_value.New().Set("id", i).Set("cap", 2)}
 		msgStr, err := msg.ZmqEnvelope()
 		s.Require().NoError(err)
 		_, err = user.SendMessage("", msgStr)
@@ -142,7 +142,7 @@ func (test *TestFrontendSuite) Test_11_External() {
 
 	// If we try to send a message, it should fail
 	i := 3
-	msg := message.Request{Command: "cmd", Parameters: key_value.Empty().Set("id", i).Set("cap", 2)}
+	msg := message.Request{Command: "cmd", Parameters: key_value.New().Set("id", i).Set("cap", 2)}
 	msgStr, err := msg.ZmqEnvelope()
 	s.Require().NoError(err)
 	_, err = user.SendMessage("", msgStr)
@@ -201,7 +201,7 @@ func (test *TestFrontendSuite) Test_12_Consumer() {
 	s.Require().NoError(err)
 
 	// add a message into the queue
-	req := message.Request{Command: cmd, Parameters: key_value.Empty()}
+	req := message.Request{Command: cmd, Parameters: key_value.New()}
 	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 	messageId := "msg_1"
@@ -278,7 +278,7 @@ func (test *TestFrontendSuite) Test_13_Run() {
 	err = user.Connect(clientUrl)
 	s.Require().NoError(err)
 
-	req := message.Request{Command: cmd, Parameters: key_value.Empty().Set("id", 1)}
+	req := message.Request{Command: cmd, Parameters: key_value.New().Set("id", 1)}
 	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 
@@ -380,7 +380,7 @@ func (test *TestFrontendSuite) Test_14_PairSocket() {
 
 	customExternal := test.customExternal()
 
-	req := message.Request{Command: cmd, Parameters: key_value.Empty().Set("id", 1)}
+	req := message.Request{Command: cmd, Parameters: key_value.New().Set("id", 1)}
 	reqStr, err := req.ZmqEnvelope()
 	s.Require().NoError(err)
 

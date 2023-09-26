@@ -86,7 +86,7 @@ func (parent *Parent) cleanDeletedInstance(instanceId string) error {
 // onInstanceStatus updates the instance status.
 // since our socket is one directional, there is no point to reply.
 func (parent *Parent) onInstanceStatus(req message.RequestInterface) message.ReplyInterface {
-	instanceId, err := req.RouteParameters().GetString("id")
+	instanceId, err := req.RouteParameters().StringValue("id")
 	if err != nil {
 		return req.Fail(fmt.Sprintf("req.Parameters.GetString('id'): %v", err))
 	}
@@ -96,7 +96,7 @@ func (parent *Parent) onInstanceStatus(req message.RequestInterface) message.Rep
 		return req.Fail(fmt.Sprintf("instances[%s] not found", instanceId))
 	}
 
-	status, err := req.RouteParameters().GetString("status")
+	status, err := req.RouteParameters().StringValue("status")
 	if err != nil {
 		return req.Fail(fmt.Sprintf("req.Parameters.GetString('status'): %v", err))
 	}
@@ -122,7 +122,7 @@ func (parent *Parent) onInstanceStatus(req message.RequestInterface) message.Rep
 		parent.instances[instanceId].status = status
 	}
 
-	return req.Ok(key_value.Empty())
+	return req.Ok(key_value.New())
 }
 
 // newPullSocket returns a socket that receives the instance status created by this Parent.
@@ -415,7 +415,7 @@ func (parent *Parent) DeleteInstance(instanceId string, instant bool) error {
 
 	req := message.Request{
 		Command:    "close",
-		Parameters: key_value.Empty().Set("instant", instant),
+		Parameters: key_value.New().Set("instant", instant),
 	}
 	reqStr, err := req.ZmqEnvelope()
 	if err != nil {

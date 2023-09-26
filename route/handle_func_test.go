@@ -28,22 +28,22 @@ type TestHandleFuncSuite struct {
 func (test *TestHandleFuncSuite) SetupTest() {
 	// the second argument is invalid
 	handleX := func(request message.RequestInterface, param string) message.ReplyInterface {
-		return request.Ok(key_value.Empty())
+		return request.Ok(key_value.New())
 	}
 	handle0 := func(request message.RequestInterface) message.ReplyInterface {
-		return request.Ok(key_value.Empty())
+		return request.Ok(key_value.New())
 	}
 	handle1 := func(request message.RequestInterface, _ *client.Socket) message.ReplyInterface {
-		return request.Ok(key_value.Empty())
+		return request.Ok(key_value.New())
 	}
 	handle2 := func(request message.RequestInterface, _ *client.Socket, _ *client.Socket) message.ReplyInterface {
-		return request.Ok(key_value.Empty())
+		return request.Ok(key_value.New())
 	}
 	handle3 := func(request message.RequestInterface, _ *client.Socket, _ *client.Socket, _ *client.Socket) message.ReplyInterface {
-		return request.Ok(key_value.Empty())
+		return request.Ok(key_value.New())
 	}
 	handleN := func(request message.RequestInterface, _ ...*client.Socket) message.ReplyInterface {
-		return request.Ok(key_value.Empty())
+		return request.Ok(key_value.New())
 	}
 
 	test.handleX = handleX
@@ -68,7 +68,7 @@ func (test *TestHandleFuncSuite) Test_0_DepAmount() {
 func (test *TestHandleFuncSuite) Test_1_Handle() {
 	req := &message.Request{
 		Command:    "ping",
-		Parameters: key_value.Empty(),
+		Parameters: key_value.New(),
 	}
 
 	deps4 := []*client.Socket{nil, nil, nil, nil}
