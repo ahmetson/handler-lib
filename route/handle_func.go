@@ -3,7 +3,7 @@ package route
 import (
 	"fmt"
 	"github.com/ahmetson/client-lib"
-	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/datatype-lib/message"
 )
 
 type depSock = *client.Socket

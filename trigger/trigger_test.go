@@ -2,8 +2,8 @@ package trigger
 
 import (
 	"github.com/ahmetson/client-lib"
-	"github.com/ahmetson/common-lib/data_type/key_value"
-	"github.com/ahmetson/common-lib/message"
+	"github.com/ahmetson/datatype-lib/data_type/key_value"
+	"github.com/ahmetson/datatype-lib/message"
 	"github.com/ahmetson/handler-lib/config"
 	"github.com/ahmetson/handler-lib/frontend"
 	"github.com/ahmetson/handler-lib/instance_manager"
