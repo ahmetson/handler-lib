@@ -54,15 +54,21 @@ func NewHandler(as HandlerType, cat string) (*Handler, error) {
 	return control, nil
 }
 
-// TriggerAble Converts the Handler to Trigger of the given type
+// TriggerAble Converts the Handler to Trigger of the given type.
+//
+// The trigger's type defines the broadcasting parameter.
+// If trigger is remote, then broadcast is remote as well.
 func TriggerAble(handler *Handler, as HandlerType) (*Trigger, error) {
 	if !CanTrigger(as) {
 		return nil, fmt.Errorf("the '%s' handler type is not trigger-able", as)
 	}
 
-	port := net.GetFreePort()
-	if port == 0 {
-		return nil, fmt.Errorf("net.GetFreePort: no free port")
+	port := 0
+	if !handler.IsInproc() {
+		port = net.GetFreePort()
+		if port == 0 {
+			return nil, fmt.Errorf("net.GetFreePort: no free port")
+		}
 	}
 
 	trigger := &Trigger{
@@ -129,4 +135,14 @@ func CanReply(handlerType HandlerType) bool {
 // It's the opposite of CanReply.
 func CanTrigger(handlerType HandlerType) bool {
 	return handlerType == PublisherType || handlerType == PusherType
+}
+
+// IsInproc returns true if the handler is not a remote handler.
+func (handler *Handler) IsInproc() bool {
+	return handler.Port == 0
+}
+
+// IsInprocBroadcast returns true if the publisher is not a remote.
+func (trigger *Trigger) IsInprocBroadcast() bool {
+	return trigger.BroadcastPort == 0
 }

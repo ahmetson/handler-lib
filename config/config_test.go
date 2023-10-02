@@ -15,12 +15,39 @@ type TestConfigSuite struct {
 func (test *TestConfigSuite) SetupTest() {
 }
 
-// Test_11_Deps tests setting of the route dependencies
+// Test_10_IsValid tests setting of the route dependencies
 func (test *TestConfigSuite) Test_10_IsValid() {
 	s := test.Suite.Require
 
 	s().Error(IsValid(UnknownType))
 	s().NoError(IsValid(PublisherType))
+}
+
+// Test_11_IsLocal tests the handler is remote or not with Handler.
+// Tests the Handler.IsInproc and Trigger.IsInprocBroadcast methods.
+func (test *TestConfigSuite) Test_11_IsLocal() {
+	s := test.Require
+
+	category := "category"
+
+	// Testing the remote handler
+	handler, err := NewHandler(SyncReplierType, category)
+	s().NoError(err)
+	s().False(handler.IsInproc())
+
+	trigger, err := TriggerAble(handler, PublisherType)
+	s().NoError(err)
+	s().False(trigger.IsInproc())
+	s().False(trigger.IsInprocBroadcast())
+
+	// Testing the inproc handler
+	handler = NewInternalHandler(SyncReplierType, category)
+	s().True(handler.IsInproc())
+
+	trigger, err = TriggerAble(handler, PublisherType)
+	s().NoError(err)
+	s().True(trigger.IsInproc())
+	s().True(trigger.IsInprocBroadcast())
 }
 
 // a normal test function and pass our suite to suite.Run
