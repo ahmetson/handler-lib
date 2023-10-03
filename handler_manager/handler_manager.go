@@ -79,6 +79,13 @@ func (m *HandlerManager) PartStatuses() key_value.KeyValue {
 	return parts
 }
 
+// SetClose adds a close signal to the queue.
+func (m *HandlerManager) SetClose(req message.RequestInterface) message.ReplyInterface {
+	m.close = true
+
+	return req.Ok(key_value.New())
+}
+
 // setRoutes sets the default command handlers
 func (m *HandlerManager) setRoutes() {
 	// Requesting status which is calculated from statuses of the handler parts
@@ -100,13 +107,6 @@ func (m *HandlerManager) setRoutes() {
 		}
 
 		return req.Ok(params)
-	}
-
-	// onClose adds a close signal to the queue.
-	onClose := func(req message.RequestInterface) message.ReplyInterface {
-		m.close = true
-
-		return req.Ok(key_value.New())
 	}
 
 	// Stop one of the parts.
@@ -233,7 +233,7 @@ func (m *HandlerManager) setRoutes() {
 	m.routes.Set(config.AddInstance, onAddInstance)
 	m.routes.Set(config.DeleteInstance, onDeleteInstance)
 	m.routes.Set(config.Parts, onParts)
-	m.routes.Set(config.HandlerClose, onClose)
+	m.routes.Set(config.HandlerClose, m.SetClose)
 }
 
 // Route overrides the default route with the given handle.
