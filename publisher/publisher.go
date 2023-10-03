@@ -1,4 +1,4 @@
-package sync_replier
+package publisher
 
 import (
 	clientConfig "github.com/ahmetson/client-lib/config"
