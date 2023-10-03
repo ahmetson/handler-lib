@@ -28,6 +28,10 @@ func (c *SyncReplier) IsRouteExist(command string) bool {
 	return c.base.IsRouteExist(command)
 }
 
+func (c *SyncReplier) RouteCommands() []string {
+	return c.base.RouteCommands()
+}
+
 func (c *SyncReplier) Config() *config.Handler {
 	return c.base.Config()
 }

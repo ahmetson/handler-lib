@@ -59,6 +59,19 @@ func (c *Handler) IsRouteExist(command string) bool {
 	return c.Routes.Exist(command)
 }
 
+// RouteCommands returns list of all route commands
+func (c *Handler) RouteCommands() []string {
+	commands := make([]string, len(c.Routes))
+
+	i := 0
+	for command := range c.Routes {
+		commands[i] = command
+		i++
+	}
+
+	return commands
+}
+
 func (c *Handler) Config() *config.Handler {
 	return c.config
 }

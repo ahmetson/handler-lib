@@ -31,6 +31,10 @@ func (c *Replier) IsRouteExist(command string) bool {
 	return c.base.IsRouteExist(command)
 }
 
+func (c *Replier) RouteCommands() []string {
+	return c.base.RouteCommands()
+}
+
 func (c *Replier) Config() *config.Handler {
 	return c.base.Config()
 }

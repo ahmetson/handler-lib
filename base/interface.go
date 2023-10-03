@@ -30,6 +30,9 @@ type Interface interface {
 	// IsRouteExist returns true if the command is registered
 	IsRouteExist(string) bool
 
+	// RouteCommands returns list of all commands in this handler
+	RouteCommands() []string
+
 	// AddDepByService adds the Config of the extension that the handler depends on.
 	// This function is intended to be called by the service.
 	//
