@@ -20,7 +20,7 @@ import (
 	zmq "github.com/pebbe/zmq4"
 )
 
-// The Handler is the socket wrapper for the clientConfig.
+// The Handler is the socket wrapper for the zeromq socket.
 type Handler struct {
 	config                 *config.Handler
 	socket                 *zmq.Socket
