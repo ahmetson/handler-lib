@@ -24,6 +24,10 @@ func New() *SyncReplier {
 	}
 }
 
+func (c *SyncReplier) IsRouteExist(command string) bool {
+	return c.base.IsRouteExist(command)
+}
+
 func (c *SyncReplier) Config() *config.Handler {
 	return c.base.Config()
 }

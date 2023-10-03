@@ -54,6 +54,11 @@ func New() *Handler {
 	}
 }
 
+// IsRouteExist returns true if the given route exists
+func (c *Handler) IsRouteExist(command string) bool {
+	return c.Routes.Exist(command)
+}
+
 func (c *Handler) Config() *config.Handler {
 	return c.config
 }

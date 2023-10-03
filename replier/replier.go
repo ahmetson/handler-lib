@@ -27,6 +27,10 @@ func New() *Replier {
 	}
 }
 
+func (c *Replier) IsRouteExist(command string) bool {
+	return c.base.IsRouteExist(command)
+}
+
 func (c *Replier) Config() *config.Handler {
 	return c.base.Config()
 }

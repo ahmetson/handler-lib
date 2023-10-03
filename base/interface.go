@@ -27,6 +27,9 @@ type Interface interface {
 	// Requires configuration to be set first
 	SetLogger(*log.Logger) error
 
+	// IsRouteExist returns true if the command is registered
+	IsRouteExist(string) bool
+
 	// AddDepByService adds the Config of the extension that the handler depends on.
 	// This function is intended to be called by the service.
 	//
