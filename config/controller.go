@@ -147,3 +147,17 @@ func (handler *Handler) IsInproc() bool {
 func (trigger *Trigger) IsInprocBroadcast() bool {
 	return trigger.BroadcastPort == 0
 }
+
+// ByCategory returns handlers filtered by the category.
+func ByCategory(handlers []*Handler, category string) []*Handler {
+	filtered := make([]*Handler, 0, len(handlers))
+
+	for i := range handlers {
+		h := handlers[i]
+		if h.Category == category {
+			filtered = append(filtered, h)
+		}
+	}
+
+	return filtered
+}
