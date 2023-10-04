@@ -114,7 +114,7 @@ func (test *TestReplierSuite) Test_10_Start() {
 
 	// By default, the handler creates a socket.
 	// Trying to add a new socket, it will throw an error
-	s.Require().Len(test.replier.base.InstanceManager.Instances(), 1)
+	s.Require().Len(test.replier.InstanceManager.Instances(), 1)
 
 	instanceAmount := test.replier.MaxInstanceAmount()
 
@@ -159,7 +159,7 @@ func (test *TestReplierSuite) Test_11_Request() {
 
 	// By default, the handler creates a socket.
 	// Trying to add a new socket, it will throw an error
-	s.Require().Len(test.replier.base.InstanceManager.Instances(), 1)
+	s.Require().Len(test.replier.InstanceManager.Instances(), 1)
 
 	maxAmount := test.replier.MaxInstanceAmount()
 	s.Require().NotZero(maxAmount)
