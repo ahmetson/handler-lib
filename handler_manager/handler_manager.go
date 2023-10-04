@@ -225,6 +225,11 @@ func (m *HandlerManager) setRoutes() {
 		return req.Ok(params)
 	}
 
+	onConfig := func(req message.RequestInterface) message.ReplyInterface {
+		params := key_value.New().Set("config", m.config)
+		return req.Ok(params)
+	}
+
 	m.routes.Set(config.HandlerStatus, onStatus)
 	m.routes.Set(config.ClosePart, onClosePart)
 	m.routes.Set(config.RunPart, onRunPart)
@@ -234,6 +239,7 @@ func (m *HandlerManager) setRoutes() {
 	m.routes.Set(config.DeleteInstance, onDeleteInstance)
 	m.routes.Set(config.Parts, onParts)
 	m.routes.Set(config.HandlerClose, m.SetClose)
+	m.routes.Set(config.HandlerConfig, onConfig)
 }
 
 // Route overrides the default route with the given handle.

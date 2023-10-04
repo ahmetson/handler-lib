@@ -52,6 +52,9 @@ type Interface interface {
 
 	// Id of the handler
 	Id() string
+
+	// Config returns the handler configuration
+	Config() (*handlerConfig.Handler, error)
 }
 
 // New client that's connected to the handler
@@ -96,6 +99,34 @@ func (c *Client) Close() error {
 		return fmt.Errorf("client.socket.Close: %w", err)
 	}
 	return nil
+}
+
+// Config returns the handler configuration
+func (c *Client) Config() (*handlerConfig.Handler, error) {
+	req := message.Request{
+		Command:    handlerConfig.HandlerConfig,
+		Parameters: key_value.New(),
+	}
+
+	reply, err := c.socket.Request(&req)
+	if err != nil {
+		return nil, fmt.Errorf("socket.Request('%s'): %w", handlerConfig.HandlerConfig, err)
+	}
+	if !reply.IsOK() {
+		return nil, fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
+	}
+
+	kv, err := reply.ReplyParameters().NestedValue("config")
+	if err != nil {
+		return nil, fmt.Errorf("reply.ReplyParmaters().NestedValue('config'): %w", err)
+	}
+	var returnedConfig handlerConfig.Handler
+	err = kv.Interface(&returnedConfig)
+	if err != nil {
+		return nil, fmt.Errorf("kv.Interface('handlerConfig.Handler'): %w", err)
+	}
+
+	return &returnedConfig, nil
 }
 
 // Id of the handler that this Client connected to the manager.
