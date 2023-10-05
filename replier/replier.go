@@ -60,7 +60,7 @@ func (c *Replier) Start() error {
 		return fmt.Errorf("overwriting handler manager 'add_instance' failed: %w", err)
 	}
 
-	return c.Start()
+	return c.Handler.Start()
 }
 
 // MaxInstanceAmount is specific to Replier.
