@@ -88,7 +88,7 @@ func (c *Client) Close() error {
 
 	reply, err := c.socket.Request(&req)
 	if err != nil {
-		return fmt.Errorf("socket.Request('%s'): %w", handlerConfig.ClosePart, err)
+		return fmt.Errorf("socket.Request(cmd='%s'): %w", handlerConfig.HandlerClose, err)
 	}
 	if !reply.IsOK() {
 		return fmt.Errorf("reply.Message: %s", reply.ErrorMessage())
