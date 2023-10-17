@@ -463,16 +463,17 @@ func (c *Instance) setReady(parent *zmq.Socket) {
 	}
 }
 
-func (c *Instance) processingFinished(parent *zmq.Socket, handler *zmq.Socket, reply message.ReplyInterface) {
+func (c *Instance) processingFinished(parent *zmq.Socket, handler *zmq.Socket, reply message.ReplyInterface) error {
 	c.setReady(parent)
 
 	if err := c.reply(handler, reply); err != nil {
 		failErr := fmt.Errorf("c.reply('handler'): %w", err)
 		pubErr := c.pubFail(parent, failErr)
 		if pubErr != nil {
-			c.logger.Error("c.pubFail", "argument", failErr, "error", pubErr)
+			return fmt.Errorf("c.reply(%v): '%w': c.pubFail: %w", reply, err, pubErr)
 		}
 	}
+	return nil
 }
 
 func (c *Instance) processMessage(ctx context.Context, cancel context.CancelFunc, parent *zmq.Socket, handler *zmq.Socket, msgRaw []string, metadata map[string]string) {
@@ -504,9 +505,12 @@ func (c *Instance) processMessage(ctx context.Context, cancel context.CancelFunc
 	handleInterface, depNames, err := route.Route(request.CommandName(), *c.routes, *c.routeDeps)
 	if err != nil {
 		reply := request.Fail(fmt.Sprintf("route.Route(%s): %v", request.CommandName(), err))
-		c.processingFinished(parent, handler, reply)
+		finishErr := c.processingFinished(parent, handler, reply)
 		if cancel != nil {
 			cancel()
+		}
+		if finishErr != nil {
+			c.logger.Error("c.processingFinished", "request_cmd", request.CommandName(), "request_params", request.RouteParameters(), "error", finishErr, "for", err)
 		}
 		return
 	}
