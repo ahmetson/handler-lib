@@ -88,8 +88,8 @@ func SocketType(handlerType HandlerType) zmq.Type {
 		return zmq.REP
 	} else if handlerType == ReplierType {
 		return zmq.ROUTER
-	} else if handlerType == PusherType {
-		return zmq.PUSH
+	} else if handlerType == WorkerType {
+		return zmq.PULL
 	} else if handlerType == PublisherType {
 		return zmq.PUB
 	} else if handlerType == PairType {
