@@ -3,6 +3,7 @@ package instance_manager
 
 import (
 	"fmt"
+	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/datatype-lib/data_type/key_value"
 	"github.com/ahmetson/datatype-lib/message"
 	"github.com/ahmetson/handler-lib/config"
@@ -370,7 +371,7 @@ func (parent *Parent) AddInstance(handlerType config.HandlerType, routes kvRef, 
 		return id, fmt.Errorf("connect childSocket(%s): %v", id, err)
 	}
 
-	handleSock, err := zmq.NewSocket(config.ClientSocketType(handlerType))
+	handleSock, err := zmq.NewSocket(clientConfig.TargetToClient(config.SocketType(handlerType)))
 	if err != nil {
 		return "", fmt.Errorf("new handleSocket(%s): %v", id, err)
 	}

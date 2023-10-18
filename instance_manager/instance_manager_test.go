@@ -171,7 +171,7 @@ func (test *TestInstanceSuite) Test_12_Ready() {
 
 	// Waiting the instance will notify instance manager that it's busy
 	// Since, we are sending messages without waiting their update
-	time.Sleep(time.Millisecond * 100)
+	time.Sleep(time.Second)
 	s.Require().Equal(instance.HANDLING, test.parent.instances[instanceId].status)
 
 	// Get the second ready worker

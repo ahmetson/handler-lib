@@ -99,23 +99,6 @@ func SocketType(handlerType HandlerType) zmq.Type {
 	return zmq.Type(-1)
 }
 
-// ClientSocketType gets the ZMQ analog of the handler type for the clients
-func ClientSocketType(handlerType HandlerType) zmq.Type {
-	if handlerType == SyncReplierType {
-		return zmq.REQ
-	} else if handlerType == ReplierType {
-		return zmq.DEALER
-	} else if handlerType == PusherType {
-		return zmq.PULL
-	} else if handlerType == PublisherType {
-		return zmq.SUB
-	} else if handlerType == PairType {
-		return zmq.PAIR
-	}
-
-	return zmq.Type(-1)
-}
-
 // ExternalUrl creates url of the handler url for binding.
 // For clients to connect to this url, call client.ClientUrl()
 func ExternalUrl(id string, port uint64) string {
@@ -133,9 +116,9 @@ func CanReply(handlerType HandlerType) bool {
 }
 
 // CanTrigger returns true if the given Handler must not reply back to the user.
-// It's the opposite of CanReply.
+// Only publishers are trigger-able.
 func CanTrigger(handlerType HandlerType) bool {
-	return handlerType == PublisherType || handlerType == PusherType
+	return handlerType == PublisherType
 }
 
 // IsInproc returns true if the handler is not a remote handler.

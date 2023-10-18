@@ -1,6 +1,7 @@
 package handler_manager
 
 import (
+	clientConfig "github.com/ahmetson/client-lib/config"
 	"github.com/ahmetson/datatype-lib/data_type/key_value"
 	"github.com/ahmetson/datatype-lib/message"
 	"github.com/ahmetson/handler-lib/config"
@@ -359,7 +360,7 @@ func (test *TestHandlerManagerSuite) Test_16_MessageAmount() {
 	req := message.Request{Command: config.MessageAmount, Parameters: key_value.New()}
 
 	// Imitating the user that sends the message
-	clientType := config.ClientSocketType(test.inprocConfig.Type)
+	clientType := clientConfig.TargetToClient(config.SocketType(test.inprocConfig.Type))
 	clientSocket, err := zmq.NewSocket(clientType)
 	s.Require().NoError(err)
 	clientUrl := config.ExternalUrl(test.inprocConfig.Id, test.inprocConfig.Port)
