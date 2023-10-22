@@ -18,7 +18,7 @@ type Client struct {
 }
 
 type Interface interface {
-	// Close socket itself
+	// Close the handler
 	Close() error
 	Timeout(duration time.Duration)
 	Attempt(uint8)
